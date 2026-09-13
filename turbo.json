@@ -13,6 +13,7 @@
     },
     "dev": {
       "cache": false,
+      "dependsOn": ["^build"],
       "env": ["PORT", "VITE_API_URL"],
       "persistent": true
     },
@@ -31,6 +32,10 @@
     },
     "check-types": {
       "dependsOn": ["^check-types"]
+    },
+    "test": {
+      "cache": false,
+      "dependsOn": ["^test"]
     }
   }
 }
