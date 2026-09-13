@@ -1,6 +1,6 @@
 import { createApp } from "@/app.js";
 import { loadEnv } from "@/config/index.js";
-import { createRateLimiter, createRedisClient } from "@/infrastructure/index.js";
+import { createRedisClient, createRedisRateLimiter } from "@/infrastructure/index.js";
 import { createLogger } from "@/logging/index.js";
 
 function isAddressInUseError(error: unknown): boolean {
@@ -24,7 +24,7 @@ const redisClient = createRedisClient(env);
 const app = createApp({
   env,
   logger,
-  rateLimiter: createRateLimiter(redisClient, env),
+  rateLimiter: createRedisRateLimiter(redisClient, env),
 });
 
 let server: Bun.Server<undefined>;

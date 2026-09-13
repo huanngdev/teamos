@@ -46,15 +46,17 @@ Do not replace these technologies without an explicit architectural decision fro
 │       ├── src/             # Server, routes, services, middleware, and config
 │       └── .env.example     # API environment template
 ├── packages/
+│   ├── shared/              # Cross-app contracts, schemas, and pure utilities
 │   ├── eslint-config/       # Shared ESLint flat configurations
 │   ├── prettier-config/     # Shared Prettier configurations
 │   └── typescript-config/   # Shared TypeScript JSON configurations
+├── docs/                    # Infrastructure and project progress documentation
 ├── compose.yaml             # PostgreSQL, Redis, and MinIO for local development
 ├── package.json
 └── turbo.json
 ```
 
-The initial bootstrap intentionally does not create `shared`, `db`, `auth`, or `ui`. Add a package only when it has a clear owner and is reused or independently useful. Do not turn every folder into a package.
+Add a package only when it has a clear owner and is reused or independently useful. Do not turn every folder into a package. Database and authentication packages remain future additions until their ownership and reuse boundaries are clear.
 
 ## Current Folder Guide
 
@@ -67,9 +69,14 @@ Every source directory has an `index.ts` barrel for its public exports. Keep app
 - `apps/web/src/pages`: Route-level page components.
 - `apps/web/src/styles`: Global CSS entry point.
 - `apps/api/src/config`: Validated server configuration.
+- `apps/api/src/errors`: Typed application errors and HTTP error normalization.
+- `apps/api/src/infrastructure`: Redis, rate limiter, and future external-service adapters.
+- `apps/api/src/logging`: Server logger construction and transport policy.
 - `apps/api/src/middleware`: HTTP middleware.
 - `apps/api/src/routes`: Thin HTTP route definitions.
 - `apps/api/src/services`: Server-side business operations.
+- `docs`: Current infrastructure guide and product/engineering progress.
+- `packages/shared`: Cross-app API contracts, runtime schemas, and environment-agnostic utilities.
 - `packages/eslint-config`: `web` and `api` ESLint flat config exports.
 - `packages/prettier-config`: Shared `web` and `api` formatting exports.
 - `packages/typescript-config`: Strict `base.json`, `web.json`, and `api.json` presets.
@@ -125,6 +132,8 @@ Place reusable utility functions under `packages/shared/utilities`. Organize the
 Shared code must be environment-agnostic and free of side effects. It must not import the database client, access environment variables, initialize authentication, or depend on browser-only APIs. Do not duplicate a contract or pure helper in both apps when it belongs here.
 
 `packages/db` and `packages/auth` may expose server-facing types or helpers, but frontend code must not import their runtime modules.
+
+`docs/infra-guide.md` describes current local service ownership and integration status. `docs/progress.md` tracks product and engineering milestones and should be updated after meaningful feature work.
 
 ## Domain and Data Rules
 

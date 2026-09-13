@@ -16,6 +16,7 @@
     "@hono/zod-validator": "^0.9.1",
     "@loglayer/hono": "^2.4.0",
     "@loglayer/plugin-redaction": "^4.1.0",
+    "@loglayer/transport-simple-pretty-terminal": "^3.3.0",
     "@teamos/shared": "workspace:*",
     "hono": "^4.9.7",
     "ioredis": "^6.0.0",
