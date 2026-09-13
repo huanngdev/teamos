@@ -1,1 +1,1 @@
-export {};
+export { apiUrl } from "./env";

@@ -15,6 +15,7 @@
       "version": "0.0.0",
       "dependencies": {
         "hono": "^4.9.7",
+        "zod": "^4.6.4",
       },
       "devDependencies": {
         "@teamos/eslint-config": "workspace:*",
@@ -42,6 +43,7 @@
         "eslint": "^9.35.0",
         "typescript": "^5.9.2",
         "vite": "^7.1.5",
+        "zod": "^4.6.4",
       },
     },
     "packages/eslint-config": {

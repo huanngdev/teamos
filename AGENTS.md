@@ -40,9 +40,11 @@ Do not replace these technologies without an explicit architectural decision fro
 .
 ├── apps/
 │   ├── web/                 # Vite React frontend
-│   │   └── src/             # App, pages, components, hooks, lib, and styles
+│   │   ├── src/             # App, pages, components, hooks, lib, and styles
+│   │   └── .env.example     # Web environment template
 │   └── api/                 # Hono backend
-│       └── src/             # Server, routes, services, middleware, and config
+│       ├── src/             # Server, routes, services, middleware, and config
+│       └── .env.example     # API environment template
 ├── packages/
 │   ├── eslint-config/       # Shared ESLint flat configurations
 │   ├── prettier-config/     # Shared Prettier configurations
@@ -71,6 +73,7 @@ Every source directory has an `index.ts` barrel for its public exports. Keep app
 - `packages/eslint-config`: `web` and `api` ESLint flat config exports.
 - `packages/prettier-config`: Shared `web` and `api` formatting exports.
 - `packages/typescript-config`: Strict `base.json`, `web.json`, and `api.json` presets.
+- Root `.env`: Docker Compose variables only. `apps/api/.env` and `apps/web/.env` are per-application configuration; each location commits a `.env.example` without secrets.
 
 ## Bun Commands
 
@@ -155,6 +158,8 @@ Use MinIO locally through its S3-compatible API for avatars, attachments, and ot
 ## Local Infrastructure
 
 The root `compose.yaml` must define PostgreSQL, Redis, and MinIO services with health checks, named volumes, and development-safe defaults. Keep credentials configurable through environment variables and provide a committed `.env.example` without secrets.
+
+Environment files are split by owner. The root `.env` only configures Docker Compose. The API validates `apps/api/.env` with Zod at startup, and the web client validates `apps/web/.env` with Zod whenever Vite runs. Both schemas apply local development defaults, so a fresh clone runs without creating `.env` files first.
 
 Application processes may run directly through Bun during development; Docker Compose is primarily responsible for supporting infrastructure unless the repository later documents a full-container workflow.
 
