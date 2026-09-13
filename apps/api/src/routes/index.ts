@@ -1,2 +1,2 @@
-export { healthRoutes } from "./health.js";
-export { rootRoutes } from "./root.js";
+export { healthRoutes } from "@/routes/health.js";
+export { rootRoutes } from "@/routes/root.js";
