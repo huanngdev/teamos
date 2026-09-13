@@ -1,0 +1,33 @@
+{
+  "name": "@teamos/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "bun test src",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "check-types": "tsc -p tsconfig.test.json"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "dependencies": {
+    "zod": "^4.6.4"
+  },
+  "devDependencies": {
+    "@teamos/eslint-config": "workspace:*",
+    "@teamos/prettier-config": "workspace:*",
+    "@teamos/typescript-config": "workspace:*",
+    "bun-types": "^1.2.21",
+    "eslint": "^9.35.0",
+    "typescript": "^5.9.2"
+  }
+}
