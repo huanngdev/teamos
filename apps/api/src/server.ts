@@ -1,5 +1,7 @@
-import { app } from "./app.js";
-import { loadEnv } from "./config/index.js";
+import { createApp } from "@/app.js";
+import { loadEnv } from "@/config/index.js";
+import { createRedisClient, createRedisRateLimiter } from "@/infrastructure/index.js";
+import { createLogger } from "@/logging/index.js";
 
 function isAddressInUseError(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "EADDRINUSE";
@@ -10,20 +12,35 @@ function reportStartupFailure(error: unknown): never {
   process.exit(1);
 }
 
-let port: number;
-try {
-  port = loadEnv().PORT;
-} catch (error) {
-  reportStartupFailure(error);
-}
+const env = (() => {
+  try {
+    return loadEnv();
+  } catch (error) {
+    return reportStartupFailure(error);
+  }
+})();
+const logger = createLogger(env);
+const redisClient = createRedisClient(env);
+const app = createApp({
+  env,
+  logger,
+  rateLimiter: createRedisRateLimiter(redisClient, env),
+});
 
+let server: Bun.Server<undefined>;
 try {
-  Bun.serve({
-    fetch: app.fetch,
-    port,
+  server = Bun.serve({
+    fetch: (request, bunServer) => {
+      return app.fetch(request, {
+        clientIp: bunServer.requestIP(request)?.address,
+      });
+    },
+    idleTimeout: env.IDLE_TIMEOUT_SECONDS,
+    maxRequestBodySize: env.MAX_REQUEST_BODY_BYTES,
+    port: env.PORT,
   });
 
-  console.info(`TeamOS API is running on http://localhost:${port}`);
+  logger.info(`TeamOS API is running on ${server.url}`);
 } catch (error) {
   if (!isAddressInUseError(error)) {
     throw error;
@@ -31,8 +48,28 @@ try {
 
   reportStartupFailure(
     new Error(
-      `TeamOS API could not start because port ${port} is already in use. ` +
+      `TeamOS API could not start because port ${env.PORT} is already in use. ` +
         `Stop the process using it or run with PORT=<free-port> bun run --cwd apps/api dev.`,
     ),
   );
 }
+
+let isShuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+  logger.info(`Received ${signal}; shutting down TeamOS API`);
+  await server.stop();
+  redisClient.disconnect();
+}
+
+process.once("SIGINT", () => {
+  void shutdown("SIGINT");
+});
+process.once("SIGTERM", () => {
+  void shutdown("SIGTERM");
+});

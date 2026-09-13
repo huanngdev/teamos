@@ -1,1 +1,1 @@
-export { getHealthStatus } from "./health.js";
+export { getHealthStatus } from "@/services/health.js";

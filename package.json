@@ -16,9 +16,10 @@
     "lint:fix": "turbo run lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "turbo run test",
     "check-types": "turbo run check-types",
     "typecheck": "bun run check-types",
-    "check": "turbo run lint check-types build"
+    "check": "turbo run lint check-types test build"
   },
   "devDependencies": {
     "@teamos/prettier-config": "workspace:*",

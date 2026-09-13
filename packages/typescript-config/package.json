@@ -7,6 +7,7 @@
     "./base.json": "./base.json",
     "./web.json": "./web.json",
     "./api.json": "./api.json",
+    "./shared.json": "./shared.json",
     "./package.json": "./package.json"
   }
 }

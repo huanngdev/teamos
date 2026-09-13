@@ -1,10 +1,13 @@
 import { Hono } from "hono";
+import { rootResponseSchema } from "@teamos/shared";
 
 const rootRoutes = new Hono().get("/", (context) => {
-  return context.json({
+  const response = rootResponseSchema.parse({
     name: "TeamOS API",
     status: "ok",
   });
+
+  return context.json(response);
 });
 
 export { rootRoutes };

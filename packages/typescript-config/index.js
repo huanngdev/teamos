@@ -1,5 +1,6 @@
 const api = "./api.json";
+const shared = "./shared.json";
 const web = "./web.json";
 
-export { api, web };
-export default { api, web };
+export { api, shared, web };
+export default { api, shared, web };
