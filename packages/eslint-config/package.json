@@ -1,0 +1,20 @@
+{
+  "name": "@teamos/eslint-config",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./web": "./web.js",
+    "./api": "./api.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.35.0",
+    "eslint": "^9.35.0",
+    "eslint-plugin-react-hooks": "^6.1.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.3.0",
+    "typescript-eslint": "^8.42.0"
+  }
+}

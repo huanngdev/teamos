@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.vite/
+*.local
+.DS_Store
+
+# Local environment files. Keep the example file committed.
+.env
+.env.*
+!.env.example

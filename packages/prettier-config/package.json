@@ -1,0 +1,12 @@
+{
+  "name": "@teamos/prettier-config",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./web": "./web.js",
+    "./api": "./api.js",
+    "./package.json": "./package.json"
+  }
+}

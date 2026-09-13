@@ -1,0 +1,25 @@
+{
+  "name": "@teamos/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "build": "tsc",
+    "start": "bun dist/server.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.9.7"
+  },
+  "devDependencies": {
+    "@teamos/eslint-config": "workspace:*",
+    "@teamos/prettier-config": "workspace:*",
+    "@teamos/typescript-config": "workspace:*",
+    "bun-types": "^1.2.21",
+    "eslint": "^9.35.0",
+    "typescript": "^5.9.2"
+  }
+}

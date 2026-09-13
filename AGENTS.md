@@ -34,27 +34,62 @@ Keep the initial implementation focused. Prefer a reliable organization/project/
 
 Do not replace these technologies without an explicit architectural decision from the user.
 
-## Intended Repository Structure
+## Repository Structure
 
 ```text
 .
 ├── apps/
 │   ├── web/                 # Vite React frontend
+│   │   └── src/             # App, pages, components, hooks, lib, and styles
 │   └── api/                 # Hono backend
+│       └── src/             # Server, routes, services, middleware, and config
 ├── packages/
-│   ├── shared/              # Cross-app types, schemas, constants, and pure utilities
-│   │   └── utilities/       # Reusable environment-agnostic utility functions
-│   ├── db/                  # Drizzle schema, database client, and migrations
-│   ├── auth/                # Shared Better Auth configuration and helpers
-│   ├── ui/                  # Optional shared UI components and design primitives
-│   ├── eslint-config/       # Shared lint configuration
-│   └── typescript-config/   # Shared TypeScript configuration
+│   ├── eslint-config/       # Shared ESLint flat configurations
+│   ├── prettier-config/     # Shared Prettier configurations
+│   └── typescript-config/   # Shared TypeScript JSON configurations
 ├── compose.yaml             # PostgreSQL, Redis, and MinIO for local development
 ├── package.json
 └── turbo.json
 ```
 
-Add a package only when it has a clear owner and is reused or independently useful. Do not turn every folder into a package.
+The initial bootstrap intentionally does not create `shared`, `db`, `auth`, or `ui`. Add a package only when it has a clear owner and is reused or independently useful. Do not turn every folder into a package.
+
+## Current Folder Guide
+
+Every source directory has an `index.ts` barrel for its public exports. Keep application behavior in the owning app and use package exports for cross-workspace configuration.
+
+- `apps/web/src/app`: Top-level page composition.
+- `apps/web/src/components`: Presentational UI primitives.
+- `apps/web/src/hooks`: Browser state, effects, and feature behavior.
+- `apps/web/src/lib`: Browser-only helpers and integrations.
+- `apps/web/src/pages`: Route-level page components.
+- `apps/web/src/styles`: Global CSS entry point.
+- `apps/api/src/config`: Validated server configuration.
+- `apps/api/src/middleware`: HTTP middleware.
+- `apps/api/src/routes`: Thin HTTP route definitions.
+- `apps/api/src/services`: Server-side business operations.
+- `packages/eslint-config`: `web` and `api` ESLint flat config exports.
+- `packages/prettier-config`: Shared `web` and `api` formatting exports.
+- `packages/typescript-config`: Strict `base.json`, `web.json`, and `api.json` presets.
+
+## Bun Commands
+
+Run commands from the repository root with Bun:
+
+```text
+bun install
+bun run dev
+bun run build
+bun run start
+bun run lint
+bun run lint:fix
+bun run format
+bun run format:check
+bun run check-types
+bun run check
+```
+
+Use `bun run --cwd apps/web <script>` or `bun run --cwd apps/api <script>` when working on one application only.
 
 ## Architecture Boundaries
 

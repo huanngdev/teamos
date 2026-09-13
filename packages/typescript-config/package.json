@@ -1,0 +1,12 @@
+{
+  "name": "@teamos/typescript-config",
+  "private": true,
+  "version": "0.0.0",
+  "exports": {
+    ".": "./index.js",
+    "./base.json": "./base.json",
+    "./web.json": "./web.json",
+    "./api.json": "./api.json",
+    "./package.json": "./package.json"
+  }
+}
