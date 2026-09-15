@@ -1,75 +1,51 @@
-import { createApp } from "@/app.js";
+import { bootstrap } from "@/bootstrap.js";
 import { loadEnv } from "@/config/index.js";
-import { createRedisClient, createRedisRateLimiter } from "@/infrastructure/index.js";
 import { createLogger } from "@/logging/index.js";
 
 function isAddressInUseError(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "EADDRINUSE";
 }
 
-function reportStartupFailure(error: unknown): never {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-}
-
-const env = (() => {
+async function start(): Promise<void> {
+  let env;
   try {
-    return loadEnv();
+    env = loadEnv();
   } catch (error) {
-    return reportStartupFailure(error);
-  }
-})();
-const logger = createLogger(env);
-const redisClient = createRedisClient(env);
-const app = createApp({
-  env,
-  logger,
-  rateLimiter: createRedisRateLimiter(redisClient, env),
-});
-
-let server: Bun.Server<undefined>;
-try {
-  server = Bun.serve({
-    fetch: (request, bunServer) => {
-      return app.fetch(request, {
-        clientIp: bunServer.requestIP(request)?.address,
-      });
-    },
-    idleTimeout: env.IDLE_TIMEOUT_SECONDS,
-    maxRequestBodySize: env.MAX_REQUEST_BODY_BYTES,
-    port: env.PORT,
-  });
-
-  logger.info(`TeamOS API is running on ${server.url}`);
-} catch (error) {
-  if (!isAddressInUseError(error)) {
-    throw error;
-  }
-
-  reportStartupFailure(
-    new Error(
-      `TeamOS API could not start because port ${env.PORT} is already in use. ` +
-        `Stop the process using it or run with PORT=<free-port> bun run --cwd apps/api dev.`,
-    ),
-  );
-}
-
-let isShuttingDown = false;
-
-async function shutdown(signal: string): Promise<void> {
-  if (isShuttingDown) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
     return;
   }
 
-  isShuttingDown = true;
-  logger.info(`Received ${signal}; shutting down TeamOS API`);
-  await server.stop();
-  redisClient.disconnect();
+  const logger = createLogger(env);
+  try {
+    const runningApi = await bootstrap({ env, logger });
+    let isShuttingDown = false;
+
+    const shutdown = async (signal: string): Promise<void> => {
+      if (isShuttingDown) {
+        return;
+      }
+
+      isShuttingDown = true;
+      await runningApi.shutdown(signal);
+    };
+
+    process.once("SIGINT", () => {
+      void shutdown("SIGINT");
+    });
+    process.once("SIGTERM", () => {
+      void shutdown("SIGTERM");
+    });
+  } catch (error) {
+    if (isAddressInUseError(error)) {
+      logger
+        .withMetadata({ port: env.PORT })
+        .error("TeamOS API could not start because the configured port is already in use");
+    } else {
+      logger.withError(error).error("TeamOS API failed to start");
+    }
+    process.exit(1);
+  }
 }
 
-process.once("SIGINT", () => {
-  void shutdown("SIGINT");
-});
-process.once("SIGTERM", () => {
-  void shutdown("SIGTERM");
-});
+void start();
