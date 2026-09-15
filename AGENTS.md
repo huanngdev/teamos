@@ -46,6 +46,7 @@ Do not replace these technologies without an explicit architectural decision fro
 │       ├── src/             # Server, routes, services, middleware, and config
 │       └── .env.example     # API environment template
 ├── packages/
+│   ├── db/                  # Server-only Drizzle client and database schema
 │   ├── shared/              # Cross-app contracts, schemas, and pure utilities
 │   ├── eslint-config/       # Shared ESLint flat configurations
 │   ├── prettier-config/     # Shared Prettier configurations
@@ -56,7 +57,7 @@ Do not replace these technologies without an explicit architectural decision fro
 └── turbo.json
 ```
 
-Add a package only when it has a clear owner and is reused or independently useful. Do not turn every folder into a package. Database and authentication packages remain future additions until their ownership and reuse boundaries are clear.
+Add a package only when it has a clear owner and is reused or independently useful. Do not turn every folder into a package. Database and authentication runtime code remains server-only.
 
 ## Current Folder Guide
 
@@ -73,9 +74,11 @@ Every source directory has an `index.ts` barrel for its public exports. Keep app
 - `apps/api/src/infrastructure`: Redis, rate limiter, and future external-service adapters.
 - `apps/api/src/logging`: Server logger construction and transport policy.
 - `apps/api/src/middleware`: HTTP middleware.
+- `apps/api/src/openapi`: OpenAPI document and interactive reference registration.
 - `apps/api/src/routes`: Thin HTTP route definitions.
 - `apps/api/src/services`: Server-side business operations.
 - `docs`: Current infrastructure guide and product/engineering progress.
+- `packages/db`: Server-only Drizzle client, schema, and migration configuration.
 - `packages/shared`: Cross-app API contracts, runtime schemas, and environment-agnostic utilities.
 - `packages/eslint-config`: `web` and `api` ESLint flat config exports.
 - `packages/prettier-config`: Shared `web` and `api` formatting exports.
@@ -131,7 +134,7 @@ Place reusable utility functions under `packages/shared/utilities`. Organize the
 
 Shared code must be environment-agnostic and free of side effects. It must not import the database client, access environment variables, initialize authentication, or depend on browser-only APIs. Do not duplicate a contract or pure helper in both apps when it belongs here.
 
-`packages/db` and `packages/auth` may expose server-facing types or helpers, but frontend code must not import their runtime modules.
+`packages/db` and `packages/auth` expose server-facing types or helpers, but frontend code must not import their runtime modules. `packages/db` owns the database client and Drizzle schema; API services consume it through explicit dependencies.
 
 `docs/infra-guide.md` describes current local service ownership and integration status. `docs/progress.md` tracks product and engineering milestones and should be updated after meaningful feature work.
 
