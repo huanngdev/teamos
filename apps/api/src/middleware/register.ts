@@ -43,6 +43,7 @@ function registerGlobalMiddleware(app: Hono<AppEnv>, options: RegisterMiddleware
         "X-RateLimit-Limit",
         "X-RateLimit-Remaining",
         "X-RateLimit-Reset",
+        "Retry-After",
       ],
       maxAge: 600,
       origin: options.env.CORS_ORIGINS,

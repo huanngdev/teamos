@@ -21,7 +21,11 @@ function isRateLimiterResponse(value: unknown): value is IRateLimiterRes {
 
 function createRateLimitMiddleware(options: RateLimitOptions) {
   return createMiddleware<AppEnv>(async (context, next) => {
-    if (!options.enabled || context.req.path === "/health") {
+    if (
+      !options.enabled ||
+      context.req.path === "/health" ||
+      context.req.path.startsWith("/health/")
+    ) {
       await next();
       return;
     }
