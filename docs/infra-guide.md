@@ -16,9 +16,9 @@ flowchart LR
 
   Browser --> Web
   Web --> API
-  API -. planned durable data .-> Postgres
+  API --> Postgres
   API --> Redis
-  API -. planned object storage .-> MinIO
+  API --> MinIO
   Browser -. local administration .-> Console
 ```
 
@@ -26,14 +26,14 @@ The application processes run directly through Bun. Docker Compose currently pro
 
 ## Service Map
 
-| Service       | Local port | Current responsibility                | Current integration status                                              |
-| ------------- | ---------: | ------------------------------------- | ----------------------------------------------------------------------- |
-| Web           |     `4000` | Vite React client                     | Available through the web app dev command                               |
-| API           |     `4001` | Hono HTTP API                         | Available through the API dev command                                   |
-| PostgreSQL    |     `5432` | Durable relational data               | Provisioned; Drizzle schema and migrations are not implemented yet      |
-| Redis         |     `6379` | Rate limiting and future coordination | Used by the API rate limiter                                            |
-| MinIO API     |     `9000` | S3-compatible object storage          | Provisioned; storage client and object metadata are not implemented yet |
-| MinIO console |     `9001` | Local object-storage administration   | Available for local inspection                                          |
+| Service       | Local port | Current responsibility                | Current integration status                     |
+| ------------- | ---------: | ------------------------------------- | ---------------------------------------------- |
+| Web           |     `4000` | Vite React client                     | Available through the web app dev command      |
+| API           |     `4001` | Hono HTTP API                         | Available through the API dev command          |
+| PostgreSQL    |     `5432` | Durable relational data               | Connected at API startup through `@teamos/db`  |
+| Redis         |     `6379` | Rate limiting and future coordination | Used by the API rate limiter                   |
+| MinIO API     |     `9000` | S3-compatible object storage          | Connected and credential-probed at API startup |
+| MinIO console |     `9001` | Local object-storage administration   | Available for local inspection                 |
 
 ## Starting Infrastructure
 
@@ -74,12 +74,12 @@ Committed `.env.example` files document the accepted settings. Do not put API se
 
 PostgreSQL is created from the `postgres:16-alpine` image with the development database, user, and password configured by the root environment file. Its data is stored in the `postgres_data` named volume.
 
-The API currently validates `DATABASE_URL`, but no database client, Drizzle schema, or migration is active yet. PostgreSQL is therefore infrastructure for the next persistence milestone rather than a live dependency of the current health endpoint.
+The server-only `@teamos/db` package owns the Bun SQL client, Drizzle instance, empty schema entry point, and migration configuration. The API connects and runs `SELECT 1` before it starts listening. No domain tables exist yet.
 
 Useful commands:
 
 ```bash
-docker compose exec postgres pg_isready -U teamos -d teamos
+docker compose exec postgres pg_isready -U teamos_user -d teamos
 docker compose logs -f postgres
 ```
 
@@ -87,12 +87,12 @@ docker compose logs -f postgres
 
 Redis runs with append-only persistence and a development password. Its data is stored in the `redis_data` named volume.
 
-The API creates a lazy ioredis client and uses `rate-limiter-flexible` with a Redis-backed limiter. The limiter has an in-memory insurance limiter for the configured rate-limit window, while Redis remains the shared coordination path for multiple API processes.
+The API creates a lazy ioredis client, connects and runs `PING` before it starts listening, then uses `rate-limiter-flexible` with a Redis-backed limiter. The limiter has an in-memory insurance limiter for the configured rate-limit window, while Redis remains the shared coordination path for multiple API processes.
 
 Useful commands:
 
 ```bash
-docker compose exec redis redis-cli -a teamos ping
+docker compose exec redis redis-cli -a teamos_password ping
 docker compose logs -f redis
 ```
 
@@ -102,7 +102,7 @@ The password in these commands is the local default only. Use the configured `RE
 
 MinIO exposes an S3-compatible API on `9000` and its local administration console on `9001`. Data is stored in the `minio_data` named volume.
 
-The API currently validates `MINIO_ENDPOINT`, but it does not yet create buckets, sign URLs, upload objects, or store object ownership metadata. Those operations must be implemented behind authorized API endpoints before MinIO is used for avatars or attachments.
+The API creates an S3-compatible client with path-style addressing and runs `ListBuckets` before it starts listening. It does not yet create buckets, sign URLs, upload objects, or store object ownership metadata. Those operations must be implemented behind authorized API endpoints before MinIO is used for avatars or attachments.
 
 Open the local console at `http://localhost:9001` with the configured `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD`.
 
@@ -127,21 +127,23 @@ The API registers global middleware in this order:
 8. Request body size limit.
 9. Request timeout.
 10. CSRF protection.
-11. Rate limiting, except for `/health`.
+11. Rate limiting, except for `/health` and `/health/ready`.
 12. Route dispatch.
-13. Consistent not-found and error response handling.
+13. OpenAPI and Scalar documentation routes when enabled.
+14. Consistent not-found and error response handling.
 
 Error responses follow the shared API error contract and include the request ID when one is available. Unexpected errors are logged with server-side details but return a generic message to the client.
 
 ## Health Checks
 
-Infrastructure containers have Docker health checks. The current API health route is:
+Infrastructure containers have Docker health checks. The API exposes separate liveness and readiness routes:
 
 ```bash
 curl http://localhost:4001/health
+curl http://localhost:4001/health/ready
 ```
 
-The API health response currently reports application status only. It does not yet perform dependency checks against PostgreSQL, Redis, or MinIO.
+`/health` is lightweight liveness. `/health/ready` probes PostgreSQL, Redis, and MinIO and returns `503` if any required dependency is unavailable. Dependency error details are sanitized.
 
 ## Logging
 
@@ -162,10 +164,13 @@ From the repository root:
 bun install
 bun run --cwd apps/api dev
 bun run --cwd apps/web dev
+bun run db:check
+bun run db:generate -- --name=add-projects
+bun run db:migrate
 bun run check
 ```
 
-The API and web app can run without local infrastructure for the currently implemented root and health routes. Redis should be running when exercising the real Redis-backed rate limiter through `apps/api/src/server.ts`.
+The API now requires PostgreSQL, Redis, and MinIO to connect successfully before it listens. Run `docker compose up -d` first. Migrations are separate commands and are never run automatically during API boot.
 
 ## Troubleshooting
 
@@ -178,17 +183,33 @@ docker compose logs --tail=100 postgres redis minio
 
 If a port is occupied, either stop the conflicting process or override the corresponding host port in the root `.env`. The API port can be changed with `PORT` in `apps/api/.env`.
 
-If Redis is unavailable, the API's Redis-backed limiter can reject protected requests because it is configured to fail closed. Tests and direct `createApp` callers use the explicit in-memory limiter instead.
+If PostgreSQL, Redis, or MinIO is unavailable, the API exits without opening its HTTP port. Tests and direct `createApp` callers use injected memory/fake dependencies and do not run the production bootstrap.
 
 ## Shutdown and Data Safety
 
 Use `docker compose down` for normal shutdown. Use `docker compose down -v` only when intentionally resetting local state. PostgreSQL remains the planned durable source of truth for TeamOS domain data; Redis and MinIO must not become the only copy of issues, messages, schedules, permissions, or object ownership metadata.
 
+## API Documentation
+
+When enabled, Scalar is available at `http://localhost:4001/docs` and the raw OpenAPI 3.1 document is available at `http://localhost:4001/openapi.json`. See [`api-guide.md`](./api-guide.md) for endpoint and contract conventions.
+
+## Migration Workflow
+
+The database package owns these commands:
+
+```bash
+bun run db:check
+bun run db:generate -- --name=add-projects
+bun run db:migrate
+bun run db:studio
+```
+
+Migration generation and application are deliberate release/development steps. The API does not run migrations at startup, which avoids concurrent migration races across multiple API instances.
+
 ## Current Production Limitations
 
-- PostgreSQL is not connected to application services yet.
 - Better Auth and organization authorization are not implemented yet.
-- MinIO has no application storage integration yet.
-- API health checks do not include dependency readiness.
+- The Drizzle schema is intentionally empty until organization and membership ownership is finalized.
+- MinIO is connectivity-probed but has no application storage workflows yet.
 - Compose defaults are development-safe examples, not production credentials or deployment configuration.
 - No production container orchestration or secret-management workflow is documented yet.

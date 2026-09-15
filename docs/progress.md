@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 
 ## Current Milestone
 
@@ -28,16 +28,21 @@ TeamOS has a working monorepo and HTTP foundation. The next milestone is the fir
 - Docker Compose support for PostgreSQL, Redis, and MinIO with health checks and named volumes.
 - Shared lint, formatting, type-checking, test, and build scripts.
 - Focused API tests covering HTTP hardening and error behavior.
+- OpenAPI 3.1 route documentation and Scalar API reference.
+- API liveness and dependency readiness endpoints.
+- Server-only `@teamos/db` package with Drizzle configuration and an empty schema entry point.
+- Fail-fast startup probes for PostgreSQL, Redis, and MinIO with cleanup on partial failure.
+- Dedicated Drizzle commands for schema checking, migration generation, migration application, and Studio.
 
 ## In Progress
 
 - Defining the organization, membership, project, and issue domain model.
-- Choosing the first database schema and migration boundaries.
+- Choosing the first domain tables and migration boundaries; the Drizzle schema entry point is ready but intentionally empty.
 - Establishing authentication and server-side authorization before protected domain routes are added.
 
 ## Not Started
 
-- Drizzle schema, migrations, and database repository layer.
+- Organization, membership, project, and issue Drizzle tables and migrations.
 - Better Auth configuration and session flows.
 - Organization membership and permission enforcement.
 - Project and issue CRUD workflows.
@@ -50,13 +55,14 @@ TeamOS has a working monorepo and HTTP foundation. The next milestone is the fir
 
 ## Infrastructure Integration Status
 
-| Area           | Status                | Notes                                                                  |
-| -------------- | --------------------- | ---------------------------------------------------------------------- |
-| PostgreSQL     | Provisioned only      | Compose service is healthy; no Drizzle schema or active API client yet |
-| Redis          | Partially integrated  | API rate limiter uses Redis with an in-memory insurance limiter        |
-| MinIO          | Provisioned only      | Compose service is healthy; no application storage client yet          |
-| Logging        | Integrated            | Pretty local output, JSON production output, sensitive-field redaction |
-| API protection | Integrated foundation | Middleware and error contract are covered by API tests                 |
+| Area           | Status                | Notes                                                                      |
+| -------------- | --------------------- | -------------------------------------------------------------------------- |
+| PostgreSQL     | Connected at boot     | `@teamos/db` probes with `SELECT 1`; schema has no domain tables yet       |
+| Redis          | Partially integrated  | API rate limiter uses Redis with an in-memory insurance limiter            |
+| MinIO          | Connected at boot     | S3 client probes credentials with `ListBuckets`; storage workflows pending |
+| Logging        | Integrated            | Pretty local output, JSON production output, sensitive-field redaction     |
+| API protection | Integrated foundation | Middleware and error contract are covered by API tests                     |
+| API docs       | Integrated            | OpenAPI 3.1 at `/openapi.json`, Scalar UI at `/docs`                       |
 
 ## Quality Checks
 
@@ -68,13 +74,17 @@ The current repository has scripts for:
 - `bun run test`
 - `bun run build`
 - `bun run check`
+- `bun run db:check`
+- `bun run db:generate`
+- `bun run db:migrate`
 
-The API foundation currently has focused tests for security headers, CORS, request IDs, not-found responses, unexpected errors, content types, malformed JSON, validation errors, body size limits, and rate-limit responses.
+The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, environment validation, and bootstrap service failure handling.
 
 ## Known Limitations
 
 - The current API is not yet a multi-tenant product surface because domain persistence and authorization are not implemented.
-- The health endpoint reports application status and does not verify service dependencies.
+- The empty Drizzle schema cannot persist product domain data yet.
+- The readiness endpoint verifies connectivity but does not replace ongoing dependency monitoring.
 - Local Compose credentials are development defaults and must not be reused in production.
 - Redis-backed rate limiting is fail-closed when Redis is not ready in the real API server path.
 - There is no production deployment or migration runbook yet.
@@ -82,11 +92,11 @@ The API foundation currently has focused tests for security headers, CORS, reque
 ## Recommended Next Priorities
 
 1. Define the organization and membership schema with tenant-scoped identifiers.
-2. Add Drizzle migrations and a minimal database service layer.
+2. Generate and apply the first Drizzle migration.
 3. Configure Better Auth and the first authorization middleware.
 4. Implement organization and project APIs with membership checks.
-5. Add the first issue workflow and matching web screens.
-6. Add integration tests for tenant isolation and permission boundaries.
+5. Add integration tests against PostgreSQL, Redis, and MinIO.
+6. Add the first issue workflow and matching web screens.
 
 ## Update Rule
 

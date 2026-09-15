@@ -14,13 +14,55 @@
     "dev": {
       "cache": false,
       "dependsOn": ["^build"],
-      "env": ["PORT", "VITE_API_URL"],
+      "env": [
+        "API_DOCS_ENABLED",
+        "CORS_ORIGINS",
+        "DATABASE_URL",
+        "IDLE_TIMEOUT_SECONDS",
+        "LOG_LEVEL",
+        "MAX_REQUEST_BODY_BYTES",
+        "MINIO_ACCESS_KEY",
+        "MINIO_ENDPOINT",
+        "MINIO_REGION",
+        "MINIO_SECRET_KEY",
+        "NODE_ENV",
+        "PORT",
+        "RATE_LIMIT_DURATION_SECONDS",
+        "RATE_LIMIT_ENABLED",
+        "RATE_LIMIT_POINTS",
+        "REDIS_URL",
+        "REQUEST_TIMEOUT_MS",
+        "SHUTDOWN_TIMEOUT_MS",
+        "STARTUP_TIMEOUT_MS",
+        "VITE_API_URL"
+      ],
       "persistent": true
     },
     "start": {
       "dependsOn": ["build"],
       "cache": false,
-      "env": ["PORT", "VITE_API_URL"],
+      "env": [
+        "API_DOCS_ENABLED",
+        "CORS_ORIGINS",
+        "DATABASE_URL",
+        "IDLE_TIMEOUT_SECONDS",
+        "LOG_LEVEL",
+        "MAX_REQUEST_BODY_BYTES",
+        "MINIO_ACCESS_KEY",
+        "MINIO_ENDPOINT",
+        "MINIO_REGION",
+        "MINIO_SECRET_KEY",
+        "NODE_ENV",
+        "PORT",
+        "RATE_LIMIT_DURATION_SECONDS",
+        "RATE_LIMIT_ENABLED",
+        "RATE_LIMIT_POINTS",
+        "REDIS_URL",
+        "REQUEST_TIMEOUT_MS",
+        "SHUTDOWN_TIMEOUT_MS",
+        "STARTUP_TIMEOUT_MS",
+        "VITE_API_URL"
+      ],
       "persistent": true
     },
     "lint": {
@@ -35,7 +77,7 @@
     },
     "test": {
       "cache": false,
-      "dependsOn": ["^test"]
+      "dependsOn": ["^build", "^test"]
     }
   }
 }

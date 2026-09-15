@@ -5,10 +5,10 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-teamos}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-teamos}
-      POSTGRES_USER: ${POSTGRES_USER:-teamos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-teamos_password}
+      POSTGRES_USER: ${POSTGRES_USER:-teamos_user}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-teamos} -d ${POSTGRES_DB:-teamos}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-teamos_user} -d ${POSTGRES_DB:-teamos}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -19,9 +19,10 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-teamos}"]
+    command:
+      ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-teamos_password}"]
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-teamos} ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-teamos_password} ping | grep PONG"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -31,11 +32,11 @@ services:
       - redis_data:/data
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-teamosminio}
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-teamos}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-teamos_password}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-teamos_user}
     healthcheck:
       test: ["CMD-SHELL", "mc ready local"]
       interval: 5s

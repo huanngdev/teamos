@@ -1,11 +1,17 @@
 import { MockLogLayer } from "loglayer";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import { expect, test } from "bun:test";
-import { apiErrorResponseSchema } from "@teamos/shared";
+import {
+  apiErrorResponseSchema,
+  healthStatusSchema,
+  readinessStatusSchema,
+  rootResponseSchema,
+} from "@teamos/shared";
 import { z } from "zod";
 
 import { createApp } from "@/app.js";
 import { loadEnv } from "@/config/index.js";
+import { createReadinessService, type ReadinessService } from "@/services/index.js";
 import { zValidator } from "@/validation/index.js";
 
 const testEnvSource = {
@@ -13,7 +19,7 @@ const testEnvSource = {
   RATE_LIMIT_ENABLED: "false",
 };
 
-function createTestApp(overrides: { maxBodyBytes?: number } = {}) {
+function createTestApp(overrides: { maxBodyBytes?: number; readiness?: ReadinessService } = {}) {
   const env = loadEnv({
     ...testEnvSource,
     ...(overrides.maxBodyBytes === undefined
@@ -24,6 +30,7 @@ function createTestApp(overrides: { maxBodyBytes?: number } = {}) {
   return createApp({
     env,
     logger: new MockLogLayer(),
+    readiness: overrides.readiness,
   });
 }
 
@@ -53,6 +60,83 @@ test("applies security headers, CORS, and a generated request ID", async () => {
   expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
   expect(response.headers.get("X-Frame-Options")).toBe("DENY");
   expect(response.headers.get("X-Powered-By")).toBeNull();
+});
+
+test("returns documented root and liveness contracts", async () => {
+  const app = createTestApp();
+  const rootResponse = await app.request("/");
+  const healthResponse = await app.request("/health");
+
+  expect(rootResponseSchema.safeParse(await rootResponse.json()).success).toBe(true);
+  expect(healthStatusSchema.safeParse(await healthResponse.json()).success).toBe(true);
+});
+
+test("serves OpenAPI JSON and Scalar documentation in test environments", async () => {
+  const app = createTestApp();
+  const documentResponse = await app.request("/openapi.json");
+  const document = z
+    .object({
+      openapi: z.string(),
+      paths: z.record(z.string(), z.unknown()),
+    })
+    .parse(await documentResponse.json());
+  const scalarResponse = await app.request("/docs");
+
+  expect(documentResponse.status).toBe(200);
+  expect(document.openapi).toBe("3.1.0");
+  expect(document.paths).toHaveProperty("/");
+  expect(document.paths).toHaveProperty("/health");
+  expect(document.paths).toHaveProperty("/health/ready");
+  expect(scalarResponse.status).toBe(200);
+  expect(await scalarResponse.text()).toContain("TeamOS API Reference");
+});
+
+test("reports dependency readiness without applying rate limits to health routes", async () => {
+  const readiness = createReadinessService({
+    database: async () => undefined,
+    redis: async () => undefined,
+    storage: async () => undefined,
+  });
+  const env = loadEnv({
+    ...testEnvSource,
+    RATE_LIMIT_ENABLED: "true",
+    RATE_LIMIT_POINTS: "1",
+  });
+  const app = createApp({
+    env,
+    logger: new MockLogLayer(),
+    rateLimiter: new RateLimiterMemory({ duration: 60, points: 1 }),
+    readiness,
+  });
+
+  const firstResponse = await app.request("/health/ready");
+  const secondResponse = await app.request("/health/ready");
+  const body = readinessStatusSchema.safeParse(await firstResponse.json());
+
+  expect(firstResponse.status).toBe(200);
+  expect(secondResponse.status).toBe(200);
+  expect(body.success).toBe(true);
+});
+
+test("returns 503 when a readiness dependency is unavailable", async () => {
+  const readiness = createReadinessService({
+    database: async () => undefined,
+    redis: async () => {
+      throw new Error("Redis unavailable");
+    },
+    storage: async () => undefined,
+  });
+  const app = createTestApp({ readiness });
+
+  const response = await app.request("/health/ready");
+  const body = readinessStatusSchema.safeParse(await response.json());
+
+  expect(response.status).toBe(503);
+  expect(body.success).toBe(true);
+  if (body.success) {
+    expect(body.data.status).toBe("error");
+    expect(body.data.dependencies.redis.status).toBe("error");
+  }
 });
 
 test("returns a stable error contract for unknown routes", async () => {
