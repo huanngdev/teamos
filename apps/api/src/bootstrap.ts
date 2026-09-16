@@ -3,12 +3,14 @@ import type { ILogLayer } from "loglayer";
 import type Redis from "ioredis";
 
 import { createApp } from "@/app.js";
+import { createAuth, createAuthService, createOrganizationAccessService } from "@/auth/index.js";
 import type { Env } from "@/config/index.js";
 import {
   attachRedisErrorLogger,
   checkRedisConnection,
   closeRedisClient,
   connectRedisClient,
+  createEmailService,
   createObjectStorageClient,
   createRedisRateLimiter,
   createRedisClient,
@@ -169,9 +171,17 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
       redis: () => checkRedisConnection(resources.redis),
       storage: resources.storage.checkConnection,
     });
-    const app = createApp({
+    const auth = createAuth({
+      db: resources.database.db,
+      emailService: createEmailService(options.env),
       env: options.env,
       logger,
+    });
+    const app = createApp({
+      auth: createAuthService(auth),
+      env: options.env,
+      logger,
+      organizationAccess: createOrganizationAccessService(resources.database.db),
       rateLimiter: createRedisRateLimiter(resources.redis, options.env),
       readiness,
     });

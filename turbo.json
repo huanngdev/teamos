@@ -16,8 +16,14 @@
       "dependsOn": ["^build"],
       "env": [
         "API_DOCS_ENABLED",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
         "CORS_ORIGINS",
         "DATABASE_URL",
+        "GITHUB_CLIENT_ID",
+        "GITHUB_CLIENT_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
         "IDLE_TIMEOUT_SECONDS",
         "LOG_LEVEL",
         "MAX_REQUEST_BODY_BYTES",
@@ -32,9 +38,12 @@
         "RATE_LIMIT_POINTS",
         "REDIS_URL",
         "REQUEST_TIMEOUT_MS",
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL",
         "SHUTDOWN_TIMEOUT_MS",
         "STARTUP_TIMEOUT_MS",
-        "VITE_API_URL"
+        "VITE_API_URL",
+        "WEB_URL"
       ],
       "persistent": true
     },
@@ -43,8 +52,14 @@
       "cache": false,
       "env": [
         "API_DOCS_ENABLED",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
         "CORS_ORIGINS",
         "DATABASE_URL",
+        "GITHUB_CLIENT_ID",
+        "GITHUB_CLIENT_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
         "IDLE_TIMEOUT_SECONDS",
         "LOG_LEVEL",
         "MAX_REQUEST_BODY_BYTES",
@@ -59,9 +74,12 @@
         "RATE_LIMIT_POINTS",
         "REDIS_URL",
         "REQUEST_TIMEOUT_MS",
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL",
         "SHUTDOWN_TIMEOUT_MS",
         "STARTUP_TIMEOUT_MS",
-        "VITE_API_URL"
+        "VITE_API_URL",
+        "WEB_URL"
       ],
       "persistent": true
     },
