@@ -4,3 +4,5 @@ coverage
 .turbo
 .vite
 bun.lock
+.agents
+.claude
