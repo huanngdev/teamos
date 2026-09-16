@@ -38,6 +38,7 @@ export {
   type SocialProvidersResponse,
 } from "./contracts/index.js";
 export {
+  getInitials,
   isOrganizationAdministrator,
   MAX_SLUG_LENGTH,
   organizationRoleSchema,

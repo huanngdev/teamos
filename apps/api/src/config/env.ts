@@ -83,6 +83,7 @@ const envSchema = z
       .default("teamos-development-auth-secret-change-before-production"),
     BETTER_AUTH_URL: urlWithProtocols(["http:", "https:"]).default("http://localhost:4001"),
     WEB_URL: urlWithProtocols(["http:", "https:"]).default("http://localhost:4000"),
+    MAX_ORGANIZATIONS_PER_USER: z.coerce.number().int().min(1).max(1_000).default(3),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     GITHUB_CLIENT_ID: z.string().min(1).optional(),

@@ -59,3 +59,15 @@ test("requires Resend credentials to be configured together", () => {
     "RESEND_API_KEY and RESEND_FROM_EMAIL must be configured together.",
   );
 });
+
+test("defaults and validates the workspace limit", () => {
+  expect(loadEnv({ NODE_ENV: "development" }).MAX_ORGANIZATIONS_PER_USER).toBe(3);
+  expect(loadEnv({ MAX_ORGANIZATIONS_PER_USER: "5" }).MAX_ORGANIZATIONS_PER_USER).toBe(5);
+  expect(() => loadEnv({ MAX_ORGANIZATIONS_PER_USER: "0" })).toThrow("MAX_ORGANIZATIONS_PER_USER");
+  expect(() => loadEnv({ MAX_ORGANIZATIONS_PER_USER: "2.5" })).toThrow(
+    "MAX_ORGANIZATIONS_PER_USER",
+  );
+  expect(() => loadEnv({ MAX_ORGANIZATIONS_PER_USER: "unlimited" })).toThrow(
+    "MAX_ORGANIZATIONS_PER_USER",
+  );
+});

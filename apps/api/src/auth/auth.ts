@@ -59,7 +59,6 @@ function createAuth(options: CreateAuthOptions) {
   return betterAuth({
     account: {
       accountLinking: {
-        disableImplicitLinking: true,
         enabled: true,
       },
     },
@@ -83,6 +82,7 @@ function createAuth(options: CreateAuthOptions) {
     },
     plugins: [
       organization({
+        organizationLimit: env.MAX_ORGANIZATIONS_PER_USER,
         requireEmailVerificationOnInvitation: true,
         sendInvitationEmail: async (data) => {
           await deliver({

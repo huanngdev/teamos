@@ -1,18 +1,42 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { slugify } from "@teamos/shared";
+import { slugify, type OrganizationSummary } from "@teamos/shared";
 
+import { readAuthClientError } from "@/lib/auth-error";
 import { authClient } from "@/lib/auth-client";
+import { ORGANIZATIONS_QUERY_KEY } from "@/hooks/use-organizations";
 
 const MAX_SLUG_ATTEMPTS = 5;
 const FALLBACK_SLUG = "workspace";
+
+/*
+ * Better Auth reports a taken slug as an API error on `checkSlug`, not as a
+ * falsy `status`. Any other error is surfaced to the user.
+ */
+const SLUG_TAKEN_ERROR_CODES = new Set([
+  "ORGANIZATION_ALREADY_EXISTS",
+  "ORGANIZATION_SLUG_ALREADY_TAKEN",
+]);
+const WORKSPACE_LIMIT_ERROR_CODE = "YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS";
 
 function createSlugSuffix(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 4);
 }
 
+function getCreateErrorMessage(error: unknown): string {
+  const { code, message } = readAuthClientError(error);
+
+  if (code === WORKSPACE_LIMIT_ERROR_CODE) {
+    return "You have reached the maximum number of workspaces for this account.";
+  }
+
+  return message ?? "The workspace could not be created.";
+}
+
 function useCreateWorkspace() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
@@ -27,13 +51,15 @@ function useCreateWorkspace() {
       for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt += 1) {
         const availability = await authClient.organization.checkSlug({ slug });
 
-        if (availability.error) {
-          setErrorMessage(availability.error.message ?? "The workspace address is unavailable.");
-          return;
-        }
-
         if (availability.data?.status === true) {
           break;
+        }
+
+        const { code, message } = readAuthClientError(availability.error);
+
+        if (code === undefined || !SLUG_TAKEN_ERROR_CODES.has(code)) {
+          setErrorMessage(message ?? "The workspace address is unavailable.");
+          return;
         }
 
         slug = `${baseSlug}-${createSlugSuffix()}`;
@@ -41,12 +67,26 @@ function useCreateWorkspace() {
 
       const { data, error } = await authClient.organization.create({ name: name.trim(), slug });
 
-      if (error || data === null) {
-        setErrorMessage(error?.message ?? "The workspace could not be created.");
+      if (error !== null || data === null) {
+        setErrorMessage(getCreateErrorMessage(error));
         return;
       }
 
-      navigate(`/${data.slug}`, { replace: true });
+      const created: OrganizationSummary = {
+        id: data.id,
+        logo: data.logo ?? null,
+        name: data.name,
+        slug: data.slug,
+      };
+
+      queryClient.setQueryData<OrganizationSummary[]>(ORGANIZATIONS_QUERY_KEY, (current) =>
+        current?.some((organization) => organization.id === created.id) === true
+          ? current
+          : [...(current ?? []), created],
+      );
+      await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+
+      void navigate(`/${created.slug}`, { replace: true });
     } catch {
       setErrorMessage("The workspace could not be created.");
     } finally {

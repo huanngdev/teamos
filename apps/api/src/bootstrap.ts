@@ -1,4 +1,4 @@
-import { createDatabase, type DatabaseClient } from "@teamos/db";
+import { createDatabase, drizzleStudioUrl, type DatabaseClient } from "@teamos/db";
 import type { ILogLayer } from "loglayer";
 import type Redis from "ioredis";
 
@@ -157,6 +157,14 @@ function createServiceResources(resources: BootstrapResources, env: Env): Servic
   ];
 }
 
+/*
+ * Emitted as a single log record so the API and Drizzle Studio URLs stay
+ * adjacent even though the API and Studio are independent processes.
+ */
+function buildReadyLogMetadata(env: Env, apiUrl: string): Record<string, string> {
+  return env.NODE_ENV === "development" ? { apiUrl, drizzleStudioUrl } : { apiUrl };
+}
+
 async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
   const logger = options.logger ?? createLogger(options.env);
   const resources = createResources(options.env);
@@ -197,7 +205,9 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
     });
     let isShuttingDown = false;
 
-    logger.withMetadata({ url: server.url.toString() }).info("TeamOS API is ready");
+    logger
+      .withMetadata(buildReadyLogMetadata(options.env, server.url.toString()))
+      .info("TeamOS API is ready");
 
     return {
       app,
@@ -222,6 +232,7 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
 
 export {
   bootstrap,
+  buildReadyLogMetadata,
   closeServices,
   connectServices,
   createServiceResources,

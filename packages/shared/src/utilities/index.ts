@@ -1,3 +1,4 @@
+export { getInitials } from "./initials.js";
 export {
   isOrganizationAdministrator,
   organizationRoleSchema,

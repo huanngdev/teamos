@@ -1,6 +1,7 @@
 export { apiErrorResponseSchema } from "@teamos/shared";
 export type { ApiErrorResponse } from "@teamos/shared";
 export { apiClient, ApiClientError, toApiClientError } from "./api-client";
+export { readAuthClientError, type AuthClientErrorShape } from "./auth-error";
 export { getSocialProviders } from "./authentication-api";
 export { authClient, type AuthSession, type AuthUser } from "./auth-client";
 export { apiUrl } from "./env";

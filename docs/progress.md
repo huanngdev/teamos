@@ -47,14 +47,18 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 - Better Auth instance built from validated environment config and the shared Drizzle client.
 - Better Auth handler mounted at `/api/auth/*` with the Drizzle PostgreSQL adapter.
 - Google and GitHub OAuth providers with per-provider email verification enforcement.
-- Tightened account linking: implicit linking is disabled and providers link only while signed in.
+- Implicit account linking for verified provider emails, without trusting providers that cannot confirm email ownership.
 - Session middleware with a typed `authSession` context value and email-verification guard.
 - Resend-backed email adapter with verification and organization invitation templates.
 - Escaped, HTML and plain-text email rendering with delivery failures logged rather than swallowed.
 - Organization-scoped access service that queries membership from PostgreSQL and powers `404` for non-members.
 - Social provider discovery endpoint that reflects the configured OAuth credentials.
 - Better Auth schema (`user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`) generated into `packages/db` and applied through the first Drizzle migration.
+- Configurable `MAX_ORGANIZATIONS_PER_USER` workspace cap passed to the Better Auth organization plugin.
 - Frontend session, workspace, invitation, and sign-in hooks with public auth routes and a protected workspace layout.
+- Workspace switcher and account menus built from shadcn dropdown, avatar, separator, tabs, and empty primitives.
+- Workspace creation that updates the cached organization list before navigating, retries taken slugs, and surfaces the workspace limit.
+- Drizzle Studio runs with `bun run dev` and the API logs its browser URL beside the API URL in development.
 
 ## In Progress
 
@@ -100,12 +104,14 @@ The current repository has scripts for:
 - `bun run db:generate`
 - `bun run db:migrate`
 
-The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, and organization membership isolation. Shared utilities have tests for slug generation and organization roles. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, and workspace rendering.
+The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, and organization membership isolation. Shared utilities have tests for slug generation, organization roles, and avatar initials. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, workspace rendering, workspace switching, account menu actions, workspace creation cache updates, slug retries, and the workspace limit message.
 
 ## Known Limitations
 
 - The current API is not yet a multi-tenant product surface because domain persistence beyond organizations is not implemented.
 - Organization and membership management relies on Better Auth plugin endpoints; TeamOS-specific management screens are still minimal.
+- The `MAX_ORGANIZATIONS_PER_USER` cap counts all memberships and is not atomic, so concurrent creation can exceed it.
+- The account menu exposes planned entries that stay disabled until their flows exist.
 - Invitations require a configured Resend sender; without it verification and invitation email cannot be delivered.
 - Development allows authentication without OAuth credentials, but production startup requires both Google and GitHub credentials plus Resend configuration.
 - The readiness endpoint verifies connectivity but does not replace ongoing dependency monitoring.

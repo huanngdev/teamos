@@ -123,6 +123,10 @@ Better Auth is mounted directly into Hono at `/api/auth/*` and owns the `user`, 
 
 Social providers are enabled by configuring both credentials of the provider. `GET /api/authentication/providers` reports which providers are available so the frontend never renders an unusable button.
 
+Account linking is enabled with implicit linking. Signing in with a provider whose email matches an existing user links the provider account to that user only when the provider reports the email as verified. Providers are not added to `trustedProviders`, because that would link accounts even when the provider cannot confirm email ownership.
+
+Organization creation is capped by `MAX_ORGANIZATIONS_PER_USER` (default `3`) through the Better Auth `organizationLimit` option. The limit counts every organization the user belongs to, not only the ones they created, and returning a `403` `YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS` error is the native behavior. Because count and insert are separate operations, this is a best-effort cap rather than a hard invariant under concurrent requests.
+
 Email verification and organization invitations are delivered through the Resend adapter in `apps/api/src/infrastructure/email`. In development without Resend credentials the adapter throws instead of silently dropping mail.
 
 ## Testing The API

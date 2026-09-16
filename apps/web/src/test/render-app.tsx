@@ -6,24 +6,32 @@ import { MemoryRouter } from "react-router";
 import { ThemeProvider } from "@/components/theme-provider";
 
 interface RenderWithProvidersOptions {
+  queryClient?: QueryClient;
   route?: string;
 }
 
-function renderWithProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}) {
-  const queryClient = new QueryClient({
+function createTestQueryClient(): QueryClient {
+  return new QueryClient({
     defaultOptions: {
       mutations: { retry: false },
       queries: { retry: false },
     },
   });
-
-  return render(
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[options.route ?? "/"]}>{ui}</MemoryRouter>
-      </QueryClientProvider>
-    </ThemeProvider>,
-  );
 }
 
-export { renderWithProviders };
+function renderWithProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}) {
+  const queryClient = options.queryClient ?? createTestQueryClient();
+
+  return {
+    queryClient,
+    ...render(
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={[options.route ?? "/"]}>{ui}</MemoryRouter>
+        </QueryClientProvider>
+      </ThemeProvider>,
+    ),
+  };
+}
+
+export { createTestQueryClient, renderWithProviders };

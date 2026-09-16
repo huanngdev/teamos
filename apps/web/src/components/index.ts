@@ -1,4 +1,5 @@
 export {};
+export { AccountMenu, type AccountMenuUser } from "./account-menu";
 export { AuthCard } from "./auth-card";
 export { AuthProviderButtons } from "./auth-provider-buttons";
 export { ErrorBoundary } from "./error-boundary";
@@ -7,3 +8,4 @@ export { ModeToggle } from "./mode-toggle";
 export { PageLoading } from "./page-loading";
 export { ReadinessScreen } from "./readiness-screen";
 export { ThemeProvider } from "./theme-provider";
+export { WorkspaceSwitcher } from "./workspace-switcher";

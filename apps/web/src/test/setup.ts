@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
-import { afterAll, afterEach, beforeAll } from "vitest";
+import { afterAll, afterEach } from "vitest";
 
 import { server } from "./server";
 
@@ -35,9 +35,12 @@ Object.defineProperty(window, "cancelAnimationFrame", {
   writable: true,
 });
 
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: "error" });
-});
+/*
+ * Listening starts while setup runs, before test modules are imported. The
+ * Better Auth client captures `fetch` when it is created, so a client imported
+ * by a test module would otherwise hold the unpatched implementation.
+ */
+server.listen({ onUnhandledRequest: "error" });
 
 afterEach(() => {
   server.resetHandlers();
