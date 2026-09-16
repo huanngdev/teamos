@@ -74,4 +74,17 @@ const apiErrorResponses = {
   },
 } as const;
 
-export { apiErrorResponses, requestIdHeaders };
+const protectedRouteErrorResponses = {
+  401: {
+    content: { "application/json": { schema: apiErrorResponseSchema } },
+    description: "The request requires an authenticated session.",
+    headers: requestIdHeaders,
+  },
+  403: {
+    content: { "application/json": { schema: apiErrorResponseSchema } },
+    description: "The authenticated user is not allowed to perform this action.",
+    headers: requestIdHeaders,
+  },
+} as const;
+
+export { apiErrorResponses, protectedRouteErrorResponses, requestIdHeaders };
