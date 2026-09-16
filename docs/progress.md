@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 ## Current Milestone
 
@@ -33,6 +33,14 @@ TeamOS has a working monorepo and HTTP foundation. The next milestone is the fir
 - Server-only `@teamos/db` package with Drizzle configuration and an empty schema entry point.
 - Fail-fast startup probes for PostgreSQL, Redis, and MinIO with cleanup on partial failure.
 - Dedicated Drizzle commands for schema checking, migration generation, migration application, and Studio.
+- Tailwind CSS v4 and shadcn/ui base-nova design system using preset `b4VkKso62S`.
+- Full shadcn/ui component registry generated in `apps/web/src/components/ui`.
+- Light and dark theme support with persisted user preference, active toggle state, and an animated toggle icon.
+- Global Sonner-based shadcn/ui toaster with rich colors positioned at the top right.
+- Axios API client and TanStack Query provider with shared runtime response validation.
+- React Router, frontend provider composition, and a backend readiness gate with bounded retries.
+- Frontend test foundation with Vitest, Testing Library, and MSW.
+- `@shadcn/lint` and TanStack Query ESLint rules for frontend design-system usage.
 
 ## In Progress
 
