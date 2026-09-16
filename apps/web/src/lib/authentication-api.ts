@@ -2,9 +2,9 @@ import { socialProvidersResponseSchema, type SocialProvider } from "@teamos/shar
 
 import { ApiClientError, apiClient, toApiClientError } from "./api-client";
 
-async function getSocialProviders(signal: AbortSignal): Promise<SocialProvider[]> {
+async function getSocialProviders(): Promise<SocialProvider[]> {
   try {
-    const response = await apiClient.get<unknown>("/api/authentication/providers", { signal });
+    const response = await apiClient.get<unknown>("/api/authentication/providers");
     const parsed = socialProvidersResponseSchema.safeParse(response.data);
 
     if (!parsed.success) {

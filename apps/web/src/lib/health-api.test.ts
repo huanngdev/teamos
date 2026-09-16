@@ -22,7 +22,7 @@ const healthyReadiness = {
 test("parses a healthy readiness response", async () => {
   server.use(http.get(`${apiUrl}/health/ready`, () => HttpResponse.json(healthyReadiness)));
 
-  await expect(getReadiness(new AbortController().signal)).resolves.toEqual(healthyReadiness);
+  await expect(getReadiness()).resolves.toEqual(healthyReadiness);
 });
 
 test("preserves dependency details when readiness is unavailable", async () => {
@@ -40,15 +40,13 @@ test("preserves dependency details when readiness is unavailable", async () => {
     ),
   );
 
-  await expect(getReadiness(new AbortController().signal)).rejects.toBeInstanceOf(
-    ReadinessUnavailableError,
-  );
+  await expect(getReadiness()).rejects.toBeInstanceOf(ReadinessUnavailableError);
 });
 
 test("rejects malformed readiness payloads", async () => {
   server.use(http.get(`${apiUrl}/health/ready`, () => HttpResponse.json({ status: "ok" })));
 
-  await expect(getReadiness(new AbortController().signal)).rejects.toMatchObject({
+  await expect(getReadiness()).rejects.toMatchObject({
     kind: "invalid-response",
   });
 });

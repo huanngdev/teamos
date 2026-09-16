@@ -12,10 +12,9 @@ class ReadinessUnavailableError extends Error {
   }
 }
 
-async function getReadiness(signal: AbortSignal): Promise<ReadinessStatus> {
+async function getReadiness(): Promise<ReadinessStatus> {
   try {
     const response = await apiClient.get<unknown>("/health/ready", {
-      signal,
       validateStatus: (status) => (status >= 200 && status < 300) || status === 503,
     });
     const parsed = readinessStatusSchema.safeParse(response.data);

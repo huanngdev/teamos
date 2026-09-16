@@ -12,7 +12,7 @@ type WorkspaceState =
 
 function useWorkspace(organizationSlug: string): WorkspaceState {
   const query = useQuery({
-    queryFn: ({ signal }) => getOrganizationContext(organizationSlug, signal),
+    queryFn: () => getOrganizationContext(organizationSlug),
     queryKey: ["organization", organizationSlug],
     retry: (failureCount, error) =>
       !(error instanceof ApiClientError && error.status === 404) && failureCount < 1,

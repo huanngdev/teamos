@@ -59,7 +59,7 @@ function getReadinessErrorMessage(error: unknown) {
 function useBackendReadiness(): BackendReadinessState & { retry: () => void } {
   const query = useQuery({
     gcTime: 5 * 60 * 1000,
-    queryFn: ({ signal }) => getReadiness(signal),
+    queryFn: getReadiness,
     queryKey: READINESS_QUERY_KEY,
     refetchOnWindowFocus: false,
     retry: (failureCount, error) =>

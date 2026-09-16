@@ -7,14 +7,10 @@ import {
 import { ApiClientError, apiClient, toApiClientError } from "./api-client";
 import { authClient } from "./auth-client";
 
-async function getOrganizationContext(
-  organizationSlug: string,
-  signal: AbortSignal,
-): Promise<OrganizationContext> {
+async function getOrganizationContext(organizationSlug: string): Promise<OrganizationContext> {
   try {
     const response = await apiClient.get<unknown>(
       `/api/organizations/${encodeURIComponent(organizationSlug)}`,
-      { signal },
     );
     const parsed = organizationContextResponseSchema.safeParse(response.data);
 

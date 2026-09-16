@@ -7,7 +7,7 @@ const SOCIAL_PROVIDERS_QUERY_KEY = ["authentication", "providers"] as const;
 
 function useSocialProviders() {
   const query = useQuery({
-    queryFn: ({ signal }) => getSocialProviders(signal),
+    queryFn: getSocialProviders,
     queryKey: SOCIAL_PROVIDERS_QUERY_KEY,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000,
