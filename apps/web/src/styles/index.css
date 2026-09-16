@@ -6,6 +6,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.logo-wordmark {
+  font-size: calc(var(--logo-size) - (var(--spacing) * 2));
+}
+
 :root {
   color-scheme: light;
 }
