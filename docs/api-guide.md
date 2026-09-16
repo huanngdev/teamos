@@ -6,13 +6,17 @@ This document is the working guide for adding, testing, and consuming the TeamOS
 
 When `API_DOCS_ENABLED=true`, the API exposes:
 
-| Endpoint        | Purpose                                         |
-| --------------- | ----------------------------------------------- |
-| `/docs`         | Interactive Scalar API reference                |
-| `/openapi.json` | OpenAPI 3.1 document for generators and tooling |
-| `/`             | API identity and liveness response              |
-| `/health`       | Lightweight liveness endpoint                   |
-| `/health/ready` | PostgreSQL, Redis, and MinIO readiness status   |
+| Endpoint                                | Purpose                                          |
+| --------------------------------------- | ------------------------------------------------ |
+| `/docs`                                 | Interactive Scalar API reference                 |
+| `/openapi.json`                         | OpenAPI 3.1 document for generators and tooling  |
+| `/`                                     | API identity and liveness response               |
+| `/health`                               | Lightweight liveness endpoint                    |
+| `/health/ready`                         | PostgreSQL, Redis, and MinIO readiness status    |
+| `/api/auth/*`                           | Better Auth handler (sign-in, callback, session) |
+| `/api/authentication/providers`         | Enabled social sign-in providers                 |
+| `/api/me`                               | Authenticated user and session                   |
+| `/api/organizations/{organizationSlug}` | Organization context for a member                |
 
 Documentation is enabled by default in development and test. It is disabled by default in production and must be explicitly enabled with `API_DOCS_ENABLED=true`.
 
@@ -38,6 +42,9 @@ Successful responses should use a shared Zod contract whenever the response cros
 - `healthStatusSchema`
 - `readinessStatusSchema`
 - `apiErrorResponseSchema`
+- `socialProvidersResponseSchema`
+- `currentUserResponseSchema`
+- `organizationContextResponseSchema`
 
 Unexpected server errors must not expose stack traces, database messages, credentials, or implementation details. The public error response contains an error code, safe message, optional validation details, and request ID.
 
@@ -46,6 +53,8 @@ Common documented error statuses are:
 | Status | Meaning                         |
 | -----: | ------------------------------- |
 |  `400` | Malformed request or JSON       |
+|  `401` | Authentication required         |
+|  `403` | Authenticated but not allowed   |
 |  `404` | Resource or route not found     |
 |  `408` | Request timeout                 |
 |  `413` | Request body too large          |
@@ -103,7 +112,18 @@ Global middleware runs before route dispatch:
 
 ## Authentication
 
-Authentication and authorization are not yet implemented. Do not add a fake bearer scheme to OpenAPI. When Better Auth is introduced, document the actual session or cookie transport and mark protected operations with the real security scheme.
+Better Auth is mounted directly into Hono at `/api/auth/*` and owns the `user`, `session`, `account`, `verification`, `organization`, `member`, and `invitation` tables in `packages/db`.
+
+- Session transport is the Better Auth cookie (`better-auth.session_token`, with a `__Secure-` prefix when secure cookies are enabled). OpenAPI declares it as the `sessionCookie` apiKey security scheme.
+- `/api/auth/*` returns Better Auth's native responses and is intentionally not reshaped into the TeamOS error contract.
+- TeamOS-owned routes use the shared error contract and the `unauthenticated`/`email_verification_required`/`forbidden` codes.
+- `createSessionMiddleware` resolves the session into the typed `authSession` Hono variable. `createRequireVerifiedSessionMiddleware` rejects missing sessions with `401` and unverified emails with `403`.
+- Every organization-scoped operation must resolve membership from the database and return `404` when the caller is not a member, before any permission check can return `403`.
+- `activeOrganizationId` is a convenience field only and is never treated as an authorization boundary.
+
+Social providers are enabled by configuring both credentials of the provider. `GET /api/authentication/providers` reports which providers are available so the frontend never renders an unusable button.
+
+Email verification and organization invitations are delivered through the Resend adapter in `apps/api/src/infrastructure/email`. In development without Resend credentials the adapter throws instead of silently dropping mail.
 
 ## Testing The API
 
@@ -130,6 +150,19 @@ bun run db:studio
 ```
 
 `generate` compares the schema in `packages/db/src/schema` with the previous migration state. `migrate` applies committed SQL migrations. The API never runs migrations automatically during boot.
+
+The Better Auth tables in `packages/db/src/schema/auth.ts` are generated from the auth config, not hand-written. After changing plugins, models, or `additionalFields`, regenerate them from `apps/api`:
+
+```bash
+bun run --cwd packages/shared build
+bun run --cwd packages/db build
+bun x auth@1.7.5 generate --config src/auth/cli.ts --adapter drizzle --dialect postgresql \
+  --output ../../packages/db/src/schema/auth.ts -y
+bun run db:generate
+bun run db:migrate
+```
+
+`apps/api/src/auth/cli.ts` keeps the generation config free of the Bun-only database client so the CLI can load it under Node.
 
 ## Startup And Readiness
 

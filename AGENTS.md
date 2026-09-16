@@ -78,6 +78,7 @@ Every source directory has an `index.ts` barrel for its public exports. Keep app
 - `apps/web/src/lib`: Browser-only helpers and integrations.
 - `apps/web/src/pages`: Route-level page components.
 - `apps/web/src/styles`: Global CSS entry point.
+- `apps/api/src/auth`: Server-side Better Auth instance, session middleware, and organization access checks.
 - `apps/api/src/config`: Validated server configuration.
 - `apps/api/src/errors`: Typed application errors and HTTP error normalization.
 - `apps/api/src/infrastructure`: Redis, rate limiter, and future external-service adapters.
@@ -160,7 +161,7 @@ Shared code must be environment-agnostic and free of side effects. It must not i
 
 ## Authentication and Authorization
 
-Use Better Auth as the authentication foundation. Keep its server configuration in `packages/auth` or the API app, and expose only safe client helpers to the frontend.
+Use Better Auth as the authentication foundation. Its server configuration lives in `apps/api/src/auth` and exposes only safe client helpers to the frontend. The Better Auth Organization plugin owns organizations, members, and invitations, and `packages/db` owns the resulting Drizzle schema.
 
 Authentication answers who the user is; authorization determines what that user may do. Every protected API route and real-time connection must enforce both. Validate organization membership when joining chat channels, subscribing to events, accessing files, or changing schedules.
 

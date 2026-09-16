@@ -4,7 +4,7 @@ Last updated: 2026-09-16
 
 ## Current Milestone
 
-TeamOS has a working monorepo and HTTP foundation. The next milestone is the first durable organization, project, and issue workflow.
+TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentication with organization-scoped authorization. The next milestone is the first durable project and issue workflow.
 
 ## Completed
 
@@ -42,19 +42,31 @@ TeamOS has a working monorepo and HTTP foundation. The next milestone is the fir
 - Frontend test foundation with Vitest, Testing Library, and MSW.
 - `@shadcn/lint` and TanStack Query ESLint rules for frontend design-system usage.
 
+### Authentication and authorization
+
+- Better Auth instance built from validated environment config and the shared Drizzle client.
+- Better Auth handler mounted at `/api/auth/*` with the Drizzle PostgreSQL adapter.
+- Google and GitHub OAuth providers with per-provider email verification enforcement.
+- Tightened account linking: implicit linking is disabled and providers link only while signed in.
+- Session middleware with a typed `authSession` context value and email-verification guard.
+- Resend-backed email adapter with verification and organization invitation templates.
+- Escaped, HTML and plain-text email rendering with delivery failures logged rather than swallowed.
+- Organization-scoped access service that queries membership from PostgreSQL and powers `404` for non-members.
+- Social provider discovery endpoint that reflects the configured OAuth credentials.
+- Better Auth schema (`user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`) generated into `packages/db` and applied through the first Drizzle migration.
+- Frontend session, workspace, invitation, and sign-in hooks with public auth routes and a protected workspace layout.
+
 ## In Progress
 
 - Defining the organization, membership, project, and issue domain model.
-- Choosing the first domain tables and migration boundaries; the Drizzle schema entry point is ready but intentionally empty.
-- Establishing authentication and server-side authorization before protected domain routes are added.
+- Choosing the first domain tables beyond authentication; the Drizzle schema now owns the Better Auth tables.
 
 ## Not Started
 
-- Organization, membership, project, and issue Drizzle tables and migrations.
-- Better Auth configuration and session flows.
-- Organization membership and permission enforcement.
+- Project and issue Drizzle tables and migrations.
 - Project and issue CRUD workflows.
 - Issue statuses, priorities, labels, assignment, and ordering.
+- Organization and member management screens beyond the workspace shell.
 - Durable chat channels and messages.
 - Schedule, events, and team availability.
 - MinIO bucket management, signed URLs, and attachment ownership metadata.
@@ -63,14 +75,16 @@ TeamOS has a working monorepo and HTTP foundation. The next milestone is the fir
 
 ## Infrastructure Integration Status
 
-| Area           | Status                | Notes                                                                      |
-| -------------- | --------------------- | -------------------------------------------------------------------------- |
-| PostgreSQL     | Connected at boot     | `@teamos/db` probes with `SELECT 1`; schema has no domain tables yet       |
-| Redis          | Partially integrated  | API rate limiter uses Redis with an in-memory insurance limiter            |
-| MinIO          | Connected at boot     | S3 client probes credentials with `ListBuckets`; storage workflows pending |
-| Logging        | Integrated            | Pretty local output, JSON production output, sensitive-field redaction     |
-| API protection | Integrated foundation | Middleware and error contract are covered by API tests                     |
-| API docs       | Integrated            | OpenAPI 3.1 at `/openapi.json`, Scalar UI at `/docs`                       |
+| Area           | Status                | Notes                                                                             |
+| -------------- | --------------------- | --------------------------------------------------------------------------------- |
+| PostgreSQL     | Connected at boot     | `@teamos/db` probes with `SELECT 1`; owns the Better Auth and organization tables |
+| Redis          | Partially integrated  | API rate limiter uses Redis with an in-memory insurance limiter                   |
+| MinIO          | Connected at boot     | S3 client probes credentials with `ListBuckets`; storage workflows pending        |
+| Logging        | Integrated            | Pretty local output, JSON production output, sensitive-field redaction            |
+| API protection | Integrated foundation | Middleware and error contract are covered by API tests                            |
+| API docs       | Integrated            | OpenAPI 3.1 at `/openapi.json`, Scalar UI at `/docs`, cookie session scheme       |
+| Authentication | Integrated            | Better Auth OAuth with email verification, session guard, and Resend email        |
+| Email          | Integrated            | Resend adapter for verification and invitations; required in production           |
 
 ## Quality Checks
 
@@ -86,12 +100,14 @@ The current repository has scripts for:
 - `bun run db:generate`
 - `bun run db:migrate`
 
-The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, environment validation, and bootstrap service failure handling.
+The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, and organization membership isolation. Shared utilities have tests for slug generation and organization roles. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, and workspace rendering.
 
 ## Known Limitations
 
-- The current API is not yet a multi-tenant product surface because domain persistence and authorization are not implemented.
-- The empty Drizzle schema cannot persist product domain data yet.
+- The current API is not yet a multi-tenant product surface because domain persistence beyond organizations is not implemented.
+- Organization and membership management relies on Better Auth plugin endpoints; TeamOS-specific management screens are still minimal.
+- Invitations require a configured Resend sender; without it verification and invitation email cannot be delivered.
+- Development allows authentication without OAuth credentials, but production startup requires both Google and GitHub credentials plus Resend configuration.
 - The readiness endpoint verifies connectivity but does not replace ongoing dependency monitoring.
 - Local Compose credentials are development defaults and must not be reused in production.
 - Redis-backed rate limiting is fail-closed when Redis is not ready in the real API server path.
@@ -99,12 +115,12 @@ The API foundation currently has focused tests for security headers, CORS, reque
 
 ## Recommended Next Priorities
 
-1. Define the organization and membership schema with tenant-scoped identifiers.
-2. Generate and apply the first Drizzle migration.
-3. Configure Better Auth and the first authorization middleware.
-4. Implement organization and project APIs with membership checks.
-5. Add integration tests against PostgreSQL, Redis, and MinIO.
-6. Add the first issue workflow and matching web screens.
+1. Implement organization and member management screens with permission-aware actions.
+2. Add project and issue tables, migrations, and organization-scoped APIs.
+3. Reuse the organization access service for every tenant-scoped query and route.
+4. Add integration tests against PostgreSQL, Redis, and MinIO for real session and membership flows.
+5. Add the first issue workflow and matching web screens.
+6. Add a dedicated background worker for transactional email delivery.
 
 ## Update Rule
 
