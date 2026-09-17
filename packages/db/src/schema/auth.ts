@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index, unique } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -99,6 +99,13 @@ export const member = pgTable(
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
+    /*
+     * TeamOS extension. This file is generated from the Better Auth config, so
+     * re-add this constraint after regenerating it. It lets project membership
+     * reference the member with the organization in the same foreign key,
+     * which is what makes cross-tenant project membership impossible.
+     */
+    unique("member_id_organization_unique").on(table.id, table.organizationId),
   ],
 );
 
