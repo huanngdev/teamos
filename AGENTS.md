@@ -70,13 +70,16 @@ Add a package only when it has a clear owner and is reused or independently usef
 
 ## Current Folder Guide
 
-Every source directory has an `index.ts` barrel for its public exports. Keep application behavior in the owning app and use package exports for cross-workspace configuration.
+Every feature exposes an `index.ts` barrel for its public surface; `routes` and `shared` do the same. Keep application behavior in the owning app and use package exports for cross-workspace configuration.
 
-- `apps/web/src/app`: Top-level page composition.
-- `apps/web/src/components`: Presentational UI primitives.
-- `apps/web/src/hooks`: Browser state, effects, and feature behavior.
-- `apps/web/src/lib`: Browser-only helpers and integrations.
-- `apps/web/src/pages`: Route-level page components.
+- `apps/web/src/app`: Providers and route registration.
+- `apps/web/src/layouts`: Router layouts and their route-orchestration hooks.
+- `apps/web/src/routes`: URL-level route components only, named `*-route.tsx`.
+- `apps/web/src/features`: One folder per product capability (`auth`, `workspaces`, `members`, `projects`, `system`), each colocating `api`, `components`, `hooks`, `lib`, and `query-keys`.
+- `apps/web/src/shared`: Genuinely cross-feature browser code: API client, environment, query client, and reusable components and hooks.
+- `apps/web/src/components/ui`: Generated shadcn primitives. Never moved or restyled.
+- `apps/web/src/lib`: Browser helper reserved for the shadcn `cn` utility alias.
+- `apps/web/src/test`: Shared test rendering, MSW server, and fixtures.
 - `apps/web/src/styles`: Global CSS entry point.
 - `apps/api/src/auth`: Server-side Better Auth instance, session middleware, and organization access checks.
 - `apps/api/src/config`: Validated server configuration.
@@ -124,6 +127,19 @@ The frontend must not import server-only code, database clients, secrets, Node-o
 
 Always separate frontend behavior from presentation. UI components receive typed props and render markup; dedicated hooks own state, effects, data access, mutations, permissions, derived workflow state, and non-trivial handlers. Do not place business or feature logic inside UI components. Follow the detailed frontend separation rules in `CODE_RULES.md`.
 
+Organize `apps/web/src` by feature, not by technical file type:
+
+- `app` owns providers and route registration.
+- `layouts` owns router layouts and their route-orchestration hooks.
+- `routes` owns URL-level route components only.
+- `features/<feature>` owns one product capability and colocates its `api`, `components`, `hooks`, and `query-keys`.
+- `shared` owns genuinely cross-feature browser code: API client, environment, query client, reusable hooks, and reusable components.
+- `components/ui` stays reserved for generated shadcn primitives and is never moved or edited for organizational reasons.
+
+Naming follows the shadcn/ui convention that `components/ui` already uses, and it is uniform across `apps/` and `packages/`: kebab-case for every file and directory, PascalCase for React component exports, camelCase for functions and hooks, a `use-` prefix for hook files, a `-route.tsx` suffix for route modules, and a `.test.ts(x)` suffix for tests. See `CODE_RULES.md` for the full rule. A feature exposes its public surface through `index.ts`; internal feature modules import each other relatively. Report to the user which layer a new file belongs to when it is not obvious.
+
+Follow the shadcn rules in `CODE_RULES.md`: never pass `size="sm"` in application code, use the default size, prefer `size="icon"` over `size="icon-sm"`, and keep the design system as close to upstream shadcn as practical.
+
 ### Backend
 
 `apps/api` owns HTTP and real-time transports, authorization enforcement, application services, integrations, and background work. Keep Hono route handlers thin: validate input, call a service, and translate the result into an HTTP response.
@@ -153,7 +169,8 @@ Shared code must be environment-agnostic and free of side effects. It must not i
 - Treat the organization as the primary tenancy boundary.
 - Scope projects, memberships, issues, chats, channels, messages, and schedules to an organization where applicable.
 - Use explicit roles and permissions instead of scattered role-name checks.
-- Enforce tenant isolation in backend services and database queries.
+- Enforce tenant isolation in backend services and database queries, and prefer database-enforced relationships for cross-entity integrity. Project membership references both the project and the member with the organization included in the same composite foreign key.
+- Report an inaccessible tenant-scoped resource as `404`; reserve `403` for an action denied on a resource the caller may see.
 - Prefer stable public IDs and never expose sensitive internal data unnecessarily.
 - Store timestamps in UTC and localize them only at display boundaries.
 - Model issue status, priority, assignment, labels, and ordering explicitly.
@@ -162,6 +179,12 @@ Shared code must be environment-agnostic and free of side effects. It must not i
 ## Authentication and Authorization
 
 Use Better Auth as the authentication foundation. Its server configuration lives in `apps/api/src/auth` and exposes only safe client helpers to the frontend. The Better Auth Organization plugin owns organizations, members, and invitations, and `packages/db` owns the resulting Drizzle schema.
+
+Organization member and invitation mutations go through a thin TeamOS facade in `apps/api/src/routes/organization-*.ts` and `apps/api/src/services/organization-management.ts`, which calls the Better Auth server API after applying TeamOS authorization, auditing, rate limiting, and response contracts. The equivalent native Better Auth endpoints are blocked for browser callers so the facade cannot be bypassed; invitation acceptance and rejection stay native because Better Auth already enforces recipient matching, verified email, expiry, and single use.
+
+Organization roles (`owner`, `admin`, `member`) are the only source of organization-wide authority and are defined once in `packages/shared` policy helpers. The owner role is never granted through invites or generic member management; ownership transfer needs its own flow.
+
+Projects are a TeamOS domain concept and are not Better Auth teams. Project access combines the organization role with an explicit project role (`lead`, `member`, `viewer`), organization owners and admins always retain full project control, and private projects are invisible to members without a project role. Model project permissions through the shared policy helpers and enforce them in services, never in the UI.
 
 Authentication answers who the user is; authorization determines what that user may do. Every protected API route and real-time connection must enforce both. Validate organization membership when joining chat channels, subscribing to events, accessing files, or changing schedules.
 
@@ -213,6 +236,15 @@ When implementing a feature:
 3. Implement backend authorization and business logic.
 4. Implement the frontend flow and its loading, empty, error, and success states.
 5. Add focused tests for permissions, tenant isolation, validation, and important state changes.
+
+Useful verification commands beyond the standard scripts:
+
+```text
+bun run --cwd apps/api verify:isolation   # tenant isolation against live PostgreSQL
+bun run db:generate                       # review generated SQL before committing
+```
+
+Review generated migrations for statement ordering. A composite unique constraint used as a foreign-key target must be created before the foreign key, and Drizzle Kit does not always emit them in that order.
 
 Before considering work complete, run the repository's available formatting, linting, type-checking, test, and build scripts. For UI changes, verify responsive layout, keyboard behavior, light and dark themes, and reduced motion. For infrastructure changes, validate the Docker Compose configuration and service health.
 

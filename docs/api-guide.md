@@ -6,17 +6,21 @@ This document is the working guide for adding, testing, and consuming the TeamOS
 
 When `API_DOCS_ENABLED=true`, the API exposes:
 
-| Endpoint                                | Purpose                                          |
-| --------------------------------------- | ------------------------------------------------ |
-| `/docs`                                 | Interactive Scalar API reference                 |
-| `/openapi.json`                         | OpenAPI 3.1 document for generators and tooling  |
-| `/`                                     | API identity and liveness response               |
-| `/health`                               | Lightweight liveness endpoint                    |
-| `/health/ready`                         | PostgreSQL, Redis, and MinIO readiness status    |
-| `/api/auth/*`                           | Better Auth handler (sign-in, callback, session) |
-| `/api/authentication/providers`         | Enabled social sign-in providers                 |
-| `/api/me`                               | Authenticated user and session                   |
-| `/api/organizations/{organizationSlug}` | Organization context for a member                |
+| Endpoint                                                 | Purpose                                          |
+| -------------------------------------------------------- | ------------------------------------------------ |
+| `/docs`                                                  | Interactive Scalar API reference                 |
+| `/openapi.json`                                          | OpenAPI 3.1 document for generators and tooling  |
+| `/`                                                      | API identity and liveness response               |
+| `/health`                                                | Lightweight liveness endpoint                    |
+| `/health/ready`                                          | PostgreSQL, Redis, and MinIO readiness status    |
+| `/api/auth/*`                                            | Better Auth handler (sign-in, callback, session) |
+| `/api/authentication/providers`                          | Enabled social sign-in providers                 |
+| `/api/me`                                                | Authenticated user and session                   |
+| `/api/organizations/{organizationSlug}`                  | Organization context for a member                |
+| `/api/organizations/{slug}/members`                      | Searchable, paginated workspace members          |
+| `/api/organizations/{slug}/invitations`                  | Pending workspace invitations                    |
+| `/api/organizations/{slug}/projects`                     | Searchable workspace projects                    |
+| `/api/organizations/{slug}/projects/{projectId}/members` | Project roles                                    |
 
 Documentation is enabled by default in development and test. It is disabled by default in production and must be explicitly enabled with `API_DOCS_ENABLED=true`.
 
@@ -45,6 +49,9 @@ Successful responses should use a shared Zod contract whenever the response cros
 - `socialProvidersResponseSchema`
 - `currentUserResponseSchema`
 - `organizationContextResponseSchema`
+- `memberListResponseSchema`
+- `invitationListResponseSchema`, `invitationResponseSchema`
+- `projectListResponseSchema`, `projectDetailResponseSchema`, `projectMemberListResponseSchema`
 
 Unexpected server errors must not expose stack traces, database messages, credentials, or implementation details. The public error response contains an error code, safe message, optional validation details, and request ID.
 
@@ -106,9 +113,19 @@ Global middleware runs before route dispatch:
 4. Content-Type validation.
 5. Body-size and timeout limits.
 6. CSRF protection.
-7. Redis-backed rate limiting.
+7. Redis-backed rate limiting, keyed by client IP.
 
 `/health` and `/health/ready` bypass rate limiting. Domain endpoints must not bypass it without an explicit reason and a focused test.
+
+Organization-scoped routes add a second rate limiter keyed by the authenticated actor (`user:<id>`) and configured by `MANAGEMENT_RATE_LIMIT_POINTS`. It protects invitations, role changes, and member removal, where an IP-only budget would let one account exhaust a shared NAT address.
+
+### CSRF Protection
+
+`createCsrfProtection` replaces the framework CSRF middleware. A cross-origin HTML form can only produce `application/x-www-form-urlencoded`, `multipart/form-data`, or `text/plain`, so those requests require `Sec-Fetch-Site: same-origin` or an allowlisted `Origin`. JSON and other bodies always trigger a CORS preflight that the origin allowlist rejects, and a bodyless unsafe request such as `DELETE` is allowed through to the handler. The framework default treated a missing `Content-Type` as `text/plain` and rejected every bodyless `DELETE`.
+
+### Validation Responses
+
+Route validation failures are converted into the TeamOS error contract as `422 VALIDATION_ERROR` with per-field details through the shared OpenAPI router factory, instead of the library's own `400` body.
 
 ## Authentication
 
@@ -127,7 +144,64 @@ Account linking is enabled with implicit linking. Signing in with a provider who
 
 Organization creation is capped by `MAX_ORGANIZATIONS_PER_USER` (default `3`) through the Better Auth `organizationLimit` option. The limit counts every organization the user belongs to, not only the ones they created, and returning a `403` `YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS` error is the native behavior. Because count and insert are separate operations, this is a best-effort cap rather than a hard invariant under concurrent requests.
 
-Email verification and organization invitations are delivered through the Resend adapter in `apps/api/src/infrastructure/email`. In development without Resend credentials the adapter throws instead of silently dropping mail.
+Email verification and organization invitations are delivered through the Resend adapter in `apps/api/src/infrastructure/email`. In development without Resend credentials the adapter throws instead of silently dropping mail. Delivery failures are logged and rethrown: Better Auth persists an invitation before sending its email, so a failed send returns `502 INVITATION_EMAIL_FAILED` and the client refreshes the pending invitation list instead of retrying a duplicate create. A durable outbox with retry is still required before transactional email is production-grade.
+
+### Workspace Selection
+
+`GET /api/organizations/{organizationSlug}` returns the organization context a member may open: id, name, slug, logo, role, member count, and `createdAt`. The client uses `createdAt` to order workspaces deterministically, because Better Auth does not guarantee a row order for its organization list. The web app remembers the last opened workspace per user in `localStorage`, reopens it while the user is still a member, otherwise opens the newest workspace, and sends users without workspaces to workspace creation.
+
+### Member And Invitation Management
+
+Better Auth keeps ownership of organizations, members, and invitations in `packages/db`. TeamOS wraps the mutations in a thin facade so authorization, auditing, rate limiting, and stable contracts apply consistently:
+
+- `GET /api/organizations/{slug}/members` returns a page of members. `limit` defaults to 25 and is capped at 100, `offset` resumes a page, and `search` is a literal case-insensitive substring match on name or email. The match is case-insensitive on both sides and uses `position(...)` rather than `LIKE`, so characters such as `%` are never reinterpreted as wildcards.
+- `PATCH /api/organizations/{slug}/members/{memberId}/role` accepts `admin` or `member`. The owner role is rejected by request validation and by a Better Auth `before` hook.
+- `DELETE /api/organizations/{slug}/members/{memberId}` removes a member. Owners and the acting user can never be targeted through this route; leaving a workspace needs its own flow.
+- `GET|POST /api/organizations/{slug}/invitations` lists pending invitations or creates one. Only owners and admins may list or create.
+- `POST /api/organizations/{slug}/invitations/{invitationId}/resend` cancels the previous pending invitation and issues a new one, so a previously emailed link stops working. `resend: true` is rejected because it would keep the old invitation ID valid.
+- `DELETE /api/organizations/{slug}/invitations/{invitationId}` cancels an invitation.
+
+Existing members and pending invitations are reported as `409` with `MEMBER_ALREADY_IN_ORGANIZATION` and `INVITATION_ALREADY_PENDING`. Better Auth error codes are mapped into TeamOS codes; unknown failures become `502 HTTP_ERROR` without echoing provider or database details.
+
+Accepting, rejecting, and reading an invitation by ID still use the native Better Auth endpoints, because Better Auth already enforces recipient email matching, verified email, expiry, and single use.
+
+`cancelPendingInvitationsOnReInvite: true`, `invitationLimit: MAX_PENDING_INVITATIONS`, and `membershipLimit: MAX_ORGANIZATION_MEMBERS` are configured explicitly instead of relying on library defaults.
+
+### Blocked Native Endpoints
+
+The browser must not reach the Better Auth endpoints that the TeamOS facade replaces. These paths return the TeamOS `404` envelope before the Better Auth handler runs:
+
+- `/api/auth/organization/get-full-organization`
+- `/api/auth/organization/list-invitations`
+- `/api/auth/organization/list-members`
+- `/api/auth/organization/invite-member`
+- `/api/auth/organization/cancel-invitation`
+- `/api/auth/organization/update-member-role`
+- `/api/auth/organization/remove-member`
+
+Blocking matters because Better Auth only requires organization membership for `listInvitations` and `listMembers`, and because the raw invitation list contains action-capable invitation IDs. The path check decodes percent-encoding, collapses duplicate slashes, drops a trailing slash, and lowercases before comparing, so simple variants cannot slip past. Server-side calls through `auth.api.*` bypass the block by design, and tests cover both the blocked paths and an unblocked path such as `/api/auth/organization/accept-invitation`.
+
+### Project Authorization
+
+Project access is a TeamOS domain concern; Better Auth organization roles and teams cannot express a per-project role. Organization owners and admins always keep full control of every project, including private ones. Everyone else is additively granted access by a project role:
+
+| Action                   | Owner/Admin | Lead | Member | Viewer | Unassigned member |
+| ------------------------ | ----------- | ---- | ------ | ------ | ----------------- |
+| View a workspace project | Yes         | Yes  | Yes    | Yes    | Yes               |
+| View a private project   | Yes         | Yes  | Yes    | Yes    | No                |
+| Update project settings  | Yes         | Yes  | No     | No     | No                |
+| Manage project members   | Yes         | Yes  | No     | No     | No                |
+| Create or update issues  | Yes         | Yes  | Yes    | No     | No                |
+| Delete issues            | Yes         | Yes  | Yes    | No     | No                |
+| Delete a project         | Yes         | No   | No     | No     | No                |
+
+`GET /api/organizations/{slug}/projects` accepts an optional `search` term that matches the project name with the same literal, case-insensitive substring comparison used for members.
+
+Every workspace member may create a project and becomes its `lead` in the same transaction, so a project always starts with at least one lead. A project must keep at least one lead; a non-administrator cannot demote or remove the last one, while an organization owner or admin can still recover a project that lost its lead.
+
+Cross-tenant integrity is enforced by the database, not only by service checks. `member(id, organization_id)` carries a composite unique constraint and `project_membership` references both `project(id, organization_id)` and `member(id, organization_id)` with composite foreign keys, so granting a project role to a member of another workspace fails at the database level.
+
+An inaccessible project is reported as `404 PROJECT_NOT_FOUND` even when it exists, so private projects cannot be enumerated. A visible project with a denied action returns `403 FORBIDDEN`.
 
 ## Testing The API
 
@@ -155,6 +229,12 @@ bun run db:studio
 
 `generate` compares the schema in `packages/db/src/schema` with the previous migration state. `migrate` applies committed SQL migrations. The API never runs migrations automatically during boot.
 
+`packages/db/src/schema/projects.ts` is TeamOS-owned and hand-written. It adds `project` and `project_membership`, plus the composite `member(id, organization_id)` unique constraint that makes cross-tenant project membership impossible.
+
+Migrations that add a referenced composite unique constraint must place it before the foreign keys that use it. Drizzle Kit can emit them in the opposite order, which PostgreSQL rejects, so review generated SQL and reorder when needed.
+
+`bun run --cwd apps/api verify:isolation` runs a local integration check against PostgreSQL. It creates temporary rows, proves that same-tenant project roles succeed and cross-tenant grants fail, and then removes the rows.
+
 The Better Auth tables in `packages/db/src/schema/auth.ts` are generated from the auth config, not hand-written. After changing plugins, models, or `additionalFields`, regenerate them from `apps/api`:
 
 ```bash
@@ -167,6 +247,8 @@ bun run db:migrate
 ```
 
 `apps/api/src/auth/cli.ts` keeps the generation config free of the Bun-only database client so the CLI can load it under Node.
+
+Regenerating `auth.ts` drops the TeamOS-added `member_id_organization_unique` constraint. Re-add it after every regeneration, rebuild `packages/db`, and run `bun run db:generate` again before committing.
 
 ## Startup And Readiness
 

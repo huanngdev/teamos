@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-09-16
+Last updated: 2026-09-17
 
 ## Current Milestone
 
@@ -59,18 +59,45 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 - Workspace switcher and account menus built from shadcn dropdown, avatar, separator, tabs, and empty primitives.
 - Workspace creation that updates the cached organization list before navigating, retries taken slugs, and surfaces the workspace limit.
 - Drizzle Studio runs with `bun run dev` and the API logs its browser URL beside the API URL in development.
+- Shared organization member-management policies (`admin`/`member` assignment, owner protection) and project permission policies with focused tests.
+- Searchable, paginated workspace member listing with a hard page cap and literal substring matching.
+- TeamOS member and invitation management facade backed by Better Auth server APIs, with mapped error codes, structured audit logs, and a per-actor rate limiter.
+- Blocked direct browser access to the replaced Better Auth member and invitation endpoints.
+- Better Auth hardening: owner roles rejected by a `before` hook, `resend: true` rejected so invitation links rotate, and explicit membership and invitation limits.
+- Workspace members UI with debounced server search, avatars, role controls, invite dialog, pending invitations with resend and cancel, and confirmed removal.
+- Project and project-membership tables with composite foreign keys that make cross-tenant project membership impossible at the database level.
+- Project CRUD and project role management APIs with private-project visibility rules and last-lead protection.
+- Projects UI listing visibility and member counts, project creation, and a project members dialog for role changes and revocation.
+- Replaced the framework CSRF middleware so bodyless unsafe requests such as `DELETE` are accepted while form-encodable cross-site requests stay blocked.
+- Validation failures now return the shared `422 VALIDATION_ERROR` contract instead of the framework's own `400` body.
+
+### Frontend architecture
+
+- Feature-first `apps/web/src` layout: `app` (providers and routes), `layouts` (router layouts plus their orchestration hooks), `routes` (`*-route.tsx` URL modules), `features/<capability>` (`api`, `components`, `hooks`, `lib`, `query-keys`), and `shared` for genuinely cross-feature browser code.
+- `features/auth`, `features/workspaces`, `features/members`, `features/projects`, and `features/system` now own their components, hooks, API modules, and query keys; each exposes one `index.ts` barrel.
+- Generated shadcn primitives stay in `apps/web/src/components/ui` and the `cn` helper stays on the shadcn `utils` alias; neither is relocated for organizational reasons.
+- Nested React Router routes: `/workspaces/:organizationSlug` renders a `WorkspaceLayout` with `projects` and `members` children, an index redirect, and an explicit not-found route instead of a catch-all redirect.
+- Workspace tabs are route-aware links, so refreshing, linking, and browser back/forward keep the selected tab.
+- The previously oversized workspace page was split into a workspace layout hook, two feature route modules, and focused `useProjectList`/`useProjectMembers`/`useProjectSearch` hooks.
+- The 566-line workspace integration test was split into layout, projects, and members suites with shared MSW fixtures in `apps/web/src/test`.
+- Project search now also runs server-side with the same bounded, literal substring matching as member search.
+- Project cards use the shadcn `Card` composition with a semantic heading, visibility badge, member count, and an overflow action menu.
+- The members view is a semantic responsive `Table`: the role column collapses under the member email on narrow screens, and pending invitations use their own table with one overflow action menu.
+- Application code no longer passes compact `size="sm"` overrides; only semantic icon sizes such as `size="icon"` remain.
+- Workspace selection is deterministic: the client remembers the last opened workspace per user in `localStorage`, reopens it while the user is still a member, and otherwise opens the newest workspace using the organization `createdAt` rather than the undefined Better Auth row order. Users without workspaces go to `/workspaces/new`.
+- Sign-out now clears the query cache and navigates only after the server confirms it; a failed sign-out keeps the user in place and surfaces a retryable alert.
+- `OrganizationSummary` and the organization context response now include `createdAt`.
 
 ## In Progress
 
-- Defining the organization, membership, project, and issue domain model.
-- Choosing the first domain tables beyond authentication; the Drizzle schema now owns the Better Auth tables.
+- Issue domain model and workflow.
+- Invitation delivery reliability through a durable outbox and background worker.
 
 ## Not Started
 
-- Project and issue Drizzle tables and migrations.
-- Project and issue CRUD workflows.
-- Issue statuses, priorities, labels, assignment, and ordering.
-- Organization and member management screens beyond the workspace shell.
+- Issue Drizzle tables, statuses, priorities, labels, assignment, and ordering.
+- Issue board and list screens.
+- Workspace and project settings beyond member management.
 - Durable chat channels and messages.
 - Schedule, events, and team availability.
 - MinIO bucket management, signed URLs, and attachment ownership metadata.
@@ -79,16 +106,16 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 
 ## Infrastructure Integration Status
 
-| Area           | Status                | Notes                                                                             |
-| -------------- | --------------------- | --------------------------------------------------------------------------------- |
-| PostgreSQL     | Connected at boot     | `@teamos/db` probes with `SELECT 1`; owns the Better Auth and organization tables |
-| Redis          | Partially integrated  | API rate limiter uses Redis with an in-memory insurance limiter                   |
-| MinIO          | Connected at boot     | S3 client probes credentials with `ListBuckets`; storage workflows pending        |
-| Logging        | Integrated            | Pretty local output, JSON production output, sensitive-field redaction            |
-| API protection | Integrated foundation | Middleware and error contract are covered by API tests                            |
-| API docs       | Integrated            | OpenAPI 3.1 at `/openapi.json`, Scalar UI at `/docs`, cookie session scheme       |
-| Authentication | Integrated            | Better Auth OAuth with email verification, session guard, and Resend email        |
-| Email          | Integrated            | Resend adapter for verification and invitations; required in production           |
+| Area           | Status                | Notes                                                                                             |
+| -------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
+| PostgreSQL     | Connected at boot     | `@teamos/db` probes with `SELECT 1`; owns the Better Auth, project, and project-membership tables |
+| Redis          | Partially integrated  | API rate limiter uses Redis with an in-memory insurance limiter                                   |
+| MinIO          | Connected at boot     | S3 client probes credentials with `ListBuckets`; storage workflows pending                        |
+| Logging        | Integrated            | Pretty local output, JSON production output, sensitive-field redaction                            |
+| API protection | Integrated foundation | Middleware and error contract are covered by API tests                                            |
+| API docs       | Integrated            | OpenAPI 3.1 at `/openapi.json`, Scalar UI at `/docs`, cookie session scheme                       |
+| Authentication | Integrated            | Better Auth OAuth with email verification, session guard, and Resend email                        |
+| Email          | Integrated            | Resend adapter for verification and invitations; required in production                           |
 
 ## Quality Checks
 
@@ -103,30 +130,36 @@ The current repository has scripts for:
 - `bun run db:check`
 - `bun run db:generate`
 - `bun run db:migrate`
+- `bun run --cwd apps/api verify:isolation`
 
-The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, and organization membership isolation. Shared utilities have tests for slug generation, organization roles, and avatar initials. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, workspace rendering, workspace switching, account menu actions, workspace creation cache updates, slug retries, and the workspace limit message.
+The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, CSRF behavior including bodyless unsafe requests, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, member listing pagination and search, invitation and member management authorization, blocked native Better Auth endpoints, per-actor management rate limiting, and organization membership isolation. Shared utilities have tests for slug generation, organization roles, member-management policies, project permission policies, member and invitation contracts, project contracts, and avatar initials. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, workspace shell and route-aware tabs, workspace destination resolution and per-user workspace memory, sign-out success and failure, workspace creation cache updates, slug retries, the workspace limit message, project and member search debounce behavior, member table rendering and pagination, invitation management visibility, resend and cancel, member removal, project cards, project creation, and project role changes.
+
+`bun run --cwd apps/api verify:isolation` additionally proves tenant isolation against a live PostgreSQL database: literal wildcard handling, workspace-scoped search, private project hiding, cross-tenant project role rejection, and last-lead protection.
 
 ## Known Limitations
 
 - The current API is not yet a multi-tenant product surface because domain persistence beyond organizations is not implemented.
 - Organization and membership management relies on Better Auth plugin endpoints; TeamOS-specific management screens are still minimal.
 - The `MAX_ORGANIZATIONS_PER_USER` cap counts all memberships and is not atomic, so concurrent creation can exceed it.
-- The account menu exposes planned entries that stay disabled until their flows exist.
+- The account menu intentionally lists only the sign-out action; profile, billing, and support entries return when those flows exist.
 - Invitations require a configured Resend sender; without it verification and invitation email cannot be delivered.
 - Development allows authentication without OAuth credentials, but production startup requires both Google and GitHub credentials plus Resend configuration.
 - The readiness endpoint verifies connectivity but does not replace ongoing dependency monitoring.
 - Local Compose credentials are development defaults and must not be reused in production.
 - Redis-backed rate limiting is fail-closed when Redis is not ready in the real API server path.
 - There is no production deployment or migration runbook yet.
+- The management facade covers member and invitation mutations; ownership transfer and self-service workspace leaving still need their own flows.
+- Invitation delivery is not yet durable. A failed send leaves a pending invitation behind and requires a manual resend.
+- Project roles are enforced by TeamOS services and database constraints; real-time project transports do not exist yet, so they need the same access checks when they are added.
 
 ## Recommended Next Priorities
 
-1. Implement organization and member management screens with permission-aware actions.
-2. Add project and issue tables, migrations, and organization-scoped APIs.
-3. Reuse the organization access service for every tenant-scoped query and route.
+1. Add the issue tables, workflow, and screens on top of the existing project authorization.
+2. Add ownership transfer and self-service workspace leaving with last-owner protection.
+3. Add a durable outbox and background worker for transactional email, including invitation resend.
 4. Add integration tests against PostgreSQL, Redis, and MinIO for real session and membership flows.
-5. Add the first issue workflow and matching web screens.
-6. Add a dedicated background worker for transactional email delivery.
+5. Add project settings for rename, visibility, and archive.
+6. Reuse the lightweight organization access resolver for every remaining tenant-scoped query and route.
 
 ## Update Rule
 
