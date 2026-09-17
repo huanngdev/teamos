@@ -57,10 +57,16 @@ function getErrorInfo(error: unknown): ErrorInfo {
   if (error instanceof HTTPException) {
     const status = toContentfulStatusCode(error.status);
     const isMalformedJson = status === 400 && error.message === "Malformed JSON in request body";
+    /*
+     * A framework exception can carry only a response instead of a message, so
+     * an empty message must fall back to a safe default. Without this the error
+     * envelope would fail its own contract validation.
+     */
+    const fallbackMessage = status >= 500 ? "Internal server error." : "The request was rejected.";
 
     return {
       code: isMalformedJson ? "INVALID_JSON" : status === 408 ? "REQUEST_TIMEOUT" : "HTTP_ERROR",
-      message: status >= 500 ? "Internal server error." : error.message,
+      message: error.message.length > 0 ? error.message : fallbackMessage,
       status,
     };
   }

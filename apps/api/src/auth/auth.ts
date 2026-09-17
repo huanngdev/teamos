@@ -15,6 +15,7 @@ import {
   buildVerificationEmail,
   type EmailService,
 } from "../infrastructure/email/index.js";
+import { organizationLifecycleHooks } from "./native-endpoint-policy.js";
 import { getSocialProviderCredentials } from "./providers.js";
 
 const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7;
@@ -45,6 +46,13 @@ function createAuth(options: CreateAuthOptions) {
   const { env, logger, emailService } = options;
   const trustedOrigins = Array.from(new Set([...env.CORS_ORIGINS, env.WEB_URL]));
 
+  /*
+   * Delivery failures are logged and then rethrown. Swallowing them would make
+   * an endpoint report success while the user never receives the link, which is
+   * worse than a visible, retryable failure. Better Auth persists an invitation
+   * before sending its email, so callers must refresh the invitation list after
+   * a failure instead of assuming nothing was created.
+   */
   const deliver = async (message: Parameters<EmailService["send"]>[0]): Promise<void> => {
     try {
       await emailService.send(message);
@@ -53,6 +61,7 @@ function createAuth(options: CreateAuthOptions) {
         .withError(error)
         .withMetadata({ emailSubject: message.subject })
         .error("authentication email delivery failed");
+      throw error;
     }
   };
 
@@ -80,8 +89,16 @@ function createAuth(options: CreateAuthOptions) {
         });
       },
     },
+    hooks: organizationLifecycleHooks,
     plugins: [
       organization({
+        /*
+         * Re-inviting cancels the previous invitation and issues a new one, so
+         * the previously emailed link stops working instead of staying valid.
+         */
+        cancelPendingInvitationsOnReInvite: true,
+        invitationLimit: env.MAX_PENDING_INVITATIONS,
+        membershipLimit: env.MAX_ORGANIZATION_MEMBERS,
         organizationLimit: env.MAX_ORGANIZATIONS_PER_USER,
         requireEmailVerificationOnInvitation: true,
         sendInvitationEmail: async (data) => {

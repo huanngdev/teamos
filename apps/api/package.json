@@ -9,6 +9,7 @@
     "start": "bun dist/server.js",
     "test": "bun run --cwd ../../packages/shared build && bun run --cwd ../../packages/db build && bun test src",
     "test:coverage": "bun run --cwd ../../packages/shared build && bun run --cwd ../../packages/db build && bun test --coverage src",
+    "verify:isolation": "bun scripts/verify-organization-isolation.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "check-types": "tsc --noEmit"

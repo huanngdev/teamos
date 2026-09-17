@@ -1,17 +1,31 @@
 import type { Database } from "@teamos/db";
-import { member, organization, user } from "@teamos/db/schema";
-import { parseOrganizationRole, type OrganizationContext } from "@teamos/shared";
+import { member, organization } from "@teamos/db/schema";
+import { parseOrganizationRole, type OrganizationRole } from "@teamos/shared";
 import { and, eq } from "drizzle-orm";
-
-import { toOrganizationMember } from "./mappers.js";
 
 interface ResolveOrganizationInput {
   organizationSlug: string;
   userId: string;
 }
 
+/*
+ * A lightweight tenant guard. It resolves the caller's membership once and
+ * exposes only identifiers and the organization role, so it stays cheap enough
+ * to run before every tenant-scoped operation. Member listing is a separate
+ * service because it is paginated and only needed by its own endpoints.
+ */
+interface OrganizationAccess {
+  createdAt: Date;
+  logo: string | null;
+  memberId: string;
+  name: string;
+  organizationId: string;
+  role: OrganizationRole;
+  slug: string;
+}
+
 interface OrganizationAccessService {
-  resolve: (input: ResolveOrganizationInput) => Promise<OrganizationContext | undefined>;
+  resolve: (input: ResolveOrganizationInput) => Promise<OrganizationAccess | undefined>;
 }
 
 function createOrganizationAccessService(db: Database): OrganizationAccessService {
@@ -19,7 +33,9 @@ function createOrganizationAccessService(db: Database): OrganizationAccessServic
     resolve: async ({ organizationSlug, userId }) => {
       const [membership] = await db
         .select({
+          createdAt: organization.createdAt,
           logo: organization.logo,
+          memberId: member.id,
           name: organization.name,
           organizationId: organization.id,
           role: member.role,
@@ -34,24 +50,12 @@ function createOrganizationAccessService(db: Database): OrganizationAccessServic
         return undefined;
       }
 
-      const memberRecords = await db
-        .select({
-          email: user.email,
-          id: member.id,
-          image: user.image,
-          name: user.name,
-          role: member.role,
-          userId: user.id,
-        })
-        .from(member)
-        .innerJoin(user, eq(member.userId, user.id))
-        .where(eq(member.organizationId, membership.organizationId));
-
       return {
-        id: membership.organizationId,
+        createdAt: membership.createdAt,
         logo: membership.logo,
-        members: memberRecords.map(toOrganizationMember),
+        memberId: membership.memberId,
         name: membership.name,
+        organizationId: membership.organizationId,
         role: parseOrganizationRole(membership.role) ?? "member",
         slug: membership.slug,
       };
@@ -59,4 +63,9 @@ function createOrganizationAccessService(db: Database): OrganizationAccessServic
   };
 }
 
-export { createOrganizationAccessService, type OrganizationAccessService };
+export {
+  createOrganizationAccessService,
+  type OrganizationAccess,
+  type OrganizationAccessService,
+  type ResolveOrganizationInput,
+};

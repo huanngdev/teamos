@@ -3,7 +3,12 @@ import type { ILogLayer } from "loglayer";
 import type Redis from "ioredis";
 
 import { createApp } from "@/app.js";
-import { createAuth, createAuthService, createOrganizationAccessService } from "@/auth/index.js";
+import {
+  createAuth,
+  createAuthService,
+  createOrganizationAccessService,
+  createOrganizationGateway,
+} from "@/auth/index.js";
 import type { Env } from "@/config/index.js";
 import {
   attachRedisErrorLogger,
@@ -17,7 +22,12 @@ import {
   type ObjectStorageClient,
 } from "@/infrastructure/index.js";
 import { createLogger } from "@/logging/index.js";
-import { createReadinessService } from "@/services/index.js";
+import {
+  createOrganizationManagementService,
+  createOrganizationMemberService,
+  createProjectService,
+  createReadinessService,
+} from "@/services/index.js";
 
 interface ServiceResource {
   name: "database" | "redis" | "storage";
@@ -185,11 +195,33 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
       env: options.env,
       logger,
     });
+    const memberService = createOrganizationMemberService(resources.database.db);
+    const managementRateLimiter = createRedisRateLimiter(
+      resources.redis,
+      {
+        RATE_LIMIT_DURATION_SECONDS: options.env.RATE_LIMIT_DURATION_SECONDS,
+        RATE_LIMIT_POINTS: options.env.MANAGEMENT_RATE_LIMIT_POINTS,
+      },
+      "teamos:api:management",
+    );
     const app = createApp({
       auth: createAuthService(auth),
       env: options.env,
       logger,
-      organizationAccess: createOrganizationAccessService(resources.database.db),
+      managementRateLimiter,
+      organization: {
+        management: createOrganizationManagementService({
+          gateway: createOrganizationGateway(auth),
+          logger,
+          members: memberService,
+        }),
+        members: memberService,
+        organizationAccess: createOrganizationAccessService(resources.database.db),
+        projects: createProjectService({
+          db: resources.database.db,
+          members: memberService,
+        }),
+      },
       rateLimiter: createRedisRateLimiter(resources.redis, options.env),
       readiness,
     });

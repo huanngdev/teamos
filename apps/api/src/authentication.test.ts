@@ -1,4 +1,3 @@
-import { MockLogLayer } from "loglayer";
 import { expect, test } from "bun:test";
 import {
   apiErrorResponseSchema,
@@ -6,11 +5,19 @@ import {
   organizationContextResponseSchema,
   socialProvidersResponseSchema,
 } from "@teamos/shared";
-import type { OrganizationContext } from "@teamos/shared";
 
-import { createApp } from "@/app.js";
-import type { AuthService, AuthSession, OrganizationAccessService } from "@/auth/index.js";
+import { createApp, type OrganizationServices } from "@/app.js";
+import type { AuthSession, OrganizationAccess } from "@/auth/index.js";
 import { loadEnv } from "@/config/index.js";
+import {
+  buildOrganizationAccess,
+  createFakeAuthService,
+  createFakeOrganizationAccessService,
+  createFakeOrganizationManagementService,
+  createFakeOrganizationMemberService,
+  createFakeProjectService,
+  createTestLogger,
+} from "@/testing/organization.js";
 
 const verifiedSession = {
   session: {
@@ -35,17 +42,12 @@ const verifiedSession = {
   },
 } satisfies AuthSession;
 
-function createFakeAuthService(session: AuthSession | null): AuthService {
-  return {
-    getSession: async () => session,
-    handler: async () => new Response("auth-handler", { status: 200 }),
-  };
-}
+const organizationAccess = buildOrganizationAccess();
 
-const organization: OrganizationContext = {
-  id: "org-1",
-  logo: null,
-  members: [
+function createOrganizationServices(
+  organizations: readonly OrganizationAccess[],
+): OrganizationServices {
+  const members = createFakeOrganizationMemberService([
     {
       email: "ada@example.com",
       id: "member-1",
@@ -54,24 +56,19 @@ const organization: OrganizationContext = {
       role: "owner",
       userId: "user-1",
     },
-  ],
-  name: "Analytical Engines",
-  role: "owner",
-  slug: "analytical-engines",
-};
+  ]);
 
-function createOrganizationAccessService(
-  resolvableSlugs: readonly string[],
-): OrganizationAccessService {
   return {
-    resolve: async ({ organizationSlug }) =>
-      resolvableSlugs.includes(organizationSlug) ? organization : undefined,
+    management: createFakeOrganizationManagementService(),
+    members,
+    organizationAccess: createFakeOrganizationAccessService(organizations),
+    projects: createFakeProjectService(),
   };
 }
 
 function createTestApp(
   options: {
-    organizationAccess?: OrganizationAccessService;
+    organization?: OrganizationServices;
     session?: AuthSession | null;
     source?: Record<string, string | undefined>;
   } = {},
@@ -85,8 +82,8 @@ function createTestApp(
   return createApp({
     auth: createFakeAuthService(options.session ?? null),
     env,
-    logger: new MockLogLayer(),
-    organizationAccess: options.organizationAccess,
+    logger: createTestLogger(),
+    organization: options.organization,
   });
 }
 
@@ -162,8 +159,10 @@ test("returns the authenticated user and session", async () => {
 });
 
 test("hides organizations the user is not a member of", async () => {
-  const organizationAccess = createOrganizationAccessService([]);
-  const app = createTestApp({ organizationAccess, session: verifiedSession });
+  const app = createTestApp({
+    organization: createOrganizationServices([]),
+    session: verifiedSession,
+  });
   const response = await app.request("/api/organizations/analytical-engines");
   const body = await readErrorResponse(response);
 
@@ -171,21 +170,22 @@ test("hides organizations the user is not a member of", async () => {
   expect(body.error.code).toBe("ORGANIZATION_NOT_FOUND");
 });
 
-test("returns the organization context with the member role", async () => {
-  const organizationAccess = createOrganizationAccessService(["analytical-engines"]);
-  const app = createTestApp({ organizationAccess, session: verifiedSession });
+test("returns the organization context with the member count", async () => {
+  const app = createTestApp({
+    organization: createOrganizationServices([organizationAccess]),
+    session: verifiedSession,
+  });
   const response = await app.request("/api/organizations/analytical-engines");
   const body = organizationContextResponseSchema.parse(await response.json());
 
   expect(response.status).toBe(200);
   expect(body.organization.slug).toBe("analytical-engines");
   expect(body.organization.role).toBe("owner");
-  expect(body.organization.members).toHaveLength(1);
+  expect(body.organization.memberCount).toBe(1);
 });
 
 test("requires a verified session for organization access", async () => {
-  const organizationAccess = createOrganizationAccessService(["analytical-engines"]);
-  const app = createTestApp({ organizationAccess });
+  const app = createTestApp({ organization: createOrganizationServices([organizationAccess]) });
   const response = await app.request("/api/organizations/analytical-engines");
 
   expect(response.status).toBe(401);

@@ -1,9 +1,6 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import {
-  organizationContextResponseSchema,
-  organizationSlugSchema,
-  type OrganizationContext,
-} from "@teamos/shared";
+import { createRoute } from "@hono/zod-openapi";
+import type { RateLimiterLike } from "rate-limiter-flexible";
+import { organizationContextResponseSchema, organizationSlugSchema } from "@teamos/shared";
 import { z } from "zod";
 
 import {
@@ -11,15 +8,23 @@ import {
   createSessionMiddleware,
   getAuthenticatedSession,
   type AuthService,
-  type OrganizationAccessService,
 } from "@/auth/index.js";
-import { AppError } from "@/errors/index.js";
+import type { Env } from "@/config/index.js";
+import { createRateLimitMiddleware } from "@/middleware/index.js";
+import { createOpenApiRouter } from "@/openapi/index.js";
 import {
   apiErrorResponses,
   protectedRouteErrorResponses,
   requestIdHeaders,
 } from "@/openapi/index.js";
-import type { AppEnv } from "@/types.js";
+import { registerOrganizationInvitationRoutes } from "@/routes/organization-invitations.js";
+import { registerOrganizationMemberRoutes } from "@/routes/organization-members.js";
+import type {
+  OrganizationRouteDependencies,
+  OrganizationRoutes,
+} from "@/routes/organization-types.js";
+import { registerProjectRoutes } from "@/routes/projects.js";
+import { requireOrganizationAccess } from "@/routes/helpers.js";
 
 const organizationParamsSchema = z.object({
   organizationSlug: organizationSlugSchema,
@@ -46,27 +51,69 @@ const getOrganizationRoute = createRoute({
   tags: ["Organizations"],
 });
 
-function createOrganizationRoutes(
-  auth: AuthService,
-  organizationAccess: OrganizationAccessService,
-) {
-  const routes = new OpenAPIHono<AppEnv>();
+interface CreateOrganizationRoutesOptions extends OrganizationRouteDependencies {
+  auth: AuthService;
+  env: Env;
+  managementRateLimiter: RateLimiterLike;
+}
 
-  routes.use("*", createSessionMiddleware(auth), createRequireVerifiedSessionMiddleware());
+/*
+ * Every organization-scoped route shares one middleware chain so session
+ * resolution and the per-actor management rate limit run exactly once per
+ * request instead of once per route group.
+ */
+function createOrganizationRoutes(options: CreateOrganizationRoutesOptions): OrganizationRoutes {
+  const routes: OrganizationRoutes = createOpenApiRouter();
+
+  routes.use(
+    "*",
+    createSessionMiddleware(options.auth),
+    createRequireVerifiedSessionMiddleware(),
+    createRateLimitMiddleware({
+      enabled: options.env.RATE_LIMIT_ENABLED,
+      /*
+       * Keyed by the authenticated actor rather than the client IP so one
+       * workspace cannot consume another workspace's sensitive-action budget.
+       */
+      key: (context) => {
+        const session = context.get("authSession");
+
+        return session === null ? `ip:${context.get("clientIp")}` : `user:${session.user.id}`;
+      },
+      limiter: options.managementRateLimiter,
+      points: options.env.MANAGEMENT_RATE_LIMIT_POINTS,
+    }),
+  );
+
   routes.openapi(getOrganizationRoute, async (context) => {
     const session = getAuthenticatedSession(context);
     const { organizationSlug } = context.req.valid("param");
-    const organization: OrganizationContext | undefined = await organizationAccess.resolve({
+    const organization = await requireOrganizationAccess(
+      options.organizationAccess,
       organizationSlug,
-      userId: session.user.id,
-    });
+      session.user.id,
+    );
+    const memberCount = await options.members.count(organization.organizationId);
 
-    if (organization === undefined) {
-      throw new AppError(404, "ORGANIZATION_NOT_FOUND", "The organization was not found.");
-    }
-
-    return context.json(organizationContextResponseSchema.parse({ organization }), 200);
+    return context.json(
+      organizationContextResponseSchema.parse({
+        organization: {
+          createdAt: organization.createdAt.toISOString(),
+          id: organization.organizationId,
+          logo: organization.logo,
+          memberCount,
+          name: organization.name,
+          role: organization.role,
+          slug: organization.slug,
+        },
+      }),
+      200,
+    );
   });
+
+  registerOrganizationMemberRoutes(routes, options);
+  registerOrganizationInvitationRoutes(routes, options);
+  registerProjectRoutes(routes, options);
 
   return routes;
 }
