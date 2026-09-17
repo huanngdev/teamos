@@ -4,9 +4,9 @@ import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { expect, test } from "vitest";
 
-import { apiUrl } from "@/lib/env";
+import { apiUrl } from "@/shared";
 
-import { App } from "./App";
+import { App } from "./app";
 import { renderWithProviders } from "../test/render-app";
 import { server } from "../test/server";
 

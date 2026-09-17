@@ -3,7 +3,7 @@ import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router";
 
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider } from "@/shared/components/theme-provider";
 
 interface RenderWithProvidersOptions {
   queryClient?: QueryClient;

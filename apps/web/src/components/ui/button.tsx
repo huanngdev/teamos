@@ -17,6 +17,16 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        /*
+         * TeamOS additions. A neutral `outline` cannot express an
+         * affirmative or destructive action, and the tinted `destructive`
+         * variant has no border. These keep the outline shape with an
+         * explicit semantic color.
+         */
+        "outline-primary":
+          "border-primary/40 text-primary hover:bg-primary/10 hover:text-primary dark:border-primary/40 dark:hover:bg-primary/15",
+        "outline-destructive":
+          "border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive dark:border-destructive/40 dark:hover:bg-destructive/20",
       },
       size: {
         default:

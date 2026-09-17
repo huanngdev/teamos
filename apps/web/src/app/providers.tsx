@@ -4,8 +4,8 @@ import { MotionConfig } from "framer-motion";
 
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/components/theme-provider";
-import { queryClient } from "@/lib/query-client";
+import { ThemeProvider } from "@/shared";
+import { queryClient } from "@/shared";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 function AppProviders({ children }: PropsWithChildren) {

@@ -29,6 +29,16 @@ Object.defineProperty(window, "requestAnimationFrame", {
   writable: true,
 });
 
+Object.defineProperty(window, "ResizeObserver", {
+  configurable: true,
+  value: class ResizeObserver {
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  },
+  writable: true,
+});
+
 Object.defineProperty(window, "cancelAnimationFrame", {
   configurable: true,
   value: (handle: number) => window.clearTimeout(handle),
