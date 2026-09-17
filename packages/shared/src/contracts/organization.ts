@@ -11,7 +11,13 @@ const organizationSlugSchema = z
     "Slug must contain lowercase letters, numbers, and hyphens.",
   );
 
+/*
+ * `createdAt` makes workspace ordering deterministic. Better Auth does not
+ * guarantee a row order for its organization list, so the client derives the
+ * newest workspace from this field instead of array position.
+ */
 const organizationSummarySchema = z.object({
+  createdAt: z.iso.datetime(),
   id: z.string().min(1),
   logo: z.string().nullable(),
   name: z.string().min(1),
@@ -27,8 +33,13 @@ const organizationMemberSchema = z.object({
   userId: z.string().min(1),
 });
 
+/*
+ * Members are not embedded in the workspace context. The count supports the tab
+ * badge and the list is loaded separately with search and pagination so a large
+ * organization never pays for every member on workspace bootstrap.
+ */
 const organizationContextSchema = organizationSummarySchema.extend({
-  members: z.array(organizationMemberSchema),
+  memberCount: z.number().int().min(0),
   role: organizationRoleSchema,
 });
 
