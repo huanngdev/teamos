@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { OrganizationInvitation } from "@teamos/shared";
 
+import { notify } from "@/shared";
 import {
   cancelOrganizationInvitation,
   listOrganizationInvitations,
@@ -39,17 +40,29 @@ function usePendingInvitations(options: UsePendingInvitationsOptions): PendingIn
   const cancelMutation = useMutation({
     mutationFn: (invitationId: string) =>
       cancelOrganizationInvitation(options.organizationSlug, invitationId),
+    onError: () => {
+      notify.error("The invitation could not be cancelled.");
+    },
     onSettled: () => {
       setCancelTargetId(null);
       void query.refetch();
+    },
+    onSuccess: () => {
+      notify.success("Invitation cancelled");
     },
   });
 
   const resendMutation = useMutation({
     mutationFn: (invitationId: string) =>
       resendOrganizationInvitation(options.organizationSlug, invitationId),
+    onError: () => {
+      notify.error("The invitation could not be resent.");
+    },
     onSettled: () => {
       void query.refetch();
+    },
+    onSuccess: () => {
+      notify.success("Invitation resent");
     },
   });
 

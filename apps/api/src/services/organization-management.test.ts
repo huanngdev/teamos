@@ -206,7 +206,7 @@ describe("invitation management", () => {
 
   test("reports a delivery failure without leaking provider details", async () => {
     const { service } = createHarness({
-      onCreateInvitationError: new Error("resend api key rejected: key_123"),
+      onCreateInvitationError: new Error("smtp authentication failed: secret_123"),
     });
 
     const error = await captureError(() =>
@@ -219,7 +219,7 @@ describe("invitation management", () => {
 
     expect(error.status).toBe(502);
     expect(error.code).toBe("INVITATION_EMAIL_FAILED");
-    expect(error.message).not.toContain("key_123");
+    expect(error.message).not.toContain("secret_123");
   });
 
   test("rotates the invitation id on resend", async () => {

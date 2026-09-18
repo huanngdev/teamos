@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { SocialProviderId } from "@teamos/shared";
 
+import { notify } from "@/shared";
 import { authClient } from "../api/auth-client";
 
 function useSocialSignIn() {
@@ -20,7 +21,9 @@ function useSocialSignIn() {
     });
 
     if (error) {
-      setErrorMessage(error.message ?? "Sign-in could not be started.");
+      const message = error.message ?? "Sign-in could not be started.";
+      setErrorMessage(message);
+      notify.error(message);
       setPendingProvider(null);
     }
   };

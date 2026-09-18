@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { slugify, type OrganizationSummary } from "@teamos/shared";
 
 import { readAuthClientError, authClient } from "@/features/auth";
+import { notify } from "@/shared";
 import { ORGANIZATIONS_QUERY_KEY } from "../query-keys";
 import { workspaceProjectsPath } from "../lib/workspace-paths";
 
@@ -58,7 +59,9 @@ function useCreateWorkspace() {
         const { code, message } = readAuthClientError(availability.error);
 
         if (code === undefined || !SLUG_TAKEN_ERROR_CODES.has(code)) {
-          setErrorMessage(message ?? "The workspace address is unavailable.");
+          const unavailableMessage = message ?? "The workspace address is unavailable.";
+          setErrorMessage(unavailableMessage);
+          notify.error(unavailableMessage);
           return;
         }
 
@@ -68,7 +71,9 @@ function useCreateWorkspace() {
       const { data, error } = await authClient.organization.create({ name: name.trim(), slug });
 
       if (error !== null || data === null) {
-        setErrorMessage(getCreateErrorMessage(error));
+        const message = getCreateErrorMessage(error);
+        setErrorMessage(message);
+        notify.error(message);
         return;
       }
 
@@ -87,9 +92,11 @@ function useCreateWorkspace() {
       );
       await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
 
+      notify.success("Workspace created");
       void navigate(workspaceProjectsPath(created.slug), { replace: true });
     } catch {
       setErrorMessage("The workspace could not be created.");
+      notify.error("The workspace could not be created.");
     } finally {
       setIsPending(false);
     }

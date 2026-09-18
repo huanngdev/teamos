@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 
 import { authClient } from "../api/auth-client";
 import { readAuthClientError } from "../api/auth-error";
+import { notify } from "@/shared";
 import { queryClient } from "@/shared/query/query-client";
 
 /*
@@ -23,14 +24,18 @@ function useSignOut() {
       const { error } = await authClient.signOut();
 
       if (error !== null) {
-        setErrorMessage(readAuthClientError(error).message ?? "You could not be signed out.");
+        const message = readAuthClientError(error).message ?? "You could not be signed out.";
+        setErrorMessage(message);
+        notify.error(message);
         return;
       }
 
       queryClient.clear();
+      notify.success("Signed out");
       void navigate("/login", { replace: true });
     } catch {
       setErrorMessage("You could not be signed out.");
+      notify.error("You could not be signed out.");
     } finally {
       setIsPending(false);
     }

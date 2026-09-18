@@ -4,7 +4,7 @@ function createUnavailableEmailService(): EmailService {
   return {
     send: async () => {
       throw new Error(
-        "Email delivery is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL to send authentication email.",
+        "Email delivery is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASSWORD, and EMAIL_FROM to send authentication email.",
       );
     },
   };

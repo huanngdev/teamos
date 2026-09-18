@@ -49,7 +49,7 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 - Google and GitHub OAuth providers with per-provider email verification enforcement.
 - Implicit account linking for verified provider emails, without trusting providers that cannot confirm email ownership.
 - Session middleware with a typed `authSession` context value and email-verification guard.
-- Resend-backed email adapter with verification and organization invitation templates.
+- Nodemailer SMTP email adapter with verification and organization invitation templates.
 - Escaped, HTML and plain-text email rendering with delivery failures logged rather than swallowed.
 - Organization-scoped access service that queries membership from PostgreSQL and powers `404` for non-members.
 - Social provider discovery endpoint that reflects the configured OAuth credentials.
@@ -114,8 +114,8 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 | Logging        | Integrated            | Pretty local output, JSON production output, sensitive-field redaction                            |
 | API protection | Integrated foundation | Middleware and error contract are covered by API tests                                            |
 | API docs       | Integrated            | OpenAPI 3.1 at `/openapi.json`, Scalar UI at `/docs`, cookie session scheme                       |
-| Authentication | Integrated            | Better Auth OAuth with email verification, session guard, and Resend email                        |
-| Email          | Integrated            | Resend adapter for verification and invitations; required in production                           |
+| Authentication | Integrated            | Better Auth OAuth with email verification, session guard, and SMTP email                          |
+| Email          | Integrated            | Nodemailer SMTP adapter for verification and invitations; required in production                  |
 
 ## Quality Checks
 
@@ -142,8 +142,8 @@ The API foundation currently has focused tests for security headers, CORS, reque
 - Organization and membership management relies on Better Auth plugin endpoints; TeamOS-specific management screens are still minimal.
 - The `MAX_ORGANIZATIONS_PER_USER` cap counts all memberships and is not atomic, so concurrent creation can exceed it.
 - The account menu intentionally lists only the sign-out action; profile, billing, and support entries return when those flows exist.
-- Invitations require a configured Resend sender; without it verification and invitation email cannot be delivered.
-- Development allows authentication without OAuth credentials, but production startup requires both Google and GitHub credentials plus Resend configuration.
+- Invitations require configured SMTP credentials; without them verification and invitation email cannot be delivered.
+- Development allows authentication without OAuth credentials, but production startup requires both Google and GitHub credentials plus SMTP configuration.
 - The readiness endpoint verifies connectivity but does not replace ongoing dependency monitoring.
 - Local Compose credentials are development defaults and must not be reused in production.
 - Redis-backed rate limiting is fail-closed when Redis is not ready in the real API server path.

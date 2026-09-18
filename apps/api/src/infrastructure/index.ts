@@ -2,7 +2,7 @@ export {
   buildOrganizationInvitationEmail,
   buildVerificationEmail,
   createEmailService,
-  createResendEmailService,
+  createSmtpEmailService,
   createUnavailableEmailService,
   type EmailContent,
   type EmailEnv,

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { AssignableOrganizationRole } from "@teamos/shared";
 
+import { notify } from "@/shared";
 import {
   removeOrganizationMember,
   updateOrganizationMemberRole,
@@ -29,16 +30,28 @@ function useMemberActions(options: UseMemberActionsOptions): MemberActionsState 
   const roleMutation = useMutation({
     mutationFn: (input: { memberId: string; role: AssignableOrganizationRole }) =>
       updateOrganizationMemberRole(options.organizationSlug, input.memberId, input.role),
+    onError: () => {
+      notify.error("The member role could not be updated.");
+    },
     onSettled: () => {
       void invalidate();
+    },
+    onSuccess: () => {
+      notify.success("Member role updated");
     },
   });
 
   const removeMutation = useMutation({
     mutationFn: (memberId: string) => removeOrganizationMember(options.organizationSlug, memberId),
+    onError: () => {
+      notify.error("The member could not be removed.");
+    },
     onSettled: () => {
       setRemovalTarget(null);
       void invalidate();
+    },
+    onSuccess: () => {
+      notify.success("Member removed from workspace");
     },
   });
 

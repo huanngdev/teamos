@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { useAuthSession } from "./use-auth-session";
 import { useWorkspaceDestination } from "@/features/workspaces";
+import { notify } from "@/shared";
 
 type AuthCompleteState =
   | { status: "loading" }
@@ -20,6 +21,28 @@ function useAuthComplete(): AuthCompleteState {
   const destination = useWorkspaceDestination();
   const isVerified = session.status === "authenticated" && session.user.emailVerified;
   const destinationPath = destination.status === "ready" ? destination.path : null;
+  const hasNotified = useRef(false);
+
+  /*
+   * The callback route is the only entry point after a provider redirect, so a
+   * single toast here confirms the sign-in without firing again on re-render.
+   */
+  useEffect(() => {
+    if (hasNotified.current) {
+      return;
+    }
+
+    if (providerError !== null) {
+      hasNotified.current = true;
+      notify.error("Sign-in could not be completed. Please try again.");
+      return;
+    }
+
+    if (isVerified && destinationPath !== null) {
+      hasNotified.current = true;
+      notify.success("Signed in successfully");
+    }
+  }, [destinationPath, isVerified, providerError]);
 
   /*
    * A provider error suppresses resolution entirely, so an error screen can

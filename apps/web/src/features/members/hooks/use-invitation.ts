@@ -10,6 +10,7 @@ import {
   workspaceProjectsPath,
   ORGANIZATIONS_QUERY_KEY,
 } from "@/features/workspaces";
+import { notify } from "@/shared";
 
 type InvitationRecord = NonNullable<
   Awaited<ReturnType<typeof authClient.organization.getInvitation>>["data"]
@@ -83,13 +84,16 @@ function useInvitation(invitationId: string) {
     const { error } = await authClient.organization.acceptInvitation({ invitationId });
 
     if (error) {
-      setActionError(error.message ?? "The invitation could not be accepted.");
+      const message = error.message ?? "The invitation could not be accepted.";
+      setActionError(message);
+      notify.error(message);
       setPendingAction(null);
       return;
     }
 
     await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
     setPendingAction(null);
+    notify.success("Invitation accepted");
     await openAcceptedWorkspace(query.data?.organizationId);
   };
 
@@ -100,12 +104,15 @@ function useInvitation(invitationId: string) {
     const { error } = await authClient.organization.rejectInvitation({ invitationId });
 
     if (error) {
-      setActionError(error.message ?? "The invitation could not be rejected.");
+      const message = error.message ?? "The invitation could not be rejected.";
+      setActionError(message);
+      notify.error(message);
       setPendingAction(null);
       return;
     }
 
     setPendingAction(null);
+    notify.success("Invitation rejected");
     void navigate("/", { replace: true });
   };
 

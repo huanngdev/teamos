@@ -29,8 +29,8 @@
     "hono": "^4.13.7",
     "ioredis": "^6.0.0",
     "loglayer": "^9.4.0",
+    "nodemailer": "^10.0.10",
     "rate-limiter-flexible": "^11.2.0",
-    "resend": "^6.28.1",
     "serialize-error": "^13.0.1",
     "zod": "^4.6.4"
   },

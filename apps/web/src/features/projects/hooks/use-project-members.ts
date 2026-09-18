@@ -9,6 +9,7 @@ import {
 } from "@teamos/shared";
 import { useState } from "react";
 
+import { notify } from "@/shared";
 import { listProjectMembers, removeProjectMember, setProjectMember } from "../api/project-api";
 import { useProjectListInvalidator } from "./use-project-list";
 import { projectKeys } from "../query-keys";
@@ -53,13 +54,25 @@ function useProjectMembers(options: UseProjectMembersOptions): ProjectMembersSta
   const setMemberMutation = useMutation({
     mutationFn: (input: { projectId: string; memberId: string; role: ProjectRole }) =>
       setProjectMember(options.organizationSlug, input.projectId, input.memberId, input.role),
+    onError: () => {
+      notify.error("The project role could not be updated.");
+    },
     onSettled: invalidateList,
+    onSuccess: () => {
+      notify.success("Project role updated");
+    },
   });
 
   const removeMemberMutation = useMutation({
     mutationFn: (input: { projectId: string; memberId: string }) =>
       removeProjectMember(options.organizationSlug, input.projectId, input.memberId),
+    onError: () => {
+      notify.error("The project member could not be removed.");
+    },
     onSettled: invalidateList,
+    onSuccess: () => {
+      notify.success("Member removed from project");
+    },
   });
 
   const pendingMemberId = setMemberMutation.isPending

@@ -15,8 +15,10 @@ const productionSource = {
   MINIO_SECRET_KEY: "secret",
   NODE_ENV: "production",
   REDIS_URL: "rediss://redis.example.com:6380",
-  RESEND_API_KEY: "resend-api-key",
-  RESEND_FROM_EMAIL: "TeamOS <no-reply@example.com>",
+  SMTP_HOST: "smtp.gmail.com",
+  SMTP_PASSWORD: "gmail-app-password",
+  SMTP_USER: "notifications@example.com",
+  EMAIL_FROM: "TeamOS <notifications@example.com>",
   WEB_URL: "https://app.example.com",
 };
 
@@ -35,7 +37,7 @@ test("requires explicit service and authentication configuration in production",
   expect(() => loadEnv({ NODE_ENV: "production" })).toThrow("Missing production variables:");
   expect(() => loadEnv({ NODE_ENV: "production" })).toThrow("BETTER_AUTH_SECRET");
   expect(() => loadEnv({ NODE_ENV: "production" })).toThrow("GOOGLE_CLIENT_ID");
-  expect(() => loadEnv({ NODE_ENV: "production" })).toThrow("RESEND_API_KEY");
+  expect(() => loadEnv({ NODE_ENV: "production" })).toThrow("SMTP_HOST");
 });
 
 test("accepts explicit production service configuration", () => {
@@ -54,10 +56,19 @@ test("requires social provider credentials to be configured together", () => {
   );
 });
 
-test("requires Resend credentials to be configured together", () => {
-  expect(() => loadEnv({ RESEND_API_KEY: "resend-api-key" })).toThrow(
-    "RESEND_API_KEY and RESEND_FROM_EMAIL must be configured together.",
+test("requires email delivery variables to be configured together", () => {
+  expect(() => loadEnv({ SMTP_HOST: "smtp.gmail.com" })).toThrow(
+    "SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM must be configured together.",
   );
+});
+
+test("treats blank email delivery variables as unconfigured", () => {
+  const env = loadEnv({ SMTP_HOST: "", SMTP_USER: "", SMTP_PASSWORD: "", EMAIL_FROM: "" });
+
+  expect(env.SMTP_HOST).toBeUndefined();
+  expect(env.SMTP_PORT).toBe(465);
+  expect(env.SMTP_SECURE).toBe(true);
+  expect(loadEnv({ SMTP_SECURE: "false" }).SMTP_SECURE).toBe(false);
 });
 
 test("defaults and validates the workspace limit", () => {

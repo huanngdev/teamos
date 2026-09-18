@@ -226,10 +226,10 @@ Migration generation and application are deliberate release/development steps. T
 
 ## Current Production Limitations
 
-- Authentication uses Better Auth OAuth, but production requires explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `WEB_URL`, both Google and GitHub credentials, and Resend configuration that are validated at startup.
+- Authentication uses Better Auth OAuth, but production requires explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `WEB_URL`, both Google and GitHub credentials, and SMTP email credentials that are validated at startup.
 - The Drizzle schema owns the Better Auth tables; project and issue tables are still pending.
 - `MAX_ORGANIZATIONS_PER_USER` caps workspace creation in the API, but the cap is best-effort and concurrent requests can still exceed it.
-- Invitation and email verification delivery depend on a verified Resend sender.
+- Invitation and email verification delivery depend on a configured SMTP mailbox; Gmail with an App Password is the development default, while production should relay through a transactional provider on a verified domain.
 - MinIO is connectivity-probed but has no application storage workflows yet.
 - Compose defaults are development-safe examples, not production credentials or deployment configuration.
 - No production container orchestration or secret-management workflow is documented yet.

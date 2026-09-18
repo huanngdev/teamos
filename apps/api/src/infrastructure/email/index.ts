@@ -7,5 +7,5 @@ export {
   type OrganizationInvitationEmailInput,
   type VerificationEmailInput,
 } from "./email-templates.js";
-export { createResendEmailService } from "./resend-email-service.js";
+export { createSmtpEmailService } from "./smtp-email-service.js";
 export { createUnavailableEmailService } from "./unavailable-email-service.js";

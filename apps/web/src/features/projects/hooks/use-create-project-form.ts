@@ -3,6 +3,7 @@ import { useState } from "react";
 import { slugify, type ProjectVisibility } from "@teamos/shared";
 
 import { ApiClientError } from "@/shared/api/api-client";
+import { notify } from "@/shared";
 import { createProject } from "../api/project-api";
 import { projectKeys } from "../query-keys";
 
@@ -31,6 +32,9 @@ function useCreateProjectForm(options: UseCreateProjectFormOptions): CreateProje
   const mutation = useMutation({
     mutationFn: (request: { name: string; slug: string; visibility: ProjectVisibility }) =>
       createProject(options.organizationSlug, request),
+    onError: (error) => {
+      notify.error(readCreateProjectError(error) ?? "The project could not be created.");
+    },
   });
 
   const slug = slugify(name);
@@ -65,6 +69,7 @@ function useCreateProjectForm(options: UseCreateProjectFormOptions): CreateProje
             await queryClient.invalidateQueries({
               queryKey: projectKeys(options.organizationSlug).listPrefix(),
             });
+            notify.success("Project created");
             setName("");
             setVisibility("workspace");
             await options.onCreated();

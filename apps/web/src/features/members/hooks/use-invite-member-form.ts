@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { createInvitationRequestSchema, type AssignableOrganizationRole } from "@teamos/shared";
 
 import { ApiClientError } from "@/shared/api/api-client";
+import { notify } from "@/shared";
 import { createOrganizationInvitation } from "../api/organization-members-api";
 
 interface InviteMemberFormState {
@@ -32,6 +33,12 @@ function useInviteMemberForm(options: UseInviteMemberFormOptions): InviteMemberF
   const mutation = useMutation({
     mutationFn: (request: { email: string; role: AssignableOrganizationRole }) =>
       createOrganizationInvitation(options.organizationSlug, request),
+    onError: (error) => {
+      notify.error(readInviteErrorMessage(error) ?? "The invitation could not be sent.");
+    },
+    onSuccess: () => {
+      notify.success("Invitation sent");
+    },
   });
 
   const trimmedEmail = email.trim();

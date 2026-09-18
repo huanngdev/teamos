@@ -7,6 +7,8 @@ const socialProviderCredentialPairs = [
   ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
 ] as const;
 
+const emailDeliveryVariables = ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "EMAIL_FROM"] as const;
+
 const requiredProductionVariables = [
   "DATABASE_URL",
   "REDIS_URL",
@@ -20,8 +22,10 @@ const requiredProductionVariables = [
   "GOOGLE_CLIENT_SECRET",
   "GITHUB_CLIENT_ID",
   "GITHUB_CLIENT_SECRET",
-  "RESEND_API_KEY",
-  "RESEND_FROM_EMAIL",
+  "SMTP_HOST",
+  "SMTP_USER",
+  "SMTP_PASSWORD",
+  "EMAIL_FROM",
 ] as const;
 
 function urlWithProtocols(protocols: readonly string[]) {
@@ -29,6 +33,16 @@ function urlWithProtocols(protocols: readonly string[]) {
     message: `URL must use one of: ${protocols.join(", ")}.`,
   });
 }
+
+/*
+ * Copied `.env.example` files set variables to an empty string rather than
+ * omitting them. Treat that as "not configured" so a blank value cannot pass the
+ * all-or-nothing email check and then build an adapter with an empty credential.
+ */
+const optionalNonEmptyString = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
 
 const corsOriginsSchema = z.preprocess(
   (value) => {
@@ -91,8 +105,15 @@ const envSchema = z
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     GITHUB_CLIENT_ID: z.string().min(1).optional(),
     GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
-    RESEND_API_KEY: z.string().min(1).optional(),
-    RESEND_FROM_EMAIL: z.string().min(1).optional(),
+    SMTP_HOST: optionalNonEmptyString,
+    SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(465),
+    SMTP_SECURE: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
+    SMTP_USER: optionalNonEmptyString,
+    SMTP_PASSWORD: optionalNonEmptyString,
+    EMAIL_FROM: optionalNonEmptyString,
   })
   .superRefine((value, context) => {
     for (const [idKey, secretKey] of socialProviderCredentialPairs) {
@@ -108,11 +129,18 @@ const envSchema = z
       }
     }
 
-    if ((value.RESEND_API_KEY === undefined) !== (value.RESEND_FROM_EMAIL === undefined)) {
+    const configuredEmailVariables = emailDeliveryVariables.filter(
+      (variable) => value[variable] !== undefined,
+    );
+
+    if (
+      configuredEmailVariables.length > 0 &&
+      configuredEmailVariables.length < emailDeliveryVariables.length
+    ) {
       context.addIssue({
         code: "custom",
-        message: "RESEND_API_KEY and RESEND_FROM_EMAIL must be configured together.",
-        path: ["RESEND_API_KEY"],
+        message: `${emailDeliveryVariables.join(", ")} must be configured together.`,
+        path: ["SMTP_HOST"],
       });
     }
   })
