@@ -7,11 +7,20 @@ const UPDATE_MEMBER_ROLE_PATH = "/organization/update-member-role";
 
 const MANAGED_ORGANIZATION_PATHS = new Set([
   "/organization/cancel-invitation",
+  /*
+   * Organization update, deletion, and leaving stay behind the TeamOS facade so
+   * they cannot skip auditing, lifecycle cleanup, management rate limiting, and
+   * future confirmation or ownership-transfer rules. Only `create` remains
+   * reachable because the workspace creation flow still uses it directly.
+   */
+  "/organization/delete",
   "/organization/get-full-organization",
   "/organization/invite-member",
+  "/organization/leave",
   "/organization/list-invitations",
   "/organization/list-members",
   "/organization/remove-member",
+  "/organization/update",
   "/organization/update-member-role",
 ]);
 

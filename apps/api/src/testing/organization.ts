@@ -139,9 +139,17 @@ function createFakeOrganizationGateway(): OrganizationGateway {
       role,
       status: "pending",
     }),
+    deleteOrganization: async () => {},
     listInvitations: async () => [],
     removeMember: async () => {},
     updateMemberRole: async () => {},
+    updateOrganization: async ({ name, organizationId }) => ({
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      id: organizationId,
+      logo: null,
+      name,
+      slug: "analytical-engines",
+    }),
   };
 }
 
@@ -157,6 +165,7 @@ function createFakeOrganizationManagementService(): OrganizationManagementServic
       role: request.role satisfies AssignableOrganizationRole,
       status: "pending" as const,
     }),
+    deleteOrganization: async () => {},
     listPendingInvitations: async () => [],
     removeMember: async () => {},
     resendInvitation: async () => ({
@@ -169,6 +178,13 @@ function createFakeOrganizationManagementService(): OrganizationManagementServic
       status: "pending" as const,
     }),
     updateMemberRole: async () => {},
+    updateOrganization: async ({ organization, request }) => ({
+      createdAt: organization.createdAt.toISOString(),
+      id: organization.organizationId,
+      logo: organization.logo,
+      name: request.name,
+      slug: organization.slug,
+    }),
   };
 }
 

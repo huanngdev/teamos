@@ -4,6 +4,7 @@ import {
   invitationListResponseSchema,
   invitationResponseSchema,
   memberListResponseSchema,
+  organizationContextResponseSchema,
 } from "@teamos/shared";
 import type { OrganizationMember } from "@teamos/shared";
 
@@ -300,6 +301,9 @@ test("blocks direct calls to the replaced Better Auth management endpoints", asy
     "/api/auth/organization/cancel-invitation",
     "/api/auth/organization/update-member-role",
     "/api/auth/organization/remove-member",
+    "/api/auth/organization/update",
+    "/api/auth/organization/delete",
+    "/api/auth/organization/leave",
     "/api/auth/organization/list-invitations/",
     "/api/auth/organization/%69nvite-member",
   ];
@@ -320,6 +324,75 @@ test("keeps the native invitation acceptance endpoints available", async () => {
 
   expect(response.status).toBe(200);
   expect(await response.text()).toBe("auth-handler");
+});
+
+const pendingInvitation = {
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  email: "invited@example.com",
+  expiresAt: new Date("2999-01-03T00:00:00.000Z"),
+  id: "invitation-1",
+  inviterId: "user-1",
+  organizationId: "org-1",
+  role: "member",
+  status: "pending",
+};
+
+test("cancels a pending invitation scoped to the workspace", async () => {
+  const cancelled: string[] = [];
+  const app = createTestApp({
+    gateway: {
+      cancelInvitation: async ({ invitationId }) => {
+        cancelled.push(invitationId);
+      },
+      listInvitations: async () => [pendingInvitation],
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines/invitations/invitation-1",
+    { method: "DELETE" },
+  );
+
+  expect(response.status).toBe(204);
+  expect(cancelled).toEqual(["invitation-1"]);
+});
+
+test("refuses to cancel an invitation that belongs to another workspace", async () => {
+  let cancelCalled = false;
+  const app = createTestApp({
+    gateway: {
+      cancelInvitation: async () => {
+        cancelCalled = true;
+      },
+      /* The workspace-scoped list does not include the other tenant's invitation. */
+      listInvitations: async () => [],
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines/invitations/other-tenant-invitation",
+    { method: "DELETE" },
+  );
+
+  expect(response.status).toBe(404);
+  expect(await readErrorCode(response)).toBe("INVITATION_NOT_FOUND");
+  expect(cancelCalled).toBe(false);
+});
+
+test("refuses to cancel an invitation that is no longer pending", async () => {
+  const app = createTestApp({
+    gateway: {
+      listInvitations: async () => [{ ...pendingInvitation, status: "accepted" }],
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines/invitations/invitation-1",
+    { method: "DELETE" },
+  );
+
+  expect(response.status).toBe(409);
+  expect(await readErrorCode(response)).toBe("CONFLICT");
 });
 
 test("lists pending invitations for an administrator", async () => {
@@ -359,4 +432,199 @@ test("rate limits management actions per actor", async () => {
   expect(first.status).toBe(200);
   expect(second.status).toBe(429);
   expect(await readErrorCode(second)).toBe("RATE_LIMIT_EXCEEDED");
+});
+
+function methodJson(method: string, body: unknown): RequestInit {
+  return {
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+    method,
+  };
+}
+
+test("renames a workspace for an administrator", async () => {
+  const renamed: { name: string; organizationId: string }[] = [];
+  const app = createTestApp({
+    actorAccess: adminAccess,
+    gateway: {
+      updateOrganization: async ({ name, organizationId }) => {
+        renamed.push({ name, organizationId });
+
+        return {
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          id: organizationId,
+          logo: null,
+          name,
+          slug: "analytical-engines",
+        };
+      },
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines",
+    methodJson("PATCH", { name: "  Engines II  " }),
+  );
+  const body = organizationContextResponseSchema.parse(await response.json());
+
+  expect(response.status).toBe(200);
+  expect(renamed).toEqual([{ name: "Engines II", organizationId: "org-1" }]);
+  expect(body.organization.name).toBe("Engines II");
+  expect(body.organization.role).toBe("admin");
+});
+
+test("rejects an empty workspace name before it reaches the gateway", async () => {
+  let invoked = false;
+  const app = createTestApp({
+    gateway: {
+      updateOrganization: async () => {
+        invoked = true;
+
+        throw new Error("should not be called");
+      },
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines",
+    methodJson("PATCH", { name: "   " }),
+  );
+
+  expect(response.status).toBe(422);
+  expect(invoked).toBe(false);
+});
+
+test("does not let an ordinary member rename a workspace", async () => {
+  let invoked = false;
+  const app = createTestApp({
+    actorAccess: memberAccess,
+    gateway: {
+      updateOrganization: async () => {
+        invoked = true;
+
+        throw new Error("should not be called");
+      },
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines",
+    methodJson("PATCH", { name: "Engines II" }),
+  );
+
+  expect(response.status).toBe(403);
+  expect(await readErrorCode(response)).toBe("FORBIDDEN");
+  expect(invoked).toBe(false);
+});
+
+test("hides rename of a workspace the caller does not belong to", async () => {
+  let invoked = false;
+  const app = createTestApp({
+    gateway: {
+      updateOrganization: async () => {
+        invoked = true;
+
+        throw new Error("should not be called");
+      },
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/another-workspace",
+    methodJson("PATCH", { name: "Engines II" }),
+  );
+
+  expect(response.status).toBe(404);
+  expect(await readErrorCode(response)).toBe("ORGANIZATION_NOT_FOUND");
+  expect(invoked).toBe(false);
+});
+
+test("deletes a workspace for its owner after name confirmation", async () => {
+  const deleted: string[] = [];
+  const app = createTestApp({
+    gateway: {
+      deleteOrganization: async ({ organizationId }) => {
+        deleted.push(organizationId);
+      },
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines",
+    methodJson("DELETE", { confirmationName: "Analytical Engines" }),
+  );
+
+  expect(response.status).toBe(204);
+  expect(deleted).toEqual(["org-1"]);
+});
+
+test("refuses deletion when the confirmation name does not match", async () => {
+  let invoked = false;
+  const app = createTestApp({
+    gateway: {
+      deleteOrganization: async () => {
+        invoked = true;
+      },
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines",
+    methodJson("DELETE", { confirmationName: "Difference Engine" }),
+  );
+
+  expect(response.status).toBe(422);
+  expect(await readErrorCode(response)).toBe("VALIDATION_ERROR");
+  expect(invoked).toBe(false);
+});
+
+test("does not let an administrator delete a workspace", async () => {
+  let invoked = false;
+  const app = createTestApp({
+    actorAccess: adminAccess,
+    gateway: {
+      deleteOrganization: async () => {
+        invoked = true;
+      },
+    },
+  });
+
+  const response = await app.request(
+    "/api/organizations/analytical-engines",
+    methodJson("DELETE", { confirmationName: "Analytical Engines" }),
+  );
+
+  expect(response.status).toBe(403);
+  expect(await readErrorCode(response)).toBe("FORBIDDEN");
+  expect(invoked).toBe(false);
+});
+
+test("forwards the caller session cookie to the lifecycle gateway", async () => {
+  let received: Headers | undefined;
+  const app = createTestApp({
+    gateway: {
+      updateOrganization: async ({ headers, name, organizationId }) => {
+        received = headers;
+
+        return {
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          id: organizationId,
+          logo: null,
+          name,
+          slug: "analytical-engines",
+        };
+      },
+    },
+  });
+
+  await app.request("/api/organizations/analytical-engines", {
+    body: JSON.stringify({ name: "Engines II" }),
+    headers: {
+      "content-type": "application/json",
+      cookie: "better-auth.session_token=abc",
+    },
+    method: "PATCH",
+  });
+
+  expect(received?.get("cookie")).toBe("better-auth.session_token=abc");
 });

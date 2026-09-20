@@ -3,16 +3,26 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import {
   assignableOrganizationRoleSchema,
   canAssignOrganizationRole,
+  canDeleteOrganization,
   canManageOrganizationMember,
+  canUpdateOrganization,
   canViewPendingInvitations,
   parseOrganizationRole,
   type ApiErrorCode,
   type AssignableOrganizationRole,
   type CreateInvitationRequest,
+  type DeleteOrganizationRequest,
   type OrganizationInvitation,
+  type OrganizationSummary,
+  type UpdateOrganizationRequest,
 } from "@teamos/shared";
 
-import type { InvitationRecord, OrganizationAccess, OrganizationGateway } from "@/auth/index.js";
+import type {
+  InvitationRecord,
+  OrganizationAccess,
+  OrganizationGateway,
+  OrganizationRecord,
+} from "@/auth/index.js";
 import { AppError } from "@/errors/index.js";
 import type { OrganizationMemberService } from "@/services/organization-members.js";
 
@@ -27,6 +37,11 @@ interface OrganizationManagementService {
     organization: OrganizationAccess;
     request: CreateInvitationRequest;
   }) => Promise<OrganizationInvitation>;
+  deleteOrganization: (input: {
+    headers: Headers;
+    organization: OrganizationAccess;
+    request: DeleteOrganizationRequest;
+  }) => Promise<void>;
   listPendingInvitations: (input: {
     headers: Headers;
     organization: OrganizationAccess;
@@ -48,6 +63,11 @@ interface OrganizationManagementService {
     organization: OrganizationAccess;
     role: AssignableOrganizationRole;
   }) => Promise<void>;
+  updateOrganization: (input: {
+    headers: Headers;
+    organization: OrganizationAccess;
+    request: UpdateOrganizationRequest;
+  }) => Promise<OrganizationSummary>;
 }
 
 interface OrganizationManagementDependencies {
@@ -103,6 +123,16 @@ const betterAuthErrorMapping: Readonly<Record<string, MappedError>> = {
     message: "The member was not found in this workspace.",
     status: 404,
   },
+  ORGANIZATION_NOT_FOUND: {
+    code: "ORGANIZATION_NOT_FOUND",
+    message: "The organization was not found.",
+    status: 404,
+  },
+  USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION: {
+    code: "ORGANIZATION_NOT_FOUND",
+    message: "The organization was not found.",
+    status: 404,
+  },
   ORGANIZATION_MEMBERSHIP_LIMIT_REACHED: {
     code: "MEMBER_LIMIT_REACHED",
     message: "This workspace has reached its member limit.",
@@ -128,6 +158,11 @@ const betterAuthErrorMapping: Readonly<Record<string, MappedError>> = {
     message: "You are not allowed to remove that member.",
     status: 403,
   },
+  YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION: {
+    code: "FORBIDDEN",
+    message: "You are not allowed to delete this workspace.",
+    status: 403,
+  },
   YOU_ARE_NOT_ALLOWED_TO_INVITE_USERS_TO_THIS_ORGANIZATION: {
     code: "FORBIDDEN",
     message: "You are not allowed to invite members.",
@@ -141,6 +176,11 @@ const betterAuthErrorMapping: Readonly<Record<string, MappedError>> = {
   YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER: {
     code: "FORBIDDEN",
     message: "You are not allowed to change that member.",
+    status: 403,
+  },
+  YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION: {
+    code: "FORBIDDEN",
+    message: "You are not allowed to update this workspace.",
     status: 403,
   },
   YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER: {
@@ -199,6 +239,16 @@ function toGatewayError(): AppError {
   );
 }
 
+function toOrganizationSummary(record: OrganizationRecord): OrganizationSummary {
+  return {
+    createdAt: record.createdAt.toISOString(),
+    id: record.id,
+    logo: record.logo,
+    name: record.name,
+    slug: record.slug,
+  };
+}
+
 function toOrganizationInvitation(record: InvitationRecord): OrganizationInvitation {
   const status =
     record.status === "pending" || record.status === "accepted" || record.status === "rejected"
@@ -226,6 +276,18 @@ function assertCanManageInvitations(organization: OrganizationAccess): void {
   }
 }
 
+function assertCanUpdateOrganization(organization: OrganizationAccess): void {
+  if (!canUpdateOrganization(organization.role)) {
+    throw new AppError(403, "FORBIDDEN", "You are not allowed to update this workspace.");
+  }
+}
+
+function assertCanDeleteOrganization(organization: OrganizationAccess): void {
+  if (!canDeleteOrganization(organization.role)) {
+    throw new AppError(403, "FORBIDDEN", "You are not allowed to delete this workspace.");
+  }
+}
+
 function createOrganizationManagementService(
   dependencies: OrganizationManagementDependencies,
 ): OrganizationManagementService {
@@ -241,12 +303,49 @@ function createOrganizationManagementService(
     return target;
   }
 
+  /*
+   * Resolves an invitation through the organization-scoped list so a caller who
+   * administers two organizations cannot act on another tenant's invitation
+   * through the wrong URL. It also enforces that only a live pending invitation
+   * can be changed, which Better Auth's cancel endpoint does not check.
+   */
+  async function findActiveInvitation(
+    headers: Headers,
+    organization: OrganizationAccess,
+    invitationId: string,
+  ): Promise<InvitationRecord> {
+    let records: InvitationRecord[];
+
+    try {
+      records = await gateway.listInvitations({
+        headers,
+        organizationId: organization.organizationId,
+      });
+    } catch (error) {
+      throw mapManagementError(error) ?? toGatewayError();
+    }
+
+    const existing = records.find((record) => record.id === invitationId);
+
+    if (existing === undefined) {
+      throw new AppError(404, "INVITATION_NOT_FOUND", "The invitation was not found.");
+    }
+
+    if (!isActivePendingInvitation(existing, new Date())) {
+      throw new AppError(409, "CONFLICT", "That invitation is no longer pending.");
+    }
+
+    return existing;
+  }
+
   return {
     cancelInvitation: async ({ headers, invitationId, organization }) => {
       assertCanManageInvitations(organization);
 
+      const existing = await findActiveInvitation(headers, organization, invitationId);
+
       try {
-        await gateway.cancelInvitation({ headers, invitationId });
+        await gateway.cancelInvitation({ headers, invitationId: existing.id });
       } catch (error) {
         throw mapManagementError(error) ?? toGatewayError();
       }
@@ -254,7 +353,7 @@ function createOrganizationManagementService(
       logger
         .withMetadata({
           actorMemberId: organization.memberId,
-          invitationId,
+          invitationId: existing.id,
           organizationId: organization.organizationId,
         })
         .info("organization.invitation.cancelled");
@@ -287,6 +386,35 @@ function createOrganizationManagementService(
         .info("organization.invitation.created");
 
       return toOrganizationInvitation(invitation);
+    },
+    deleteOrganization: async ({ headers, organization, request }) => {
+      assertCanDeleteOrganization(organization);
+
+      /*
+       * The typed confirmation is checked against the stored name so a stale tab
+       * cannot delete a workspace that was renamed since the dialog opened.
+       */
+      if (request.confirmationName !== organization.name) {
+        throw new AppError(
+          422,
+          "VALIDATION_ERROR",
+          "Type the workspace name exactly to confirm deletion.",
+        );
+      }
+
+      try {
+        await gateway.deleteOrganization({ headers, organizationId: organization.organizationId });
+      } catch (error) {
+        throw mapManagementError(error) ?? toGatewayError();
+      }
+
+      logger
+        .withMetadata({
+          actorMemberId: organization.memberId,
+          organizationId: organization.organizationId,
+          organizationName: organization.name,
+        })
+        .info("organization.deleted");
     },
     listPendingInvitations: async ({ headers, organization }) => {
       assertCanManageInvitations(organization);
@@ -345,26 +473,7 @@ function createOrganizationManagementService(
     resendInvitation: async ({ headers, invitationId, organization }) => {
       assertCanManageInvitations(organization);
 
-      let records: InvitationRecord[];
-
-      try {
-        records = await gateway.listInvitations({
-          headers,
-          organizationId: organization.organizationId,
-        });
-      } catch (error) {
-        throw mapManagementError(error) ?? toGatewayError();
-      }
-
-      const existing = records.find((record) => record.id === invitationId);
-
-      if (existing === undefined) {
-        throw new AppError(404, "INVITATION_NOT_FOUND", "The invitation was not found.");
-      }
-
-      if (!isActivePendingInvitation(existing, new Date())) {
-        throw new AppError(409, "CONFLICT", "That invitation is no longer pending.");
-      }
+      const existing = await findActiveInvitation(headers, organization, invitationId);
 
       const role = assignableOrganizationRoleSchema.safeParse(parseOrganizationRole(existing.role));
 
@@ -433,6 +542,30 @@ function createOrganizationManagementService(
           targetMemberId: memberId,
         })
         .info("organization.member.role_updated");
+    },
+    updateOrganization: async ({ headers, organization, request }) => {
+      assertCanUpdateOrganization(organization);
+
+      let updated: OrganizationRecord;
+
+      try {
+        updated = await gateway.updateOrganization({
+          headers,
+          name: request.name,
+          organizationId: organization.organizationId,
+        });
+      } catch (error) {
+        throw mapManagementError(error) ?? toGatewayError();
+      }
+
+      logger
+        .withMetadata({
+          actorMemberId: organization.memberId,
+          organizationId: organization.organizationId,
+        })
+        .info("organization.updated");
+
+      return toOrganizationSummary(updated);
     },
   };
 }

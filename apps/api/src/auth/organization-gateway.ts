@@ -19,6 +19,14 @@ interface InvitationRecord {
   status: string;
 }
 
+interface OrganizationRecord {
+  createdAt: Date;
+  id: string;
+  logo: string | null;
+  name: string;
+  slug: string;
+}
+
 interface OrganizationGateway {
   cancelInvitation: (input: { headers: Headers; invitationId: string }) => Promise<void>;
   createInvitation: (input: {
@@ -27,6 +35,7 @@ interface OrganizationGateway {
     organizationId: string;
     role: AssignableOrganizationRole;
   }) => Promise<InvitationRecord>;
+  deleteOrganization: (input: { headers: Headers; organizationId: string }) => Promise<void>;
   listInvitations: (input: {
     headers: Headers;
     organizationId: string;
@@ -42,6 +51,11 @@ interface OrganizationGateway {
     organizationId: string;
     role: AssignableOrganizationRole;
   }) => Promise<void>;
+  updateOrganization: (input: {
+    headers: Headers;
+    name: string;
+    organizationId: string;
+  }) => Promise<OrganizationRecord>;
 }
 
 function createOrganizationGateway(auth: Auth): OrganizationGateway {
@@ -55,6 +69,12 @@ function createOrganizationGateway(auth: Auth): OrganizationGateway {
     createInvitation: async ({ email, headers, organizationId, role }) => {
       return auth.api.createInvitation({
         body: { email, organizationId, role },
+        headers,
+      });
+    },
+    deleteOrganization: async ({ headers, organizationId }) => {
+      await auth.api.deleteOrganization({
+        body: { organizationId },
         headers,
       });
     },
@@ -76,7 +96,30 @@ function createOrganizationGateway(auth: Auth): OrganizationGateway {
         headers,
       });
     },
+    updateOrganization: async ({ headers, name, organizationId }) => {
+      const updated = await auth.api.updateOrganization({
+        body: { data: { name }, organizationId },
+        headers,
+      });
+
+      if (updated === null) {
+        throw new Error("Better Auth returned no organization after update.");
+      }
+
+      return {
+        createdAt: updated.createdAt,
+        id: updated.id,
+        logo: updated.logo ?? null,
+        name: updated.name,
+        slug: updated.slug,
+      };
+    },
   };
 }
 
-export { createOrganizationGateway, type InvitationRecord, type OrganizationGateway };
+export {
+  createOrganizationGateway,
+  type InvitationRecord,
+  type OrganizationGateway,
+  type OrganizationRecord,
+};

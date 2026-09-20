@@ -19,6 +19,7 @@ import {
 } from "@/openapi/index.js";
 import { registerOrganizationInvitationRoutes } from "@/routes/organization-invitations.js";
 import { registerOrganizationMemberRoutes } from "@/routes/organization-members.js";
+import { registerOrganizationSettingsRoutes } from "@/routes/organization-settings.js";
 import type {
   OrganizationRouteDependencies,
   OrganizationRoutes,
@@ -113,6 +114,7 @@ function createOrganizationRoutes(options: CreateOrganizationRoutesOptions): Org
 
   registerOrganizationMemberRoutes(routes, options);
   registerOrganizationInvitationRoutes(routes, options);
+  registerOrganizationSettingsRoutes(routes, options);
   registerProjectRoutes(routes, options);
 
   return routes;

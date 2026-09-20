@@ -49,8 +49,10 @@ interface Harness {
   calls: {
     cancelled: string[];
     created: { email: string; role: string }[];
+    deleted: string[];
     removed: string[];
     roleUpdates: { memberId: string; role: string }[];
+    updated: { name: string; organizationId: string }[];
   };
   gateway: OrganizationGateway;
   service: OrganizationManagementService;
@@ -59,13 +61,22 @@ interface Harness {
 function createHarness(
   options: {
     members?: readonly OrganizationMember[];
+    onDeleteOrganizationError?: unknown;
     onCreateInvitationError?: unknown;
     onListInvitationsError?: unknown;
+    onUpdateOrganizationError?: unknown;
     pendingInvitations?: readonly InvitationRecord[];
   } = {},
 ): Harness {
   const members = options.members ?? [];
-  const calls: Harness["calls"] = { cancelled: [], created: [], removed: [], roleUpdates: [] };
+  const calls: Harness["calls"] = {
+    cancelled: [],
+    created: [],
+    deleted: [],
+    removed: [],
+    roleUpdates: [],
+    updated: [],
+  };
 
   const gateway: OrganizationGateway = {
     cancelInvitation: async ({ invitationId }) => {
@@ -80,6 +91,13 @@ function createHarness(
 
       return buildInvitation({ email, id: `invitation-${calls.created.length}`, role });
     },
+    deleteOrganization: async ({ organizationId }) => {
+      if (options.onDeleteOrganizationError !== undefined) {
+        throw options.onDeleteOrganizationError;
+      }
+
+      calls.deleted.push(organizationId);
+    },
     listInvitations: async () => {
       if (options.onListInvitationsError !== undefined) {
         throw options.onListInvitationsError;
@@ -92,6 +110,21 @@ function createHarness(
     },
     updateMemberRole: async ({ memberId, role }) => {
       calls.roleUpdates.push({ memberId, role });
+    },
+    updateOrganization: async ({ name, organizationId }) => {
+      if (options.onUpdateOrganizationError !== undefined) {
+        throw options.onUpdateOrganizationError;
+      }
+
+      calls.updated.push({ name, organizationId });
+
+      return {
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        id: organizationId,
+        logo: null,
+        name,
+        slug: "analytical-engines",
+      };
     },
   };
 
@@ -376,5 +409,135 @@ describe("member management", () => {
      * rule stays inside Better Auth and this path remains a policy denial.
      */
     expect(error.status).toBe(403);
+  });
+});
+
+describe("workspace lifecycle", () => {
+  test("renames a workspace for an owner and returns the canonical summary", async () => {
+    const { calls, service } = createHarness();
+
+    const updated = await service.updateOrganization({
+      headers: new Headers(),
+      organization: buildAccess({ role: "owner" }),
+      request: { name: "Engines II" },
+    });
+
+    expect(calls.updated).toEqual([{ name: "Engines II", organizationId: "org-1" }]);
+    expect(updated).toEqual({
+      createdAt: "2026-01-01T00:00:00.000Z",
+      id: "org-1",
+      logo: null,
+      name: "Engines II",
+      slug: "analytical-engines",
+    });
+  });
+
+  test("renames a workspace for an admin", async () => {
+    const { calls, service } = createHarness();
+
+    await service.updateOrganization({
+      headers: new Headers(),
+      organization: buildAccess({ role: "admin" }),
+      request: { name: "Engines II" },
+    });
+
+    expect(calls.updated).toHaveLength(1);
+  });
+
+  test("does not let an ordinary member rename a workspace", async () => {
+    const { calls, service } = createHarness();
+
+    const error = await captureError(() =>
+      service.updateOrganization({
+        headers: new Headers(),
+        organization: buildAccess({ role: "member" }),
+        request: { name: "Engines II" },
+      }),
+    );
+
+    expect(error.status).toBe(403);
+    expect(error.code).toBe("FORBIDDEN");
+    expect(calls.updated).toEqual([]);
+  });
+
+  test("sanitizes an unknown rename failure", async () => {
+    const { service } = createHarness({
+      onUpdateOrganizationError: new Error("database connection string leaked"),
+    });
+
+    const error = await captureError(() =>
+      service.updateOrganization({
+        headers: new Headers(),
+        organization: buildAccess(),
+        request: { name: "Engines II" },
+      }),
+    );
+
+    expect(error.status).toBe(502);
+    expect(error.code).toBe("HTTP_ERROR");
+    expect(error.message).not.toContain("leaked");
+  });
+
+  test("deletes a workspace for an owner after confirming the exact name", async () => {
+    const { calls, service } = createHarness();
+
+    await service.deleteOrganization({
+      headers: new Headers(),
+      organization: buildAccess({ role: "owner" }),
+      request: { confirmationName: "Analytical Engines" },
+    });
+
+    expect(calls.deleted).toEqual(["org-1"]);
+  });
+
+  test("refuses deletion when the typed name does not match", async () => {
+    const { calls, service } = createHarness();
+
+    const error = await captureError(() =>
+      service.deleteOrganization({
+        headers: new Headers(),
+        organization: buildAccess({ role: "owner" }),
+        request: { confirmationName: "analytical engines" },
+      }),
+    );
+
+    expect(error.status).toBe(422);
+    expect(error.code).toBe("VALIDATION_ERROR");
+    expect(calls.deleted).toEqual([]);
+  });
+
+  test("does not let an admin delete a workspace", async () => {
+    const { calls, service } = createHarness();
+
+    const error = await captureError(() =>
+      service.deleteOrganization({
+        headers: new Headers(),
+        organization: buildAccess({ role: "admin" }),
+        request: { confirmationName: "Analytical Engines" },
+      }),
+    );
+
+    expect(error.status).toBe(403);
+    expect(calls.deleted).toEqual([]);
+  });
+
+  test("maps a Better Auth forbidden deletion to a policy denial", async () => {
+    const { service } = createHarness({
+      onDeleteOrganizationError: buildBetterAuthError(
+        "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION",
+        403,
+      ),
+    });
+
+    const error = await captureError(() =>
+      service.deleteOrganization({
+        headers: new Headers(),
+        organization: buildAccess({ role: "owner" }),
+        request: { confirmationName: "Analytical Engines" },
+      }),
+    );
+
+    expect(error.status).toBe(403);
+    expect(error.code).toBe("FORBIDDEN");
   });
 });

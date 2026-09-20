@@ -21,6 +21,7 @@ export {
   createOrganizationGateway,
   type InvitationRecord,
   type OrganizationGateway,
+  type OrganizationRecord,
 } from "./organization-gateway.js";
 export {
   getEnabledSocialProviders,

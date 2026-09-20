@@ -97,6 +97,13 @@ function createAuth(options: CreateAuthOptions) {
          * the previously emailed link stops working instead of staying valid.
          */
         cancelPendingInvitationsOnReInvite: true,
+        /*
+         * TeamOS owns deletion through its settings facade, which adds owner
+         * authorization, typed confirmation, auditing, and rate limiting. The
+         * native HTTP endpoint stays blocked in `native-endpoint-policy.ts`, so
+         * only the server-side gateway can reach this capability.
+         */
+        disableOrganizationDeletion: false,
         invitationLimit: env.MAX_PENDING_INVITATIONS,
         membershipLimit: env.MAX_ORGANIZATION_MEMBERS,
         organizationLimit: env.MAX_ORGANIZATIONS_PER_USER,
