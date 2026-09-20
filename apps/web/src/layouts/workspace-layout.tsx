@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router";
+import { FolderKanbanIcon, SettingsIcon, UsersIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +56,7 @@ function WorkspaceLayout() {
         <Tabs
           onValueChange={(value) => {
             /* Base UI reports `any | null`; only real tabs may navigate. */
-            if (value === "projects" || value === "members") {
+            if (value === "projects" || value === "members" || value === "settings") {
               view.onSelectTab(value);
             }
           }}
@@ -63,11 +64,19 @@ function WorkspaceLayout() {
         >
           <TabsList variant="line">
             <TabsTrigger render={<NavLink to={view.projectsPath} />} value="projects">
+              <FolderKanbanIcon data-icon="inline-start" />
               Projects <Badge variant="secondary">{view.projectCount}</Badge>
             </TabsTrigger>
             <TabsTrigger render={<NavLink to={view.membersPath} />} value="members">
+              <UsersIcon data-icon="inline-start" />
               Members <Badge variant="secondary">{view.memberCount}</Badge>
             </TabsTrigger>
+            {view.canViewSettings ? (
+              <TabsTrigger render={<NavLink to={view.settingsPath} />} value="settings">
+                <SettingsIcon data-icon="inline-start" />
+                Settings
+              </TabsTrigger>
+            ) : null}
             <TabsIndicator />
           </TabsList>
         </Tabs>

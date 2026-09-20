@@ -3,6 +3,7 @@ import type { OrganizationContext } from "@teamos/shared";
 
 import { ApiClientError } from "@/shared/api/api-client";
 import { getOrganizationContext } from "../api/organization-api";
+import { workspaceKeys } from "../query-keys";
 
 type WorkspaceState =
   | { status: "loading" }
@@ -13,7 +14,7 @@ type WorkspaceState =
 function useWorkspace(organizationSlug: string): WorkspaceState {
   const query = useQuery({
     queryFn: () => getOrganizationContext(organizationSlug),
-    queryKey: ["organization", organizationSlug],
+    queryKey: workspaceKeys(organizationSlug).detail(),
     retry: (failureCount, error) =>
       !(error instanceof ApiClientError && error.status === 404) && failureCount < 1,
   });

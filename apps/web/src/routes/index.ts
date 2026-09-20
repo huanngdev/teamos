@@ -7,3 +7,4 @@ export { VerifyEmailRoute } from "./verify-email-route";
 export { WorkspaceIndexRoute } from "./workspace-index-route";
 export { WorkspaceMembersRoute } from "./workspace-members-route";
 export { WorkspaceProjectsRoute } from "./workspace-projects-route";
+export { WorkspaceSettingsRoute } from "./workspace-settings-route";

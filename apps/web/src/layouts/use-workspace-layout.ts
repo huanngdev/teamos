@@ -1,4 +1,5 @@
 import type { OrganizationSummary } from "@teamos/shared";
+import { canUpdateOrganization } from "@teamos/shared";
 import { useLocation, useNavigate, useParams } from "react-router";
 
 import { useAuthSession, useSignOut } from "@/features/auth";
@@ -9,9 +10,10 @@ import {
   useWorkspace,
   workspaceMembersPath,
   workspaceProjectsPath,
+  workspaceSettingsPath,
 } from "@/features/workspaces";
 
-type WorkspaceTab = "members" | "projects";
+type WorkspaceTab = "members" | "projects" | "settings";
 
 type WorkspaceLayoutState =
   | { status: "loading" }
@@ -21,6 +23,7 @@ type WorkspaceLayoutState =
 
 interface WorkspaceLayoutView {
   activeTab: WorkspaceTab;
+  canViewSettings: boolean;
   isSigningOut: boolean;
   memberCount: number;
   onSelectTab: (tab: WorkspaceTab) => void;
@@ -31,9 +34,22 @@ interface WorkspaceLayoutView {
   organizationsErrorMessage: string | null;
   projectCount: number;
   projectsPath: string;
+  settingsPath: string;
   signOutError: string | null;
   membersPath: string;
   user: { email: string; image: string | null; name: string };
+}
+
+function resolveActiveTab(pathname: string): WorkspaceTab {
+  if (pathname.endsWith("/members")) {
+    return "members";
+  }
+
+  if (pathname.endsWith("/settings")) {
+    return "settings";
+  }
+
+  return "projects";
 }
 
 /*
@@ -83,16 +99,19 @@ function useWorkspaceLayout(): WorkspaceLayoutState {
   return {
     status: "ready",
     view: {
-      activeTab: location.pathname.endsWith("/members") ? "members" : "projects",
+      activeTab: resolveActiveTab(location.pathname),
+      canViewSettings: canUpdateOrganization(workspace.organization.role),
       isSigningOut: signOut.isPending,
       memberCount: workspace.organization.memberCount,
       membersPath: workspaceMembersPath(organizationSlug),
       onSelectTab: (tab) => {
-        void navigate(
-          tab === "members"
-            ? workspaceMembersPath(organizationSlug)
-            : workspaceProjectsPath(organizationSlug),
-        );
+        const pathByTab: Record<WorkspaceTab, string> = {
+          members: workspaceMembersPath(organizationSlug),
+          projects: workspaceProjectsPath(organizationSlug),
+          settings: workspaceSettingsPath(organizationSlug),
+        };
+
+        void navigate(pathByTab[tab]);
       },
       onSignOut: () => {
         void signOut.signOut();
@@ -103,6 +122,7 @@ function useWorkspaceLayout(): WorkspaceLayoutState {
       organizationsErrorMessage: organizations.errorMessage,
       projectCount: projectList.projects.length,
       projectsPath: workspaceProjectsPath(organizationSlug),
+      settingsPath: workspaceSettingsPath(organizationSlug),
       signOutError: signOut.errorMessage,
       user: {
         email: session.user.email,

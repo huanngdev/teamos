@@ -12,6 +12,7 @@ import {
   WorkspaceIndexRoute,
   WorkspaceMembersRoute,
   WorkspaceProjectsRoute,
+  WorkspaceSettingsRoute,
 } from "@/routes";
 
 function AppRoutes() {
@@ -29,6 +30,7 @@ function AppRoutes() {
           <Route element={<Navigate replace to="projects" />} index />
           <Route element={<WorkspaceProjectsRoute />} path="projects" />
           <Route element={<WorkspaceMembersRoute />} path="members" />
+          <Route element={<WorkspaceSettingsRoute />} path="settings" />
         </Route>
       </Route>
 

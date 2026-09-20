@@ -14,4 +14,8 @@ function workspaceMembersPath(slug: string): string {
   return `/workspaces/${encodeURIComponent(slug)}/members`;
 }
 
-export { workspaceMembersPath, workspaceProjectsPath, workspacesNewPath };
+function workspaceSettingsPath(slug: string): string {
+  return `/workspaces/${encodeURIComponent(slug)}/settings`;
+}
+
+export { workspaceMembersPath, workspaceProjectsPath, workspaceSettingsPath, workspacesNewPath };

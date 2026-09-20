@@ -9,6 +9,7 @@ export {
 export { ErrorBoundary } from "./components/error-boundary";
 export { Logo, type LogoProps, type LogoVariant } from "./components/logo";
 export { ModeToggle } from "./components/mode-toggle";
+export { PageError } from "./components/page-error";
 export { PageLoading } from "./components/page-loading";
 export { SearchToolbar, type SearchToolbarAction } from "./components/search-toolbar";
 export { ThemeProvider } from "./components/theme-provider";

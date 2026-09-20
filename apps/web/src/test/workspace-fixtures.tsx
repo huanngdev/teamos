@@ -4,29 +4,23 @@ import { Navigate, Route, Routes } from "react-router";
 import { WorkspaceLayout } from "@/layouts/workspace-layout";
 import { WorkspaceMembersRoute } from "@/routes/workspace-members-route";
 import { WorkspaceProjectsRoute } from "@/routes/workspace-projects-route";
+import { WorkspaceSettingsRoute } from "@/routes/workspace-settings-route";
 import { apiUrl } from "@/shared";
 import { renderWithProviders } from "@/test/render-app";
 import { server } from "@/test/server";
 
 const sessionResponse = {
   session: {
-    createdAt: "2026-01-01T00:00:00.000Z",
+    activeOrganizationId: null,
     expiresAt: "2026-01-08T00:00:00.000Z",
     id: "session-1",
-    ipAddress: null,
-    token: "session-token",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    userAgent: null,
-    userId: "user-1",
   },
   user: {
-    createdAt: "2026-01-01T00:00:00.000Z",
     email: "ada@example.com",
     emailVerified: true,
     id: "user-1",
     image: null,
     name: "Ada Lovelace",
-    updatedAt: "2026-01-01T00:00:00.000Z",
   },
 } as const;
 
@@ -67,14 +61,17 @@ const secondMember = {
   userId: "user-2",
 } as const;
 
-function organizationContext(role: "owner" | "admin" | "member", memberCount = 2) {
+function organizationContext(
+  role: "owner" | "admin" | "member",
+  options: { memberCount?: number; name?: string } = {},
+) {
   return {
     organization: {
       createdAt: "2026-01-01T00:00:00.000Z",
       id: "org-1",
       logo: null,
-      memberCount,
-      name: "Analytical Engines",
+      memberCount: options.memberCount ?? 2,
+      name: options.name ?? "Analytical Engines",
       role,
       slug: "acme",
     },
@@ -110,7 +107,7 @@ function useWorkspaceHandlers(options: WorkspaceHandlerOptions = {}) {
   const role = options.role ?? "owner";
 
   server.use(
-    http.get(`${apiUrl}/api/auth/get-session`, () => HttpResponse.json(sessionResponse)),
+    http.get(`${apiUrl}/api/me`, () => HttpResponse.json(sessionResponse)),
     http.get(`${apiUrl}/api/auth/organization/list`, () =>
       HttpResponse.json(organizationsResponse),
     ),
@@ -118,6 +115,13 @@ function useWorkspaceHandlers(options: WorkspaceHandlerOptions = {}) {
     http.get(`${apiUrl}/api/organizations/acme`, () =>
       HttpResponse.json(organizationContext(role)),
     ),
+    http.patch(`${apiUrl}/api/organizations/acme`, async ({ request }) => {
+      const body = (await request.json()) as { name?: unknown };
+      const name = typeof body.name === "string" ? body.name : "Analytical Engines";
+
+      return HttpResponse.json(organizationContext(role, { name }));
+    }),
+    http.delete(`${apiUrl}/api/organizations/acme`, () => new HttpResponse(null, { status: 204 })),
     http.get(`${apiUrl}/api/organizations/acme/projects`, ({ request }) => {
       const url = new URL(request.url);
 
@@ -160,6 +164,7 @@ function renderWorkspace(route = "/workspaces/acme/projects") {
         <Route element={<Navigate replace to="projects" />} index />
         <Route element={<WorkspaceProjectsRoute />} path="projects" />
         <Route element={<WorkspaceMembersRoute />} path="members" />
+        <Route element={<WorkspaceSettingsRoute />} path="settings" />
       </Route>
       <Route element={<p>Sign in to TeamOS</p>} path="/login" />
       <Route element={<p>New workspace form</p>} path="/workspaces/new" />

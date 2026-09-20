@@ -1,11 +1,13 @@
 import {
   organizationContextResponseSchema,
+  type DeleteOrganizationRequest,
   type OrganizationContext,
   type OrganizationSummary,
+  type UpdateOrganizationRequest,
 } from "@teamos/shared";
 
 import { authClient } from "@/features/auth";
-import { requestParsed } from "@/shared/api/api-client";
+import { requestParsed, requestVoid } from "@/shared/api/api-client";
 
 async function getOrganizationContext(organizationSlug: string): Promise<OrganizationContext> {
   const response = await requestParsed(organizationContextResponseSchema, {
@@ -14,6 +16,35 @@ async function getOrganizationContext(organizationSlug: string): Promise<Organiz
   });
 
   return response.organization;
+}
+
+/*
+ * Rename and deletion go through the TeamOS facade, never the Better Auth
+ * client, so authorization, auditing, and the typed confirmation stay in one
+ * server-side path.
+ */
+async function updateOrganization(
+  organizationSlug: string,
+  request: UpdateOrganizationRequest,
+): Promise<OrganizationContext> {
+  const response = await requestParsed(organizationContextResponseSchema, {
+    data: request,
+    method: "PATCH",
+    url: `/api/organizations/${encodeURIComponent(organizationSlug)}`,
+  });
+
+  return response.organization;
+}
+
+async function deleteOrganization(
+  organizationSlug: string,
+  request: DeleteOrganizationRequest,
+): Promise<void> {
+  await requestVoid({
+    data: request,
+    method: "DELETE",
+    url: `/api/organizations/${encodeURIComponent(organizationSlug)}`,
+  });
 }
 
 /*
@@ -41,4 +72,4 @@ async function listOrganizations(): Promise<OrganizationSummary[]> {
   }));
 }
 
-export { getOrganizationContext, listOrganizations };
+export { deleteOrganization, getOrganizationContext, listOrganizations, updateOrganization };
