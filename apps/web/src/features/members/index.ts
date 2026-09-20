@@ -1,7 +1,7 @@
 export { InviteMemberDialog } from "./components/invite-member-dialog";
 export { MemberList } from "./components/member-list";
 export { MemberActions } from "./components/member-actions";
-export { MemberIdentity, MemberRoleBadge } from "./components/member-identity";
+export { MemberIdentity, MemberRole } from "./components/member-identity";
 export { MemberTable } from "./components/member-table";
 export { MembersPanel } from "./components/members-panel";
 export { PendingInvitations } from "./components/pending-invitations";

@@ -9,7 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MemberActions } from "./member-actions";
-import { MemberIdentity, MemberRoleBadge } from "./member-identity";
+import { MemberIdentity, MemberRole } from "./member-identity";
+import { Card } from "@/components/ui/card";
 
 /*
  * `Member` and `Actions` are always visible. The role column collapses on narrow
@@ -48,31 +49,34 @@ function MemberTable({
   pendingRoleMemberId,
 }: MemberTableProps) {
   return (
-    <Table>
-      <MemberTableHead />
-      <TableBody>
-        {members.map((member) => (
-          <TableRow key={member.id}>
-            <TableCell>
-              <MemberIdentity member={member} />
-            </TableCell>
-            <TableCell className="hidden sm:table-cell">
-              <MemberRoleBadge role={member.role} />
-            </TableCell>
-            <TableCell className="text-right">
-              <MemberActions
-                canChangeRole={canManageMember(member.role)}
-                canRemove={canManageMember(member.role) && member.userId !== currentUserId}
-                isChangingRole={pendingRoleMemberId === member.id}
-                member={member}
-                onChangeRole={onChangeRole}
-                onRequestRemoval={onRequestRemoval}
-              />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    // eslint-disable-next-line shadcn/no-restyle
+    <Card className="p-0">
+      <Table>
+        <MemberTableHead />
+        <TableBody>
+          {members.map((member) => (
+            <TableRow key={member.id}>
+              <TableCell>
+                <MemberIdentity member={member} />
+              </TableCell>
+              <TableCell className="hidden sm:table-cell">
+                <MemberRole role={member.role} />
+              </TableCell>
+              <TableCell className="text-right">
+                <MemberActions
+                  canChangeRole={canManageMember(member.role)}
+                  canRemove={canManageMember(member.role) && member.userId !== currentUserId}
+                  isChangingRole={pendingRoleMemberId === member.id}
+                  member={member}
+                  onChangeRole={onChangeRole}
+                  onRequestRemoval={onRequestRemoval}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
 

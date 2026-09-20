@@ -69,7 +69,7 @@ function InviteMemberDialog({
               after they accept.
             </DialogDescription>
           </DialogHeader>
-          <FieldGroup className="my-2">
+          <FieldGroup className="my-4">
             <Field data-invalid={hasFieldError}>
               <FieldLabel htmlFor="invite-member-email">Email address</FieldLabel>
               <Input

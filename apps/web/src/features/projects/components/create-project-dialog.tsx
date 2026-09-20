@@ -53,7 +53,7 @@ function CreateProjectDialog({ form, onClose, open }: CreateProjectDialogProps) 
               You become the project lead. Workspace members can see it unless you make it private.
             </DialogDescription>
           </DialogHeader>
-          <FieldGroup>
+          <FieldGroup className="my-4">
             <Field>
               <FieldLabel htmlFor="create-project-name">Name</FieldLabel>
               <Input

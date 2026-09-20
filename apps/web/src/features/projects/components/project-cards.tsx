@@ -1,5 +1,5 @@
-import type { ProjectSummary } from "@teamos/shared";
-import { FolderIcon, LockIcon, MoreHorizontalIcon, UsersIcon } from "lucide-react";
+import { capitalize, formatDate, type ProjectSummary } from "@teamos/shared";
+import { CalendarIcon, FolderIcon, LockIcon, UsersIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -37,7 +31,7 @@ function formatMemberCount(count: number): string {
   return count === 1 ? "1 member" : `${count} members`;
 }
 
-function ProjectCards({ onManageMembers, state }: ProjectCardsProps) {
+function ProjectCards({ state }: ProjectCardsProps) {
   if (state.isPending) {
     return (
       <div aria-busy="true" className="grid gap-3 sm:grid-cols-2" role="status">
@@ -89,12 +83,9 @@ function ProjectCards({ onManageMembers, state }: ProjectCardsProps) {
     <div aria-busy={state.isFetching} className="grid gap-3 sm:grid-cols-2">
       {state.projects.map((project) => (
         <Card key={project.id}>
-          <CardHeader>
+          <CardHeader className="min-h-16">
             <CardTitle>
               <span className="flex min-w-0 items-center gap-2">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <FolderIcon aria-hidden="true" />
-                </span>
                 <h3 className="truncate">{project.name}</h3>
               </span>
             </CardTitle>
@@ -120,30 +111,13 @@ function ProjectCards({ onManageMembers, state }: ProjectCardsProps) {
                 {formatMemberCount(project.memberCount)}
               </span>
               {project.role === null ? null : (
-                <span className="truncate capitalize">{project.role}</span>
+                <span className="truncate">{capitalize(project.role)}</span>
               )}
             </div>
-
-            {state.can("manage-members", project) ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button aria-label={`Actions for ${project.name}`} size="icon" variant="ghost">
-                      <MoreHorizontalIcon />
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      onManageMembers(project);
-                    }}
-                  >
-                    Manage members
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+              <CalendarIcon aria-hidden="true" className="size-3.5" />
+              {formatDate(project.createdAt)}
+            </span>
           </CardFooter>
         </Card>
       ))}

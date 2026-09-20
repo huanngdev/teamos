@@ -17,6 +17,8 @@ test("lists projects as cards with heading, visibility, and member count", async
   expect(screen.getByText("Guides the moon mission.")).toBeInTheDocument();
   expect(screen.getByText("Private")).toBeInTheDocument();
   expect(screen.getByText("2 members")).toBeInTheDocument();
+  expect(screen.getByText("Lead")).toBeInTheDocument();
+  expect(screen.getByText("Jan 1, 2026")).toBeInTheDocument();
 });
 
 test("searches projects only after the user stops typing", async () => {
@@ -99,58 +101,7 @@ test("creates a project with a slug derived from the name", async () => {
   });
 });
 
-test("manages project roles from the project members dialog", async () => {
-  const roleUpdates: string[] = [];
-  const projectId = "0a1b2c3d-0000-4000-8000-000000000001";
-
-  useWorkspaceHandlers();
-  server.use(
-    http.get(`${apiUrl}/api/organizations/acme/projects/${projectId}/members`, () =>
-      HttpResponse.json({
-        members: [
-          {
-            email: "charles@example.com",
-            image: null,
-            memberId: "member-2",
-            name: "Charles Babbage",
-            role: "viewer",
-            userId: "user-2",
-          },
-        ],
-      }),
-    ),
-    http.put(
-      `${apiUrl}/api/organizations/acme/projects/${projectId}/members/member-2`,
-      async ({ request }) => {
-        const body = (await request.json()) as { role?: string };
-
-        roleUpdates.push(body.role ?? "unknown");
-
-        return new HttpResponse(null, { status: 204 });
-      },
-    ),
-  );
-
-  renderWorkspace();
-
-  await userEvent.click(await screen.findByRole("button", { name: "Actions for Apollo" }));
-  await userEvent.click(await screen.findByRole("menuitem", { name: "Manage members" }));
-
-  const dialog = await screen.findByRole("dialog");
-
-  expect(await within(dialog).findByText("Charles Babbage")).toBeInTheDocument();
-
-  await userEvent.click(
-    within(dialog).getByRole("combobox", { name: "Project role for Charles Babbage" }),
-  );
-  await userEvent.click(await screen.findByRole("option", { name: "lead" }));
-
-  await waitFor(() => {
-    expect(roleUpdates).toEqual(["lead"]);
-  });
-});
-
-test("hides project management from a member without a project role", async () => {
+test("hides the project role from a member without a project role", async () => {
   useWorkspaceHandlers({
     projectPages: () => ({
       projects: [
@@ -174,7 +125,5 @@ test("hides project management from a member without a project role", async () =
   const heading = await screen.findByRole("heading", { name: "Workspace project" });
 
   expect(heading).toBeInTheDocument();
-  expect(
-    screen.queryByRole("button", { name: "Actions for Workspace project" }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByText("Lead")).not.toBeInTheDocument();
 });
