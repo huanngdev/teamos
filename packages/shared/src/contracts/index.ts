@@ -52,16 +52,21 @@ export {
   type UpdateMemberRoleRequest,
 } from "./member.js";
 export {
+  deleteOrganizationRequestSchema,
   organizationContextResponseSchema,
   organizationContextSchema,
   organizationMemberSchema,
+  organizationNameSchema,
   organizationSlugSchema,
   organizationSummarySchema,
+  updateOrganizationRequestSchema,
+  type DeleteOrganizationRequest,
   type OrganizationContext,
   type OrganizationContextResponse,
   type OrganizationMember,
   type OrganizationSlug,
   type OrganizationSummary,
+  type UpdateOrganizationRequest,
 } from "./organization.js";
 export {
   createProjectRequestSchema,

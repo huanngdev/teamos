@@ -47,21 +47,46 @@ const organizationContextResponseSchema = z.object({
   organization: organizationContextSchema,
 });
 
+/*
+ * Renaming only changes the display name; the slug and URL stay stable. The
+ * limit matches project names so workspace and project copy behave the same.
+ */
+const organizationNameSchema = z.string().trim().min(1).max(80);
+
+const updateOrganizationRequestSchema = z.object({
+  name: organizationNameSchema,
+});
+
+/*
+ * Deletion echoes the workspace name so the server can confirm the caller meant
+ * this exact workspace, not one that was renamed or switched in another tab.
+ */
+const deleteOrganizationRequestSchema = z.object({
+  confirmationName: z.string().min(1).max(200),
+});
+
 type OrganizationContext = z.infer<typeof organizationContextSchema>;
 type OrganizationContextResponse = z.infer<typeof organizationContextResponseSchema>;
 type OrganizationMember = z.infer<typeof organizationMemberSchema>;
 type OrganizationSlug = z.infer<typeof organizationSlugSchema>;
 type OrganizationSummary = z.infer<typeof organizationSummarySchema>;
+type UpdateOrganizationRequest = z.infer<typeof updateOrganizationRequestSchema>;
+type DeleteOrganizationRequest = z.infer<typeof deleteOrganizationRequestSchema>;
 
 export {
+  deleteOrganizationRequestSchema,
   organizationContextResponseSchema,
   organizationContextSchema,
   organizationMemberSchema,
+  organizationNameSchema,
   organizationSlugSchema,
   organizationSummarySchema,
+  updateOrganizationRequestSchema,
+  type DeleteOrganizationRequest,
   type OrganizationContext,
   type OrganizationContextResponse,
   type OrganizationMember,
   type OrganizationSlug,
   type OrganizationSummary,
+  type UpdateOrganizationRequest,
 };

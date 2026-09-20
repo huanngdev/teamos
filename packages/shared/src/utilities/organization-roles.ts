@@ -21,15 +21,34 @@ function isOrganizationAdministrator(role: OrganizationRole): boolean {
   return role === "owner" || role === "admin";
 }
 
+const organizationRolePrecedence: Record<OrganizationRole, number> = {
+  admin: 2,
+  member: 1,
+  owner: 3,
+};
+
+/*
+ * Better Auth 1.7 accepts multiple roles and persists them comma-separated.
+ * Every segment is inspected and the highest privilege wins, so a value such as
+ * `"admin,owner"` is still recognized as an owner. Looking only at the first
+ * segment would downgrade an owner and let generic member management touch it.
+ */
 function parseOrganizationRole(value: string): OrganizationRole | undefined {
-  const [primaryRole] = value
-    .split(",")
-    .map((role) => role.trim())
-    .filter(Boolean);
+  let highest: OrganizationRole | undefined;
 
-  const parsed = organizationRoleSchema.safeParse(primaryRole);
+  for (const segment of value.split(",")) {
+    const parsed = organizationRoleSchema.safeParse(segment.trim());
 
-  return parsed.success ? parsed.data : undefined;
+    if (
+      parsed.success &&
+      (highest === undefined ||
+        organizationRolePrecedence[parsed.data] > organizationRolePrecedence[highest])
+    ) {
+      highest = parsed.data;
+    }
+  }
+
+  return highest;
 }
 
 function parseAssignableOrganizationRole(
@@ -42,6 +61,19 @@ function parseAssignableOrganizationRole(
 
 function canViewPendingInvitations(role: OrganizationRole): boolean {
   return isOrganizationAdministrator(role);
+}
+
+/*
+ * Renaming is routine administration, so admins share it with owners. Deleting
+ * a workspace is a lifecycle action that removes every project and membership,
+ * so it stays owner-only.
+ */
+function canUpdateOrganization(role: OrganizationRole): boolean {
+  return isOrganizationAdministrator(role);
+}
+
+function canDeleteOrganization(role: OrganizationRole): boolean {
+  return role === "owner";
 }
 
 function canAssignOrganizationRole(actorRole: OrganizationRole, role: string): boolean {
@@ -70,7 +102,9 @@ export {
   assignableOrganizationRoleSchema,
   assignableOrganizationRoles,
   canAssignOrganizationRole,
+  canDeleteOrganization,
   canManageOrganizationMember,
+  canUpdateOrganization,
   canViewPendingInvitations,
   isOrganizationAdministrator,
   organizationRoleSchema,

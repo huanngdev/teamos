@@ -4,7 +4,9 @@ import {
   assignableOrganizationRoleSchema,
   assignableOrganizationRoles,
   canAssignOrganizationRole,
+  canDeleteOrganization,
   canManageOrganizationMember,
+  canUpdateOrganization,
   canViewPendingInvitations,
   isOrganizationAdministrator,
   parseOrganizationRole,
@@ -17,6 +19,17 @@ describe("parseOrganizationRole", () => {
 
   test("parses the primary role from a multi-role value", () => {
     expect(parseOrganizationRole("admin, member")).toBe("admin");
+  });
+
+  test("recognizes an owner anywhere in a multi-role value", () => {
+    expect(parseOrganizationRole("admin,owner")).toBe("owner");
+    expect(parseOrganizationRole("member, owner")).toBe("owner");
+    expect(parseOrganizationRole("member,admin,owner")).toBe("owner");
+  });
+
+  test("ignores unknown segments but keeps a recognized role", () => {
+    expect(parseOrganizationRole("member, superuser")).toBe("member");
+    expect(parseOrganizationRole("superuser")).toBeUndefined();
   });
 
   test("returns undefined for unknown roles", () => {
@@ -64,5 +77,19 @@ describe("organization member management", () => {
     expect(canViewPendingInvitations("owner")).toBe(true);
     expect(canViewPendingInvitations("admin")).toBe(true);
     expect(canViewPendingInvitations("member")).toBe(false);
+  });
+});
+
+describe("workspace lifecycle policies", () => {
+  test("lets owners and admins rename a workspace", () => {
+    expect(canUpdateOrganization("owner")).toBe(true);
+    expect(canUpdateOrganization("admin")).toBe(true);
+    expect(canUpdateOrganization("member")).toBe(false);
+  });
+
+  test("only lets an owner delete a workspace", () => {
+    expect(canDeleteOrganization("owner")).toBe(true);
+    expect(canDeleteOrganization("admin")).toBe(false);
+    expect(canDeleteOrganization("member")).toBe(false);
   });
 });
