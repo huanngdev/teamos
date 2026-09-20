@@ -14,7 +14,7 @@
     },
     "build": {
       "mode": "primary",
-      "model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "model": "deepseek/deepseek-v4.1-flash",
       "reasoningEffort": "high",
       "permission": "allow"
     }

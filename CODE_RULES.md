@@ -62,7 +62,9 @@ Every agent or contributor must read this file before writing or modifying code 
 - When a compact icon-only variant exists, use the standard icon size instead: `size="icon-sm"` becomes `size="icon"`. Sizes that are not `sm`-derived remain available when they carry design meaning.
 - Do not modify the defaults, sizes, or variants inside `components/ui`. Adapt the composition, not the primitive.
 - Icon-only buttons always need `size="icon"` and an accessible name.
+- Every button or clickable action must render an icon next to its label. Pair the icon with text unless the action is intentionally icon-only; do not ship a text-only button.
 - Let primitives size their own icons. Pass icons as components through `data-icon` instead of adding manual icon sizing classes.
+- Use `data-icon="inline-start"` for the leading icon and `data-icon="inline-end"` for a trailing icon such as a disclosure chevron, and reuse the established icons in `lucide-react`.
 - Keep generated shadcn files at the paths its CLI expects: `components/ui` for primitives and the `utils` alias for `cn`. Do not relocate them for organizational reasons.
 
 ## 7. Use One Naming Convention
