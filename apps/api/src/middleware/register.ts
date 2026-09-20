@@ -94,7 +94,17 @@ function registerGlobalMiddleware(app: Hono<AppEnv>, options: RegisterMiddleware
       });
     }),
   );
-  app.use("*", createCsrfProtection({ allowedOrigins: options.env.CORS_ORIGINS }));
+  /*
+   * Better Auth trusts both CORS_ORIGINS and WEB_URL, so CSRF validates against
+   * the same union. Otherwise a valid deployment could have a web origin that
+   * Better Auth accepts but the CSRF layer rejects.
+   */
+  app.use(
+    "*",
+    createCsrfProtection({
+      allowedOrigins: Array.from(new Set([...options.env.CORS_ORIGINS, options.env.WEB_URL])),
+    }),
+  );
   app.use(
     "*",
     createRateLimitMiddleware({

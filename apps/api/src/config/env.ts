@@ -34,6 +34,33 @@ function urlWithProtocols(protocols: readonly string[]) {
   });
 }
 
+const loopbackHostnames = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+function isLoopbackUrl(value: string): boolean {
+  try {
+    return loopbackHostnames.has(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * Production OAuth callbacks, verification links, and cookies must not travel
+ * over plain HTTP. Loopback origins stay allowed for local verification and
+ * container-to-container checks.
+ */
+function assertHttpsInProduction(value: string, label: string, context: z.RefinementCtx): void {
+  if (value.startsWith("https:") || isLoopbackUrl(value)) {
+    return;
+  }
+
+  context.addIssue({
+    code: "custom",
+    message: `${label} must use https in production.`,
+    path: [label],
+  });
+}
+
 /*
  * Copied `.env.example` files set variables to an empty string rather than
  * omitting them. Treat that as "not configured" so a blank value cannot pass the
@@ -142,6 +169,15 @@ const envSchema = z
         message: `${emailDeliveryVariables.join(", ")} must be configured together.`,
         path: ["SMTP_HOST"],
       });
+    }
+
+    if (value.NODE_ENV === "production") {
+      assertHttpsInProduction(value.BETTER_AUTH_URL, "BETTER_AUTH_URL", context);
+      assertHttpsInProduction(value.WEB_URL, "WEB_URL", context);
+
+      for (const origin of value.CORS_ORIGINS) {
+        assertHttpsInProduction(origin, "CORS_ORIGINS", context);
+      }
     }
   })
   .transform((value) => ({

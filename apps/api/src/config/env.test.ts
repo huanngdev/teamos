@@ -47,6 +47,26 @@ test("accepts explicit production service configuration", () => {
   expect(env.BETTER_AUTH_URL).toBe("https://api.example.com");
 });
 
+test("requires https for production auth, web, and CORS origins", () => {
+  expect(() => loadEnv({ ...productionSource, WEB_URL: "http://app.example.com" })).toThrow(
+    "WEB_URL must use https in production.",
+  );
+
+  expect(() => loadEnv({ ...productionSource, BETTER_AUTH_URL: "http://api.example.com" })).toThrow(
+    "BETTER_AUTH_URL must use https in production.",
+  );
+
+  expect(() => loadEnv({ ...productionSource, CORS_ORIGINS: "http://app.example.com" })).toThrow(
+    "CORS_ORIGINS must use https in production.",
+  );
+});
+
+test("allows a loopback origin in production", () => {
+  const env = loadEnv({ ...productionSource, WEB_URL: "http://localhost:4000" });
+
+  expect(env.WEB_URL).toBe("http://localhost:4000");
+});
+
 test("requires social provider credentials to be configured together", () => {
   expect(() => loadEnv({ GOOGLE_CLIENT_ID: "google-client-id" })).toThrow(
     "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together.",
