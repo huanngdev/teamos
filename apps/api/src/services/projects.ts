@@ -163,16 +163,46 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
    * A private project must not reveal that it exists, so a failed read check is
    * reported as not found. A permitted read with a denied action stays a 403.
    */
-  function assertProjectAction(resolved: ResolvedProject, action: ProjectAction): void {
-    if (canPerformProjectAction(action, resolved.access)) {
+  function assertProjectAction(access: ProjectAccessContext, action: ProjectAction): void {
+    if (canPerformProjectAction(action, access)) {
       return;
     }
 
-    if (!canPerformProjectAction("view", resolved.access)) {
+    if (!canPerformProjectAction("view", access)) {
       throw toProjectNotFoundError();
     }
 
     throw new AppError(403, "FORBIDDEN", "You are not allowed to perform this action.");
+  }
+
+  /*
+   * Authorization is resolved before the transaction for fast rejection, then
+   * re-checked after the project row is locked for update. Locking serializes
+   * concurrent lead or membership changes, so a role revoked mid-request cannot
+   * still mutate the project after the revocation commits.
+   */
+  async function assertActorAccessAfterLock(
+    transaction: ProjectTransaction,
+    organization: OrganizationAccess,
+    projectId: string,
+    projectVisibility: string,
+    action: ProjectAction,
+  ): Promise<void> {
+    const actorRole = await findProjectRole(
+      transaction,
+      organization.organizationId,
+      projectId,
+      organization.memberId,
+    );
+
+    assertProjectAction(
+      {
+        organizationRole: organization.role,
+        projectRole: actorRole ?? null,
+        visibility: toProjectVisibility(projectVisibility),
+      },
+      action,
+    );
   }
 
   async function countMembers(projectIds: readonly string[]): Promise<Map<string, number>> {
@@ -306,7 +336,7 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
         projectId,
       });
 
-      assertProjectAction(resolved, "view");
+      assertProjectAction(resolved.access, "view");
 
       const records = await db
         .select({
@@ -345,13 +375,25 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
         projectId,
       });
 
-      assertProjectAction(resolved, "delete");
+      assertProjectAction(resolved.access, "delete");
 
-      await db
-        .delete(project)
-        .where(
-          and(eq(project.organizationId, organization.organizationId), eq(project.id, projectId)),
+      await db.transaction(async (transaction) => {
+        const locked = await lockProject(transaction, organization.organizationId, projectId);
+
+        await assertActorAccessAfterLock(
+          transaction,
+          organization,
+          projectId,
+          locked.visibility,
+          "delete",
         );
+
+        await transaction
+          .delete(project)
+          .where(
+            and(eq(project.organizationId, organization.organizationId), eq(project.id, projectId)),
+          );
+      });
     },
     removeMember: async ({ organization, projectId, targetMemberId }) => {
       const resolved = await resolveProject({
@@ -361,7 +403,7 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
         projectId,
       });
 
-      assertProjectAction(resolved, "manage-members");
+      assertProjectAction(resolved.access, "manage-members");
 
       const target = await members.findMember({
         memberId: targetMemberId,
@@ -377,7 +419,15 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
          * Locking the project row serializes concurrent lead changes so two
          * requests cannot each believe another lead will remain.
          */
-        await lockProject(transaction, organization.organizationId, projectId);
+        const locked = await lockProject(transaction, organization.organizationId, projectId);
+
+        await assertActorAccessAfterLock(
+          transaction,
+          organization,
+          projectId,
+          locked.visibility,
+          "manage-members",
+        );
 
         const targetRole = await findProjectRole(
           transaction,
@@ -409,7 +459,7 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
         projectId,
       });
 
-      assertProjectAction(resolved, "manage-members");
+      assertProjectAction(resolved.access, "manage-members");
 
       const target = await members.findMember({
         memberId: request.memberId,
@@ -421,7 +471,15 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
       }
 
       await db.transaction(async (transaction) => {
-        await lockProject(transaction, organization.organizationId, projectId);
+        const locked = await lockProject(transaction, organization.organizationId, projectId);
+
+        await assertActorAccessAfterLock(
+          transaction,
+          organization,
+          projectId,
+          locked.visibility,
+          "manage-members",
+        );
 
         const targetRole = await findProjectRole(
           transaction,
@@ -457,20 +515,34 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
         projectId,
       });
 
-      assertProjectAction(resolved, "update");
+      assertProjectAction(resolved.access, "update");
 
-      const [record] = await db
-        .update(project)
-        .set({
-          ...(request.description === undefined ? {} : { description: request.description }),
-          ...(request.name === undefined ? {} : { name: request.name }),
-          ...(request.visibility === undefined ? {} : { visibility: request.visibility }),
-          updatedByMemberId: organization.memberId,
-        })
-        .where(
-          and(eq(project.organizationId, organization.organizationId), eq(project.id, projectId)),
-        )
-        .returning(projectSelection);
+      const record = await db.transaction(async (transaction) => {
+        const locked = await lockProject(transaction, organization.organizationId, projectId);
+
+        await assertActorAccessAfterLock(
+          transaction,
+          organization,
+          projectId,
+          locked.visibility,
+          "update",
+        );
+
+        const [updated] = await transaction
+          .update(project)
+          .set({
+            ...(request.description === undefined ? {} : { description: request.description }),
+            ...(request.name === undefined ? {} : { name: request.name }),
+            ...(request.visibility === undefined ? {} : { visibility: request.visibility }),
+            updatedByMemberId: organization.memberId,
+          })
+          .where(
+            and(eq(project.organizationId, organization.organizationId), eq(project.id, projectId)),
+          )
+          .returning(projectSelection);
+
+        return updated;
+      });
 
       if (record === undefined) {
         throw toProjectNotFoundError();
@@ -491,9 +563,9 @@ async function lockProject(
   transaction: ProjectTransaction,
   organizationId: string,
   projectId: string,
-): Promise<void> {
+): Promise<{ id: string; visibility: string }> {
   const [record] = await transaction
-    .select({ id: project.id })
+    .select({ id: project.id, visibility: project.visibility })
     .from(project)
     .where(and(eq(project.organizationId, organizationId), eq(project.id, projectId)))
     .for("update")
@@ -502,6 +574,8 @@ async function lockProject(
   if (record === undefined) {
     throw toProjectNotFoundError();
   }
+
+  return record;
 }
 
 async function findProjectRole(
