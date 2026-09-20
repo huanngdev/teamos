@@ -2,7 +2,6 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { currentUserResponseSchema } from "@teamos/shared";
 
 import {
-  createRequireVerifiedSessionMiddleware,
   createSessionMiddleware,
   getAuthenticatedSession,
   toCurrentUserResponse,
@@ -33,10 +32,16 @@ const currentUserRoute = createRoute({
   tags: ["Authentication"],
 });
 
+/*
+ * This is the browser's sanitized session source. It intentionally accepts an
+ * unverified session and reports `emailVerified` so the client can route the
+ * user to verification; every tenant-scoped route still enforces verification
+ * and authorization on the server.
+ */
 function createCurrentUserRoutes(auth: AuthService) {
   const routes = new OpenAPIHono<AppEnv>();
 
-  routes.use("*", createSessionMiddleware(auth), createRequireVerifiedSessionMiddleware());
+  routes.use("*", createSessionMiddleware(auth));
   routes.openapi(currentUserRoute, (context) => {
     const session = getAuthenticatedSession(context);
 

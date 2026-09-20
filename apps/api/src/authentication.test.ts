@@ -132,7 +132,7 @@ test("requires authentication for the current user endpoint", async () => {
   expect(body.error.code).toBe("UNAUTHENTICATED");
 });
 
-test("blocks sessions whose email is not verified", async () => {
+test("returns an unverified session so the client can route to verification", async () => {
   const app = createTestApp({
     session: {
       ...verifiedSession,
@@ -140,10 +140,10 @@ test("blocks sessions whose email is not verified", async () => {
     },
   });
   const response = await app.request("/api/me");
-  const body = await readErrorResponse(response);
+  const body = currentUserResponseSchema.parse(await response.json());
 
-  expect(response.status).toBe(403);
-  expect(body.error.code).toBe("EMAIL_VERIFICATION_REQUIRED");
+  expect(response.status).toBe(200);
+  expect(body.user.emailVerified).toBe(false);
 });
 
 test("returns the authenticated user and session", async () => {
