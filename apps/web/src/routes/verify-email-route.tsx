@@ -1,4 +1,7 @@
+import { useSearchParams } from "react-router";
+
 import { AuthCard } from "@/features/auth/components/auth-card";
+import { readSafeRedirectPath } from "@/features/auth/lib/safe-redirect";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,8 +9,20 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { useVerifyEmail } from "@/features/auth/hooks/use-verify-email";
 
+const defaultCallbackPath = "/auth/complete";
+
 function VerifyEmailRoute() {
-  const verifyEmail = useVerifyEmail();
+  const [searchParams] = useSearchParams();
+  const requested = readSafeRedirectPath(searchParams.get("next"), defaultCallbackPath);
+  /*
+   * Verification must not return to another auth route or it would loop, so a
+   * non-app destination falls back to the workspace completion route.
+   */
+  const callbackPath =
+    requested.startsWith("/auth/") || requested.startsWith("/login")
+      ? defaultCallbackPath
+      : requested;
+  const verifyEmail = useVerifyEmail({ callbackPath });
 
   return (
     <AuthCard

@@ -34,7 +34,7 @@ function renderIndex() {
 
 function useOrganizationList(list: readonly unknown[]) {
   server.use(
-    http.get(`${apiUrl}/api/auth/get-session`, () => HttpResponse.json(sessionResponse)),
+    http.get(`${apiUrl}/api/me`, () => HttpResponse.json(sessionResponse)),
     http.get(`${apiUrl}/api/auth/organization/list`, () => HttpResponse.json(list)),
   );
 }

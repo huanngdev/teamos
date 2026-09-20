@@ -20,6 +20,14 @@ function useWorkspaceDestination(): WorkspaceDestinationState {
   const isAuthenticated = session.status === "authenticated";
   const organizations = useOrganizations({ enabled: isAuthenticated });
 
+  if (session.status === "error") {
+    return {
+      message: "We could not check your session. Please try again.",
+      retry: session.retry,
+      status: "error",
+    };
+  }
+
   if (!isAuthenticated) {
     return { status: "loading" };
   }

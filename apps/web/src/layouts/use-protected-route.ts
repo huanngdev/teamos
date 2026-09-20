@@ -8,6 +8,7 @@ type ReadinessRouteState = Extract<BackendReadinessState, { status: "error" | "l
 type ProtectedRouteState =
   | { readiness: ReadinessRouteState; status: "readiness" }
   | { status: "loading" }
+  | { retry: () => void; status: "session-error" }
   | { status: "unauthenticated" }
   | { status: "unverified" }
   | { status: "ready" };
@@ -22,6 +23,10 @@ function useProtectedRoute(): ProtectedRouteState {
 
   if (session.status === "loading") {
     return { status: "loading" };
+  }
+
+  if (session.status === "error") {
+    return { retry: session.retry, status: "session-error" };
   }
 
   if (session.status === "unauthenticated") {

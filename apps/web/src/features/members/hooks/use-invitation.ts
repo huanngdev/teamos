@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import { authClient } from "@/features/auth";
+import { authClient, useAuthSession } from "@/features/auth";
 import {
   listOrganizations,
   writeRecentWorkspaceSlug,
@@ -24,7 +24,7 @@ type InvitationState =
 function useInvitation(invitationId: string) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const session = authClient.useSession();
+  const session = useAuthSession();
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<"accept" | "reject" | null>(null);
 
@@ -55,7 +55,7 @@ function useInvitation(invitationId: string) {
    * next visit lands there as well.
    */
   const openAcceptedWorkspace = async (organizationId: string | undefined): Promise<void> => {
-    const userId = session.data?.user.id;
+    const userId = session.status === "authenticated" ? session.user.id : undefined;
 
     if (organizationId === undefined || userId === undefined) {
       void navigate("/", { replace: true });
@@ -81,39 +81,61 @@ function useInvitation(invitationId: string) {
     setActionError(null);
     setPendingAction("accept");
 
-    const { error } = await authClient.organization.acceptInvitation({ invitationId });
+    try {
+      const { error } = await authClient.organization.acceptInvitation({ invitationId });
 
-    if (error) {
-      const message = error.message ?? "The invitation could not be accepted.";
+      if (error) {
+        const message = error.message ?? "The invitation could not be accepted.";
+        setActionError(message);
+        notify.error(message);
+        return;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+      notify.success("Invitation accepted");
+
+      /*
+       * The invitation is already accepted at this point. If opening the
+       * workspace fails, fall back to the root route instead of stranding the
+       * user on a used invitation.
+       */
+      try {
+        await openAcceptedWorkspace(query.data?.organizationId);
+      } catch {
+        void navigate("/", { replace: true });
+      }
+    } catch {
+      const message = "The invitation could not be accepted.";
       setActionError(message);
       notify.error(message);
+    } finally {
       setPendingAction(null);
-      return;
     }
-
-    await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
-    setPendingAction(null);
-    notify.success("Invitation accepted");
-    await openAcceptedWorkspace(query.data?.organizationId);
   };
 
   const rejectInvitation = async (): Promise<void> => {
     setActionError(null);
     setPendingAction("reject");
 
-    const { error } = await authClient.organization.rejectInvitation({ invitationId });
+    try {
+      const { error } = await authClient.organization.rejectInvitation({ invitationId });
 
-    if (error) {
-      const message = error.message ?? "The invitation could not be rejected.";
+      if (error) {
+        const message = error.message ?? "The invitation could not be rejected.";
+        setActionError(message);
+        notify.error(message);
+        return;
+      }
+
+      notify.success("Invitation rejected");
+      void navigate("/", { replace: true });
+    } catch {
+      const message = "The invitation could not be rejected.";
       setActionError(message);
       notify.error(message);
+    } finally {
       setPendingAction(null);
-      return;
     }
-
-    setPendingAction(null);
-    notify.success("Invitation rejected");
-    void navigate("/", { replace: true });
   };
 
   return { acceptInvitation, actionError, pendingAction, rejectInvitation, state };

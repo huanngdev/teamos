@@ -15,13 +15,24 @@ function useSocialSignIn() {
     setErrorMessage(null);
     setPendingProvider(provider);
 
-    const { error } = await authClient.signIn.social({
-      callbackURL: `${window.location.origin}${callbackPath}`,
-      provider,
-    });
+    try {
+      const { error } = await authClient.signIn.social({
+        callbackURL: `${window.location.origin}${callbackPath}`,
+        provider,
+      });
 
-    if (error) {
-      const message = error.message ?? "Sign-in could not be started.";
+      if (error) {
+        const message = error.message ?? "Sign-in could not be started.";
+        setErrorMessage(message);
+        notify.error(message);
+        setPendingProvider(null);
+      }
+    } catch {
+      /*
+       * A thrown transport error must still release the pending state, unlike a
+       * successful redirect which intentionally keeps it until the page leaves.
+       */
+      const message = "Sign-in could not be started.";
       setErrorMessage(message);
       notify.error(message);
       setPendingProvider(null);

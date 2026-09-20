@@ -5,10 +5,16 @@ import { authClient } from "../api/auth-client";
 
 type VerificationStatus = "error" | "idle" | "sending" | "sent";
 
-function useVerifyEmail(initialEmail = "") {
-  const [email, setEmail] = useState(initialEmail);
+interface UseVerifyEmailOptions {
+  callbackPath?: string;
+  initialEmail?: string;
+}
+
+function useVerifyEmail(options: UseVerifyEmailOptions = {}) {
+  const [email, setEmail] = useState(options.initialEmail ?? "");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [status, setStatus] = useState<VerificationStatus>("idle");
+  const callbackPath = options.callbackPath ?? "/auth/complete";
 
   const resendVerificationEmail = async (): Promise<void> => {
     const trimmedEmail = email.trim();
@@ -23,21 +29,28 @@ function useVerifyEmail(initialEmail = "") {
     setErrorMessage(null);
     setStatus("sending");
 
-    const { error } = await authClient.sendVerificationEmail({
-      callbackURL: `${window.location.origin}/auth/complete`,
-      email: trimmedEmail,
-    });
+    try {
+      const { error } = await authClient.sendVerificationEmail({
+        callbackURL: `${window.location.origin}${callbackPath}`,
+        email: trimmedEmail,
+      });
 
-    if (error) {
-      const message = error.message ?? "The verification email could not be sent.";
+      if (error) {
+        const message = error.message ?? "The verification email could not be sent.";
+        setErrorMessage(message);
+        notify.error(message);
+        setStatus("error");
+        return;
+      }
+
+      setStatus("sent");
+      notify.success("Check your inbox for the verification link");
+    } catch {
+      const message = "The verification email could not be sent.";
       setErrorMessage(message);
       notify.error(message);
       setStatus("error");
-      return;
     }
-
-    setStatus("sent");
-    notify.success("Check your inbox for the verification link");
   };
 
   return { email, errorMessage, resendVerificationEmail, setEmail, status };

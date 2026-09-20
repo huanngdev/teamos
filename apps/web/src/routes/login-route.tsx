@@ -1,25 +1,46 @@
-import { Navigate } from "react-router";
+import { Navigate, useSearchParams } from "react-router";
 
 import { AuthCard } from "@/features/auth/components/auth-card";
 import { AuthProviderButtons } from "@/features/auth/components/auth-provider-buttons";
-import { PageLoading } from "@/shared";
+import { readSafeRedirectPath } from "@/features/auth/lib/safe-redirect";
+import { PageError, PageLoading } from "@/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuthSession } from "@/features/auth";
 import { useSocialProviders } from "@/features/auth/hooks/use-social-providers";
 import { useSocialSignIn } from "@/features/auth/hooks/use-social-sign-in";
 
+const defaultDestination = "/auth/complete";
+
 function LoginRoute() {
+  const [searchParams] = useSearchParams();
   const session = useAuthSession();
   const providers = useSocialProviders();
   const socialSignIn = useSocialSignIn();
+
+  const requested = readSafeRedirectPath(searchParams.get("next"), defaultDestination);
+  /* `/login` would loop; anything else under auth uses the completion route. */
+  const destination =
+    requested.startsWith("/login") || requested.startsWith("/auth/")
+      ? defaultDestination
+      : requested;
 
   if (session.status === "loading") {
     return <PageLoading label="Loading your session" />;
   }
 
+  if (session.status === "error") {
+    return (
+      <PageError
+        description="We could not check your session. This is usually temporary."
+        onRetry={session.retry}
+        title="Connection problem"
+      />
+    );
+  }
+
   if (session.status === "authenticated") {
-    return <Navigate replace to="/" />;
+    return <Navigate replace to={destination} />;
   }
 
   return (
@@ -44,7 +65,9 @@ function LoginRoute() {
           </div>
         ) : (
           <AuthProviderButtons
-            onSelect={socialSignIn.signIn}
+            onSelect={(provider) => {
+              void socialSignIn.signIn(provider, destination);
+            }}
             pendingProvider={socialSignIn.pendingProvider}
             providers={providers.providers}
           />

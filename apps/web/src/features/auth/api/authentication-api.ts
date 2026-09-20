@@ -1,6 +1,25 @@
-import { socialProvidersResponseSchema, type SocialProvider } from "@teamos/shared";
+import {
+  currentUserResponseSchema,
+  socialProvidersResponseSchema,
+  type CurrentUserResponse,
+  type SocialProvider,
+} from "@teamos/shared";
 
-import { ApiClientError, apiClient, toApiClientError } from "@/shared/api/api-client";
+import {
+  ApiClientError,
+  apiClient,
+  requestParsed,
+  toApiClientError,
+} from "@/shared/api/api-client";
+
+/*
+ * The browser reads its session from `/api/me` instead of Better Auth's
+ * `/get-session`. The TeamOS response omits the session token, so the cookie
+ * stays HttpOnly and cannot be read or replayed from JavaScript.
+ */
+async function getCurrentUser(): Promise<CurrentUserResponse> {
+  return requestParsed(currentUserResponseSchema, { method: "get", url: "/api/me" });
+}
 
 async function getSocialProviders(): Promise<SocialProvider[]> {
   try {
@@ -24,4 +43,4 @@ async function getSocialProviders(): Promise<SocialProvider[]> {
   }
 }
 
-export { getSocialProviders };
+export { getCurrentUser, getSocialProviders };

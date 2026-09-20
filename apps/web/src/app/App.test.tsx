@@ -28,10 +28,18 @@ const providersResponse = {
   ],
 } as const;
 
+const unauthenticatedResponse = {
+  error: {
+    code: "UNAUTHENTICATED",
+    message: "Authentication is required.",
+    requestId: "test-request",
+  },
+} as const;
+
 test("waits for backend readiness before continuing", async () => {
   server.use(
     http.get(`${apiUrl}/health/ready`, () => new Promise<never>(() => {})),
-    http.get(`${apiUrl}/api/auth/get-session`, () => HttpResponse.json(null)),
+    http.get(`${apiUrl}/api/me`, () => HttpResponse.json(unauthenticatedResponse, { status: 401 })),
   );
 
   renderWithProviders(<App />);
@@ -42,7 +50,7 @@ test("waits for backend readiness before continuing", async () => {
 test("redirects unauthenticated visitors to the sign-in page", async () => {
   server.use(
     http.get(`${apiUrl}/health/ready`, () => HttpResponse.json(healthyReadiness)),
-    http.get(`${apiUrl}/api/auth/get-session`, () => HttpResponse.json(null)),
+    http.get(`${apiUrl}/api/me`, () => HttpResponse.json(unauthenticatedResponse, { status: 401 })),
     http.get(`${apiUrl}/api/authentication/providers`, () => HttpResponse.json(providersResponse)),
   );
 

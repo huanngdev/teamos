@@ -68,6 +68,10 @@ function useAuthComplete(): AuthCompleteState {
     return { status: "unauthenticated" };
   }
 
+  if (session.status === "error") {
+    return { message: "We could not check your session. Please try again.", status: "error" };
+  }
+
   if (!session.user.emailVerified) {
     return { status: "unverified" };
   }

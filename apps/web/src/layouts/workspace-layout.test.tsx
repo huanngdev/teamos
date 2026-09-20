@@ -74,6 +74,22 @@ test("signs out from the account menu", async () => {
 
   expect(await screen.findByText("ada@example.com")).toBeInTheDocument();
 
+  /* The server drops the session cookie, so the next session read is a 401. */
+  server.use(
+    http.get(`${apiUrl}/api/me`, () =>
+      HttpResponse.json(
+        {
+          error: {
+            code: "UNAUTHENTICATED",
+            message: "Authentication is required.",
+            requestId: "request-1",
+          },
+        },
+        { status: 401 },
+      ),
+    ),
+  );
+
   await userEvent.click(await screen.findByRole("menuitem", { name: "Log out" }));
 
   expect(await screen.findByText("Sign in to TeamOS")).toBeInTheDocument();

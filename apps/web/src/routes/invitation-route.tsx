@@ -1,12 +1,13 @@
-import { Link, Navigate, useParams } from "react-router";
+import { Link, Navigate, useParams, useSearchParams } from "react-router";
 
 import { AuthCard } from "@/features/auth/components/auth-card";
 import { AuthProviderButtons } from "@/features/auth/components/auth-provider-buttons";
-import { PageLoading } from "@/shared";
+import { PageError, PageLoading } from "@/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuthSession } from "@/features/auth";
+import { buildVerifyEmailPath, readSafeRedirectPath } from "@/features/auth/lib/safe-redirect";
 import { useInvitation } from "@/features/members/hooks/use-invitation";
 import { useSocialProviders } from "@/features/auth/hooks/use-social-providers";
 import { useSocialSignIn } from "@/features/auth/hooks/use-social-sign-in";
@@ -16,13 +17,27 @@ interface InvitationViewProps {
 }
 
 function InvitationView({ invitationId }: InvitationViewProps) {
+  const [searchParams] = useSearchParams();
   const session = useAuthSession();
   const providers = useSocialProviders();
   const socialSignIn = useSocialSignIn();
   const invitation = useInvitation(invitationId);
+  const invitationPath = `/invitations/${invitationId}`;
+  const verifyEmailPath = buildVerifyEmailPath(readSafeRedirectPath(invitationPath));
+  const providerError = searchParams.get("error");
 
   if (session.status === "loading") {
     return <PageLoading label="Loading your session" />;
+  }
+
+  if (session.status === "error") {
+    return (
+      <PageError
+        description="We could not check your session. This is usually temporary."
+        onRetry={session.retry}
+        title="Connection problem"
+      />
+    );
   }
 
   if (session.status === "unauthenticated") {
@@ -32,9 +47,30 @@ function InvitationView({ invitationId }: InvitationViewProps) {
         title="Sign in to continue"
       >
         <div className="flex flex-col gap-4">
+          {providerError === "email_not_verified" ? (
+            <Alert variant="destructive">
+              <AlertTitle>Verify your email first</AlertTitle>
+              <AlertDescription>
+                Your provider reported this email as unverified. Verify it, then return to this
+                invitation.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {providerError === null || providerError === "email_not_verified" ? null : (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Sign-in could not be completed. Try again to continue with your invitation.
+              </AlertDescription>
+            </Alert>
+          )}
           {socialSignIn.errorMessage === null ? null : (
             <Alert variant="destructive">
               <AlertDescription>{socialSignIn.errorMessage}</AlertDescription>
+            </Alert>
+          )}
+          {providers.errorMessage === null ? null : (
+            <Alert variant="destructive">
+              <AlertDescription>{providers.errorMessage}</AlertDescription>
             </Alert>
           )}
           {providers.isPending ? (
@@ -44,19 +80,28 @@ function InvitationView({ invitationId }: InvitationViewProps) {
           ) : (
             <AuthProviderButtons
               onSelect={(provider) => {
-                void socialSignIn.signIn(provider, `/invitations/${invitationId}`);
+                void socialSignIn.signIn(provider, invitationPath);
               }}
               pendingProvider={socialSignIn.pendingProvider}
               providers={providers.providers}
             />
           )}
+          {providerError === "email_not_verified" ? (
+            <Link className={buttonVariants({ variant: "outline" })} to={verifyEmailPath}>
+              Resend verification email
+            </Link>
+          ) : null}
         </div>
       </AuthCard>
     );
   }
 
+  /*
+   * An unverified session still needs to reach the invitation afterwards, so
+   * the invitation path travels with the verification link.
+   */
   if (!session.user.emailVerified) {
-    return <Navigate replace to="/auth/verify-email" />;
+    return <Navigate replace to={verifyEmailPath} />;
   }
 
   if (invitation.state.status === "loading") {
