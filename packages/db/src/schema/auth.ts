@@ -100,6 +100,13 @@ export const member = pgTable(
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
     /*
+     * TeamOS extension. A user may belong to an organization only once, so
+     * concurrent invitation acceptance cannot create duplicate membership rows
+     * with conflicting roles. Re-add this after regenerating the Better Auth
+     * schema.
+     */
+    unique("member_organization_user_unique").on(table.organizationId, table.userId),
+    /*
      * TeamOS extension. This file is generated from the Better Auth config, so
      * re-add this constraint after regenerating it. It lets project membership
      * reference the member with the organization in the same foreign key,

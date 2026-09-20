@@ -15,6 +15,13 @@
       "when": 1789631642817,
       "tag": "0001_fat_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789915224658,
+      "tag": "0002_dear_gertrude_yorkes",
+      "breakpoints": true
     }
   ]
 }

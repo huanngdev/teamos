@@ -4,10 +4,14 @@ import { foreignKey, index, pgTable, text, timestamp, unique, uuid } from "drizz
 import { member, organization } from "./auth.js";
 
 /*
- * Projects belong to exactly one organization. The composite unique keys below
- * exist so project membership can reference both the project and the member
- * with the organization included in the same foreign key, which makes a
- * cross-tenant membership impossible at the database level.
+ * Projects belong to exactly one organization. Membership references both the
+ * project and the member with the organization included in the same foreign
+ * key, which makes a cross-tenant membership impossible at the database level.
+ *
+ * Audit columns intentionally reference `member(id)` alone. A composite
+ * `ON DELETE SET NULL` would also try to null `organization_id`, which is
+ * `NOT NULL`, so deleting an author would abort. The audit column is not used
+ * for authorization, so losing tenant enforcement there is acceptable.
  */
 export const project = pgTable(
   "project",
@@ -20,8 +24,12 @@ export const project = pgTable(
     slug: text("slug").notNull(),
     description: text("description"),
     visibility: text("visibility").default("workspace").notNull(),
-    createdByMemberId: text("created_by_member_id"),
-    updatedByMemberId: text("updated_by_member_id"),
+    createdByMemberId: text("created_by_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
+    updatedByMemberId: text("updated_by_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -33,16 +41,6 @@ export const project = pgTable(
     unique("project_id_organization_unique").on(table.id, table.organizationId),
     index("project_organizationId_idx").on(table.organizationId),
     index("project_organization_name_idx").on(table.organizationId, table.name),
-    foreignKey({
-      columns: [table.createdByMemberId, table.organizationId],
-      foreignColumns: [member.id, member.organizationId],
-      name: "project_created_by_member_fk",
-    }).onDelete("set null"),
-    foreignKey({
-      columns: [table.updatedByMemberId, table.organizationId],
-      foreignColumns: [member.id, member.organizationId],
-      name: "project_updated_by_member_fk",
-    }).onDelete("set null"),
   ],
 );
 
@@ -54,7 +52,9 @@ export const projectMembership = pgTable(
     projectId: uuid("project_id").notNull(),
     memberId: text("member_id").notNull(),
     role: text("role").default("member").notNull(),
-    createdByMemberId: text("created_by_member_id"),
+    createdByMemberId: text("created_by_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
