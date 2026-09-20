@@ -8,6 +8,14 @@ function registerApiDocumentation(app: OpenAPIHono<AppEnv>, enabled: boolean): v
     return;
   }
 
+  app.openAPIRegistry.registerComponent("securitySchemes", "sessionCookie", {
+    description:
+      "Better Auth session cookie. The cookie name gains a `__Secure-` prefix when secure cookies are enabled in production.",
+    in: "cookie",
+    name: "better-auth.session_token",
+    type: "apiKey",
+  });
+
   app.doc31("/openapi.json", (context) => ({
     info: {
       description:
@@ -22,7 +30,11 @@ function registerApiDocumentation(app: OpenAPIHono<AppEnv>, enabled: boolean): v
         url: new URL(context.req.url).origin,
       },
     ],
-    tags: [{ description: "Application and dependency health.", name: "System" }],
+    tags: [
+      { description: "Application and dependency health.", name: "System" },
+      { description: "Sign-in, session, and identity.", name: "Authentication" },
+      { description: "Organization workspace access.", name: "Organizations" },
+    ],
   }));
   app.get(
     "/docs",

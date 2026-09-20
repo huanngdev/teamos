@@ -15,12 +15,13 @@ function createMemoryRateLimiter(
 function createRedisRateLimiter(
   client: Redis,
   env: Pick<Env, "RATE_LIMIT_POINTS" | "RATE_LIMIT_DURATION_SECONDS">,
+  keyPrefix = "teamos:api",
 ): RateLimiterRedis {
   return new RateLimiterRedis({
     duration: env.RATE_LIMIT_DURATION_SECONDS,
     inMemoryBlockOnConsumed: env.RATE_LIMIT_POINTS,
     insuranceLimiter: createMemoryRateLimiter(env),
-    keyPrefix: "teamos:api",
+    keyPrefix,
     points: env.RATE_LIMIT_POINTS,
     rejectIfRedisNotReady: true,
     storeClient: client,

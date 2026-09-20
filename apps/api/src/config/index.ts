@@ -1,1 +1,1 @@
-export { loadEnv, type Env } from "@/config/env.js";
+export { loadEnv, type Env } from "./env.js";

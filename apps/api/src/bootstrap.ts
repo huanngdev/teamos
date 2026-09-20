@@ -1,21 +1,33 @@
-import { createDatabase, type DatabaseClient } from "@teamos/db";
+import { createDatabase, drizzleStudioUrl, type DatabaseClient } from "@teamos/db";
 import type { ILogLayer } from "loglayer";
 import type Redis from "ioredis";
 
 import { createApp } from "@/app.js";
+import {
+  createAuth,
+  createAuthService,
+  createOrganizationAccessService,
+  createOrganizationGateway,
+} from "@/auth/index.js";
 import type { Env } from "@/config/index.js";
 import {
   attachRedisErrorLogger,
   checkRedisConnection,
   closeRedisClient,
   connectRedisClient,
+  createEmailService,
   createObjectStorageClient,
   createRedisRateLimiter,
   createRedisClient,
   type ObjectStorageClient,
 } from "@/infrastructure/index.js";
 import { createLogger } from "@/logging/index.js";
-import { createReadinessService } from "@/services/index.js";
+import {
+  createOrganizationManagementService,
+  createOrganizationMemberService,
+  createProjectService,
+  createReadinessService,
+} from "@/services/index.js";
 
 interface ServiceResource {
   name: "database" | "redis" | "storage";
@@ -155,6 +167,14 @@ function createServiceResources(resources: BootstrapResources, env: Env): Servic
   ];
 }
 
+/*
+ * Emitted as a single log record so the API and Drizzle Studio URLs stay
+ * adjacent even though the API and Studio are independent processes.
+ */
+function buildReadyLogMetadata(env: Env, apiUrl: string): Record<string, string> {
+  return env.NODE_ENV === "development" ? { apiUrl, drizzleStudioUrl } : { apiUrl };
+}
+
 async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
   const logger = options.logger ?? createLogger(options.env);
   const resources = createResources(options.env);
@@ -169,9 +189,39 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
       redis: () => checkRedisConnection(resources.redis),
       storage: resources.storage.checkConnection,
     });
-    const app = createApp({
+    const auth = createAuth({
+      db: resources.database.db,
+      emailService: createEmailService(options.env),
       env: options.env,
       logger,
+    });
+    const memberService = createOrganizationMemberService(resources.database.db);
+    const managementRateLimiter = createRedisRateLimiter(
+      resources.redis,
+      {
+        RATE_LIMIT_DURATION_SECONDS: options.env.RATE_LIMIT_DURATION_SECONDS,
+        RATE_LIMIT_POINTS: options.env.MANAGEMENT_RATE_LIMIT_POINTS,
+      },
+      "teamos:api:management",
+    );
+    const app = createApp({
+      auth: createAuthService(auth),
+      env: options.env,
+      logger,
+      managementRateLimiter,
+      organization: {
+        management: createOrganizationManagementService({
+          gateway: createOrganizationGateway(auth),
+          logger,
+          members: memberService,
+        }),
+        members: memberService,
+        organizationAccess: createOrganizationAccessService(resources.database.db),
+        projects: createProjectService({
+          db: resources.database.db,
+          members: memberService,
+        }),
+      },
       rateLimiter: createRedisRateLimiter(resources.redis, options.env),
       readiness,
     });
@@ -187,7 +237,9 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
     });
     let isShuttingDown = false;
 
-    logger.withMetadata({ url: server.url.toString() }).info("TeamOS API is ready");
+    logger
+      .withMetadata(buildReadyLogMetadata(options.env, server.url.toString()))
+      .info("TeamOS API is ready");
 
     return {
       app,
@@ -212,6 +264,7 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
 
 export {
   bootstrap,
+  buildReadyLogMetadata,
   closeServices,
   connectServices,
   createServiceResources,

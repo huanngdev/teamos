@@ -1,12 +1,40 @@
 import { Navigate, Route, Routes } from "react-router";
 
-import { HomePage } from "@/pages";
+import { ProtectedLayout } from "@/layouts/protected-layout";
+import { WorkspaceLayout } from "@/layouts/workspace-layout";
+import {
+  AuthCompleteRoute,
+  CreateWorkspaceRoute,
+  InvitationRoute,
+  LoginRoute,
+  NotFoundRoute,
+  VerifyEmailRoute,
+  WorkspaceIndexRoute,
+  WorkspaceMembersRoute,
+  WorkspaceProjectsRoute,
+  WorkspaceSettingsRoute,
+} from "@/routes";
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="*" element={<Navigate replace to="/" />} />
+      <Route element={<LoginRoute />} path="/login" />
+      <Route element={<AuthCompleteRoute />} path="/auth/complete" />
+      <Route element={<VerifyEmailRoute />} path="/auth/verify-email" />
+      <Route element={<InvitationRoute />} path="/invitations/:invitationId" />
+
+      <Route element={<ProtectedLayout />}>
+        <Route element={<WorkspaceIndexRoute />} path="/" />
+        <Route element={<CreateWorkspaceRoute />} path="/workspaces/new" />
+        <Route element={<WorkspaceLayout />} path="/workspaces/:organizationSlug">
+          <Route element={<Navigate replace to="projects" />} index />
+          <Route element={<WorkspaceProjectsRoute />} path="projects" />
+          <Route element={<WorkspaceMembersRoute />} path="members" />
+          <Route element={<WorkspaceSettingsRoute />} path="settings" />
+        </Route>
+      </Route>
+
+      <Route element={<NotFoundRoute />} path="*" />
     </Routes>
   );
 }

@@ -1,13 +1,13 @@
-import { render, screen, waitFor } from "@testing-library/react";
+// @vitest-environment jsdom
+
+import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { BrowserRouter } from "react-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test } from "vitest";
 
-import { ThemeProvider } from "@/components/theme-provider";
-import { apiUrl } from "@/lib/env";
+import { apiUrl } from "@/shared";
 
-import { App } from "./App";
+import { App } from "./app";
+import { renderWithProviders } from "../test/render-app";
 import { server } from "../test/server";
 
 const healthyReadiness = {
@@ -21,24 +21,42 @@ const healthyReadiness = {
   timestamp: "2026-01-02T03:04:05.000Z",
 } as const;
 
-test("waits for backend readiness before rendering the home route", async () => {
-  server.use(http.get(`${apiUrl}/health/ready`, () => HttpResponse.json(healthyReadiness)));
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const providersResponse = {
+  providers: [
+    { enabled: true, id: "google", name: "Google" },
+    { enabled: false, id: "github", name: "GitHub" },
+  ],
+} as const;
 
-  render(
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </QueryClientProvider>
-    </ThemeProvider>,
+const unauthenticatedResponse = {
+  error: {
+    code: "UNAUTHENTICATED",
+    message: "Authentication is required.",
+    requestId: "test-request",
+  },
+} as const;
+
+test("waits for backend readiness before continuing", async () => {
+  server.use(
+    http.get(`${apiUrl}/health/ready`, () => new Promise<never>(() => {})),
+    http.get(`${apiUrl}/api/me`, () => HttpResponse.json(unauthenticatedResponse, { status: 401 })),
   );
 
-  expect(screen.queryByText("Workspace ready")).not.toBeInTheDocument();
-  expect(screen.getByText("Connecting to TeamOS")).toBeInTheDocument();
+  renderWithProviders(<App />);
 
-  await waitFor(() => {
-    expect(screen.getByText("Workspace ready")).toBeInTheDocument();
-  });
+  expect(await screen.findByText("Connecting to TeamOS")).toBeInTheDocument();
+});
+
+test("redirects unauthenticated visitors to the sign-in page", async () => {
+  server.use(
+    http.get(`${apiUrl}/health/ready`, () => HttpResponse.json(healthyReadiness)),
+    http.get(`${apiUrl}/api/me`, () => HttpResponse.json(unauthenticatedResponse, { status: 401 })),
+    http.get(`${apiUrl}/api/authentication/providers`, () => HttpResponse.json(providersResponse)),
+  );
+
+  renderWithProviders(<App />);
+
+  expect(await screen.findByText("Sign in to TeamOS")).toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: /Continue with Google/ })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Continue with GitHub/ })).not.toBeInTheDocument();
 });

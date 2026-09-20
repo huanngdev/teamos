@@ -9,6 +9,7 @@
     "start": "bun dist/server.js",
     "test": "bun run --cwd ../../packages/shared build && bun run --cwd ../../packages/db build && bun test src",
     "test:coverage": "bun run --cwd ../../packages/shared build && bun run --cwd ../../packages/db build && bun test --coverage src",
+    "verify:isolation": "bun scripts/verify-organization-isolation.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "check-types": "tsc --noEmit"
@@ -23,9 +24,12 @@
     "@scalar/hono-api-reference": "^0.12.1",
     "@teamos/db": "workspace:*",
     "@teamos/shared": "workspace:*",
+    "better-auth": "^1.7.5",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.13.7",
     "ioredis": "^6.0.0",
     "loglayer": "^9.4.0",
+    "nodemailer": "^10.0.10",
     "rate-limiter-flexible": "^11.2.0",
     "serialize-error": "^13.0.1",
     "zod": "^4.6.4"

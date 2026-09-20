@@ -1,3 +1,4 @@
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { IRateLimiterRes, RateLimiterLike } from "rate-limiter-flexible";
 
@@ -6,6 +7,11 @@ import type { AppEnv } from "@/types.js";
 
 interface RateLimitOptions {
   enabled: boolean;
+  /*
+   * Keyed by client IP by default. Sensitive endpoints use an authenticated
+   * actor key so one workspace cannot exhaust another workspace's budget.
+   */
+  key?: (context: Context<AppEnv>) => string;
   limiter: RateLimiterLike;
   points: number;
 }
@@ -20,6 +26,12 @@ function isRateLimiterResponse(value: unknown): value is IRateLimiterRes {
 }
 
 function createRateLimitMiddleware(options: RateLimitOptions) {
+  const resolveKey =
+    options.key ??
+    ((context: Context<AppEnv>) => {
+      return `ip:${context.get("clientIp")}`;
+    });
+
   return createMiddleware<AppEnv>(async (context, next) => {
     if (
       !options.enabled ||
@@ -31,7 +43,7 @@ function createRateLimitMiddleware(options: RateLimitOptions) {
     }
 
     try {
-      const result = await options.limiter.consume(`ip:${context.get("clientIp")}`);
+      const result = await options.limiter.consume(resolveKey(context));
       const remaining = result.remainingPoints;
       const resetAt = Date.now() + result.msBeforeNext;
 
@@ -65,4 +77,4 @@ function createRateLimitMiddleware(options: RateLimitOptions) {
   });
 }
 
-export { createRateLimitMiddleware };
+export { createRateLimitMiddleware, type RateLimitOptions };

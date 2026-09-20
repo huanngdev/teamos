@@ -26,14 +26,15 @@ The application processes run directly through Bun. Docker Compose currently pro
 
 ## Service Map
 
-| Service       | Local port | Current responsibility                | Current integration status                     |
-| ------------- | ---------: | ------------------------------------- | ---------------------------------------------- |
-| Web           |     `4000` | Vite React client                     | Available through the web app dev command      |
-| API           |     `4001` | Hono HTTP API                         | Available through the API dev command          |
-| PostgreSQL    |     `5432` | Durable relational data               | Connected at API startup through `@teamos/db`  |
-| Redis         |     `6379` | Rate limiting and future coordination | Used by the API rate limiter                   |
-| MinIO API     |     `9000` | S3-compatible object storage          | Connected and credential-probed at API startup |
-| MinIO console |     `9001` | Local object-storage administration   | Available for local inspection                 |
+| Service        | Local port | Current responsibility                | Current integration status                     |
+| -------------- | ---------: | ------------------------------------- | ---------------------------------------------- |
+| Web            |     `4000` | Vite React client                     | Available through the web app dev command      |
+| API            |     `4001` | Hono HTTP API                         | Available through the API dev command          |
+| Drizzle Studio |     `4983` | Local database administration         | Started by the database dev task on loopback   |
+| PostgreSQL     |     `5432` | Durable relational data               | Connected at API startup through `@teamos/db`  |
+| Redis          |     `6379` | Rate limiting and future coordination | Used by the API rate limiter                   |
+| MinIO API      |     `9000` | S3-compatible object storage          | Connected and credential-probed at API startup |
+| MinIO console  |     `9001` | Local object-storage administration   | Available for local inspection                 |
 
 ## Starting Infrastructure
 
@@ -162,6 +163,7 @@ From the repository root:
 
 ```bash
 bun install
+bun run dev
 bun run --cwd apps/api dev
 bun run --cwd apps/web dev
 bun run db:check
@@ -171,6 +173,22 @@ bun run check
 ```
 
 The API now requires PostgreSQL, Redis, and MinIO to connect successfully before it listens. Run `docker compose up -d` first. Migrations are separate commands and are never run automatically during API boot.
+
+## Local Development Processes
+
+`bun run dev` starts the API, the web client, and Drizzle Studio through Turbo. The database package owns a `dev` task that binds Studio to `127.0.0.1:4983`, and Studio is reachable at `https://local.drizzle.studio` from the browser. Binding to loopback keeps the database administration surface off the network.
+
+In development the API logs the API URL and the Studio URL in one record so the two links stay adjacent:
+
+```text
+TeamOS API is ready
+  apiUrl: http://localhost:4001
+  drizzleStudioUrl: https://local.drizzle.studio
+```
+
+The API cannot confirm that Studio has finished binding, so the log line reports the configured Studio endpoint rather than a verified readiness state. Production keeps the API-only log because Studio is a local tool.
+
+Studio runs from `packages/db`, so it reads the same development default for `DATABASE_URL` as the API. Pointing Studio at a different database requires exporting `DATABASE_URL` in the shell that starts `bun run dev`.
 
 ## Troubleshooting
 
@@ -208,8 +226,10 @@ Migration generation and application are deliberate release/development steps. T
 
 ## Current Production Limitations
 
-- Better Auth and organization authorization are not implemented yet.
-- The Drizzle schema is intentionally empty until organization and membership ownership is finalized.
+- Authentication uses Better Auth OAuth, but production requires explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `WEB_URL`, both Google and GitHub credentials, and SMTP email credentials that are validated at startup.
+- The Drizzle schema owns the Better Auth tables; project and issue tables are still pending.
+- `MAX_ORGANIZATIONS_PER_USER` caps workspace creation in the API, but the cap is best-effort and concurrent requests can still exceed it.
+- Invitation and email verification delivery depend on a configured SMTP mailbox; Gmail with an App Password is the development default, while production should relay through a transactional provider on a verified domain.
 - MinIO is connectivity-probed but has no application storage workflows yet.
 - Compose defaults are development-safe examples, not production credentials or deployment configuration.
 - No production container orchestration or secret-management workflow is documented yet.

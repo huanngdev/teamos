@@ -3,7 +3,6 @@ import type { ILogLayer } from "loglayer";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { csrf } from "hono/csrf";
 import { HTTPException } from "hono/http-exception";
 import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
@@ -14,6 +13,7 @@ import type { Env } from "@/config/index.js";
 import { AppError } from "@/errors/index.js";
 import { clientIp } from "@/middleware/client-ip.js";
 import { contentType } from "@/middleware/content-type.js";
+import { createCsrfProtection } from "@/middleware/csrf.js";
 import { createRateLimitMiddleware } from "@/middleware/rate-limit.js";
 import { createRequestLoggingMiddleware } from "@/middleware/request-logging.js";
 import { requestIdHeader } from "@/middleware/request-id.js";
@@ -94,7 +94,17 @@ function registerGlobalMiddleware(app: Hono<AppEnv>, options: RegisterMiddleware
       });
     }),
   );
-  app.use("*", csrf({ origin: options.env.CORS_ORIGINS }));
+  /*
+   * Better Auth trusts both CORS_ORIGINS and WEB_URL, so CSRF validates against
+   * the same union. Otherwise a valid deployment could have a web origin that
+   * Better Auth accepts but the CSRF layer rejects.
+   */
+  app.use(
+    "*",
+    createCsrfProtection({
+      allowedOrigins: Array.from(new Set([...options.env.CORS_ORIGINS, options.env.WEB_URL])),
+    }),
+  );
   app.use(
     "*",
     createRateLimitMiddleware({

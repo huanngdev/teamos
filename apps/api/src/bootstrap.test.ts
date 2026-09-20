@@ -1,7 +1,15 @@
 import { expect, test } from "bun:test";
 import { MockLogLayer } from "loglayer";
+import { drizzleStudioUrl } from "@teamos/db";
 
-import { closeServices, connectServices, StartupError, type ServiceResource } from "@/bootstrap.js";
+import {
+  buildReadyLogMetadata,
+  closeServices,
+  connectServices,
+  StartupError,
+  type ServiceResource,
+} from "@/bootstrap.js";
+import { loadEnv } from "@/config/index.js";
 
 function createService(
   name: ServiceResource["name"],
@@ -86,4 +94,21 @@ test("reports failed services and closes resources during cleanup", async () => 
 
   expect(error.services).toEqual(["redis"]);
   expect(closed.sort()).toEqual(["database", "redis", "storage"]);
+});
+
+test("logs the Drizzle Studio URL next to the API URL in development", () => {
+  const development = buildReadyLogMetadata(
+    loadEnv({ NODE_ENV: "development" }),
+    "http://localhost:4001",
+  );
+  const nonDevelopment = buildReadyLogMetadata(
+    loadEnv({ NODE_ENV: "test" }),
+    "https://api.example.com",
+  );
+
+  expect(development).toEqual({
+    apiUrl: "http://localhost:4001",
+    drizzleStudioUrl,
+  });
+  expect(nonDevelopment).toEqual({ apiUrl: "https://api.example.com" });
 });

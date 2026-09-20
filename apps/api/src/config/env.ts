@@ -2,11 +2,74 @@ import { z } from "zod";
 
 const logLevels = ["trace", "debug", "info", "warn", "error", "fatal"] as const;
 
+const socialProviderCredentialPairs = [
+  ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+  ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
+] as const;
+
+const emailDeliveryVariables = ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "EMAIL_FROM"] as const;
+
+const requiredProductionVariables = [
+  "DATABASE_URL",
+  "REDIS_URL",
+  "MINIO_ENDPOINT",
+  "MINIO_ACCESS_KEY",
+  "MINIO_SECRET_KEY",
+  "BETTER_AUTH_SECRET",
+  "BETTER_AUTH_URL",
+  "WEB_URL",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "GITHUB_CLIENT_ID",
+  "GITHUB_CLIENT_SECRET",
+  "SMTP_HOST",
+  "SMTP_USER",
+  "SMTP_PASSWORD",
+  "EMAIL_FROM",
+] as const;
+
 function urlWithProtocols(protocols: readonly string[]) {
   return z.url().refine((value) => protocols.includes(new URL(value).protocol), {
     message: `URL must use one of: ${protocols.join(", ")}.`,
   });
 }
+
+const loopbackHostnames = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+function isLoopbackUrl(value: string): boolean {
+  try {
+    return loopbackHostnames.has(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * Production OAuth callbacks, verification links, and cookies must not travel
+ * over plain HTTP. Loopback origins stay allowed for local verification and
+ * container-to-container checks.
+ */
+function assertHttpsInProduction(value: string, label: string, context: z.RefinementCtx): void {
+  if (value.startsWith("https:") || isLoopbackUrl(value)) {
+    return;
+  }
+
+  context.addIssue({
+    code: "custom",
+    message: `${label} must use https in production.`,
+    path: [label],
+  });
+}
+
+/*
+ * Copied `.env.example` files set variables to an empty string rather than
+ * omitting them. Treat that as "not configured" so a blank value cannot pass the
+ * all-or-nothing email check and then build an adapter with an empty credential.
+ */
+const optionalNonEmptyString = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
 
 const corsOriginsSchema = z.preprocess(
   (value) => {
@@ -28,12 +91,14 @@ const envSchema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PORT: z.coerce.number().int().min(1).max(65_535).default(4001),
     DATABASE_URL: urlWithProtocols(["postgres:", "postgresql:"]).default(
-      "postgresql://teamos:teamos@localhost:5432/teamos",
+      "postgresql://teamos_user:teamos_password@localhost:5432/teamos",
     ),
-    REDIS_URL: urlWithProtocols(["redis:", "rediss:"]).default("redis://:teamos@localhost:6379"),
+    REDIS_URL: urlWithProtocols(["redis:", "rediss:"]).default(
+      "redis://:teamos_password@localhost:6379",
+    ),
     MINIO_ENDPOINT: urlWithProtocols(["http:", "https:"]).default("http://localhost:9000"),
-    MINIO_ACCESS_KEY: z.string().min(1).default("teamos"),
-    MINIO_SECRET_KEY: z.string().min(1).default("teamosminio"),
+    MINIO_ACCESS_KEY: z.string().min(1).default("teamos_user"),
+    MINIO_SECRET_KEY: z.string().min(1).default("teamos_password"),
     MINIO_REGION: z.string().min(1).default("us-east-1"),
     CORS_ORIGINS: corsOriginsSchema,
     LOG_LEVEL: z.enum(logLevels).default("info"),
@@ -53,6 +118,67 @@ const envSchema = z
       .transform((value) => value === "true"),
     RATE_LIMIT_POINTS: z.coerce.number().int().min(1).default(300),
     RATE_LIMIT_DURATION_SECONDS: z.coerce.number().int().min(1).default(60),
+    BETTER_AUTH_SECRET: z
+      .string()
+      .min(32)
+      .default("teamos-development-auth-secret-change-before-production"),
+    BETTER_AUTH_URL: urlWithProtocols(["http:", "https:"]).default("http://localhost:4001"),
+    WEB_URL: urlWithProtocols(["http:", "https:"]).default("http://localhost:4000"),
+    MAX_ORGANIZATIONS_PER_USER: z.coerce.number().int().min(1).max(1_000).default(3),
+    MAX_ORGANIZATION_MEMBERS: z.coerce.number().int().min(1).max(10_000).default(100),
+    MAX_PENDING_INVITATIONS: z.coerce.number().int().min(1).max(1_000).default(50),
+    MANAGEMENT_RATE_LIMIT_POINTS: z.coerce.number().int().min(1).max(10_000).default(30),
+    GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+    GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+    GITHUB_CLIENT_ID: z.string().min(1).optional(),
+    GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
+    SMTP_HOST: optionalNonEmptyString,
+    SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(465),
+    SMTP_SECURE: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
+    SMTP_USER: optionalNonEmptyString,
+    SMTP_PASSWORD: optionalNonEmptyString,
+    EMAIL_FROM: optionalNonEmptyString,
+  })
+  .superRefine((value, context) => {
+    for (const [idKey, secretKey] of socialProviderCredentialPairs) {
+      const identifier = value[idKey];
+      const secret = value[secretKey];
+
+      if ((identifier === undefined) !== (secret === undefined)) {
+        context.addIssue({
+          code: "custom",
+          message: `${idKey} and ${secretKey} must be configured together.`,
+          path: [idKey],
+        });
+      }
+    }
+
+    const configuredEmailVariables = emailDeliveryVariables.filter(
+      (variable) => value[variable] !== undefined,
+    );
+
+    if (
+      configuredEmailVariables.length > 0 &&
+      configuredEmailVariables.length < emailDeliveryVariables.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `${emailDeliveryVariables.join(", ")} must be configured together.`,
+        path: ["SMTP_HOST"],
+      });
+    }
+
+    if (value.NODE_ENV === "production") {
+      assertHttpsInProduction(value.BETTER_AUTH_URL, "BETTER_AUTH_URL", context);
+      assertHttpsInProduction(value.WEB_URL, "WEB_URL", context);
+
+      for (const origin of value.CORS_ORIGINS) {
+        assertHttpsInProduction(origin, "CORS_ORIGINS", context);
+      }
+    }
   })
   .transform((value) => ({
     ...value,
@@ -64,28 +190,25 @@ const envSchema = z
 
 export type Env = z.infer<typeof envSchema>;
 
-export function loadEnv(source: Record<string, string | undefined> = Bun.env): Env {
+function formatIssues(issues: readonly z.core.$ZodIssue[]): string {
+  return issues
+    .map((issue) => {
+      const path = issue.path.join(".");
+      return `  - ${path || "(root)"}: ${issue.message}`;
+    })
+    .join("\n");
+}
+
+export function loadEnv(source: Record<string, string | undefined> = process.env): Env {
   const result = envSchema.safeParse(source);
 
   if (!result.success) {
-    const issues = result.error.issues
-      .map((issue) => {
-        const path = issue.path.join(".");
-        return `  - ${path || "(root)"}: ${issue.message}`;
-      })
-      .join("\n");
-
-    throw new Error(`Invalid environment variables in apps/api/.env:\n${issues}`);
+    throw new Error(
+      `Invalid environment variables in apps/api/.env:\n${formatIssues(result.error.issues)}`,
+    );
   }
 
   if (result.data.NODE_ENV === "production") {
-    const requiredProductionVariables = [
-      "DATABASE_URL",
-      "REDIS_URL",
-      "MINIO_ENDPOINT",
-      "MINIO_ACCESS_KEY",
-      "MINIO_SECRET_KEY",
-    ];
     const missingVariables = requiredProductionVariables.filter((variable) => !source[variable]);
 
     if (missingVariables.length > 0) {

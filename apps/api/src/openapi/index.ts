@@ -1,2 +1,7 @@
 export { registerApiDocumentation } from "@/openapi/document.js";
-export { apiErrorResponses, requestIdHeaders } from "@/openapi/responses.js";
+export { createOpenApiRouter } from "@/openapi/router.js";
+export {
+  apiErrorResponses,
+  protectedRouteErrorResponses,
+  requestIdHeaders,
+} from "@/openapi/responses.js";

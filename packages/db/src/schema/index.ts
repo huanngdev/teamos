@@ -1,2 +1,2 @@
-// Domain tables will be added here as organization and membership ownership is defined.
-export {};
+export * from "./auth.js";
+export * from "./projects.js";

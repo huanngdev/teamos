@@ -268,3 +268,129 @@ test("returns rate limit headers and a 429 response", async () => {
   expect(secondResponse.headers.get("Retry-After")).toBeTruthy();
   expect(body.error.code).toBe("RATE_LIMIT_EXCEEDED");
 });
+
+test("allows a bodyless unsafe request such as DELETE", async () => {
+  const app = createTestApp();
+  app.delete("/resource", (context) => context.body(null, 204));
+
+  const response = await app.request("/resource", { method: "DELETE" });
+
+  expect(response.status).toBe(204);
+});
+
+test("rejects a bodyless unsafe request that reports a cross-site fetch", async () => {
+  const app = createTestApp();
+  app.post("/resource", (context) => context.json({ ok: true }));
+
+  const response = await app.request("/resource", {
+    headers: { "Sec-Fetch-Site": "cross-site" },
+    method: "POST",
+  });
+  const body = await readErrorResponse(response);
+
+  expect(response.status).toBe(403);
+  expect(body.error.code).toBe("FORBIDDEN");
+});
+
+test("rejects a bodyless unsafe request from a same-site sibling origin", async () => {
+  const app = createTestApp();
+  app.post("/resource", (context) => context.json({ ok: true }));
+
+  const response = await app.request("/resource", {
+    headers: { Origin: "https://evil.localhost:4000", "Sec-Fetch-Site": "same-site" },
+    method: "POST",
+  });
+
+  expect(response.status).toBe(403);
+});
+
+test("rejects a bodyless unsafe request with an untrusted origin", async () => {
+  const app = createTestApp();
+  app.post("/resource", (context) => context.json({ ok: true }));
+
+  const response = await app.request("/resource", {
+    headers: { Origin: "https://attacker.example" },
+    method: "POST",
+  });
+
+  expect(response.status).toBe(403);
+});
+
+test("allows a bodyless unsafe request from an allowlisted origin", async () => {
+  const app = createTestApp();
+  app.post("/resource", (context) => context.json({ ok: true }));
+
+  const response = await app.request("/resource", {
+    headers: { Origin: "http://localhost:4000" },
+    method: "POST",
+  });
+
+  expect(response.status).toBe(200);
+});
+
+test("accepts a form request from an allowlisted origin", async () => {
+  const app = createTestApp();
+  app.post("/form", (context) => context.json({ ok: true }));
+
+  const response = await app.request("/form", {
+    body: "name=ada",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Origin: "http://localhost:4000",
+    },
+    method: "POST",
+  });
+
+  expect(response.status).toBe(200);
+});
+
+test("accepts a same-origin form request reported by the browser", async () => {
+  const app = createTestApp();
+  app.post("/form", (context) => context.json({ ok: true }));
+
+  const response = await app.request("/form", {
+    body: "name=ada",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Sec-Fetch-Site": "same-origin",
+    },
+    method: "POST",
+  });
+
+  expect(response.status).toBe(200);
+});
+
+test("rejects a cross-site form request without an allowed origin", async () => {
+  const app = createTestApp();
+  app.post("/form", (context) => context.json({ ok: true }));
+
+  const response = await app.request("/form", {
+    body: "name=ada",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Origin: "https://attacker.example",
+    },
+    method: "POST",
+  });
+  const body = await readErrorResponse(response);
+
+  expect(response.status).toBe(403);
+  expect(body.error.code).toBe("FORBIDDEN");
+  expect(body.error.message.length).toBeGreaterThan(0);
+});
+
+test("rejects a form request that reports a cross-site fetch", async () => {
+  const app = createTestApp();
+  app.post("/form", (context) => context.json({ ok: true }));
+
+  const response = await app.request("/form", {
+    body: "name=ada",
+    headers: {
+      "Content-Type": "text/plain",
+      "Sec-Fetch-Site": "cross-site",
+    },
+    method: "POST",
+  });
+
+  expect(response.status).toBe(403);
+});
