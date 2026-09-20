@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-09-17
+Last updated: 2026-09-20
 
 ## Current Milestone
 
@@ -70,6 +70,18 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 - Projects UI listing visibility and member counts, project creation, and a project members dialog for role changes and revocation.
 - Replaced the framework CSRF middleware so bodyless unsafe requests such as `DELETE` are accepted while form-encodable cross-site requests stay blocked.
 - Validation failures now return the shared `422 VALIDATION_ERROR` contract instead of the framework's own `400` body.
+- Every unsafe cookie-authenticated request is validated against the origin allowlist or Fetch Metadata, including bodyless requests; sibling-subdomain `same-site` requests are rejected.
+- Native Better Auth organization `update`, `delete`, and `leave` endpoints stay blocked for browser callers, while the TeamOS settings facade owns workspace rename and deletion.
+- Workspace settings facade with `PATCH` and `DELETE /api/organizations/{organizationSlug}`: owners and admins may rename, only owners may delete, deletion requires typing the exact workspace name, and Better Auth deletion is enabled internally for the server gateway only.
+- Workspace settings UI with role-aware visibility, inline rename errors, and a typed-confirmation danger zone; deletion clears organization-scoped caches and navigates with `replace` to the next workspace or creation.
+- Organization membership is unique per `(organization, user)` at the database level, and the project audit foreign keys use single-column `SET NULL` so removing a project author no longer nulls the project tenant.
+- Multi-role organization values such as `"admin,owner"` are parsed with owner precedence, so owner protection cannot be bypassed by role ordering.
+- Invitation cancellation and resend resolve the invitation through the workspace-scoped list and only act on a live pending invitation.
+- Project mutations re-check the actor's authorization after locking the project row, closing the role-revocation race.
+- Production requires HTTPS for `BETTER_AUTH_URL`, `WEB_URL`, and `CORS_ORIGINS` (loopback excepted).
+- The browser reads its session from the sanitized `/api/me` response, so the Better Auth session token stays out of JavaScript; session failures surface as a retryable error instead of a forced logout.
+- Login preserves the requested deep link, and invitation sign-in carries the invitation through email verification so the recipient returns to it.
+- Better Auth mutations reset their pending state on thrown errors, and invitation acceptance falls back to the root route if opening the workspace fails.
 
 ### Frontend architecture
 
@@ -132,7 +144,7 @@ The current repository has scripts for:
 - `bun run db:migrate`
 - `bun run --cwd apps/api verify:isolation`
 
-The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, CSRF behavior including bodyless unsafe requests, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, member listing pagination and search, invitation and member management authorization, blocked native Better Auth endpoints, per-actor management rate limiting, and organization membership isolation. Shared utilities have tests for slug generation, organization roles, member-management policies, project permission policies, member and invitation contracts, project contracts, and avatar initials. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, workspace shell and route-aware tabs, workspace destination resolution and per-user workspace memory, sign-out success and failure, workspace creation cache updates, slug retries, the workspace limit message, project and member search debounce behavior, member table rendering and pagination, invitation management visibility, resend and cancel, member removal, project cards, project creation, and project role changes.
+The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, CSRF behavior including bodyless unsafe requests, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, member listing pagination and search, invitation and member management authorization, workspace rename and deletion authorization and confirmation, blocked native Better Auth endpoints, per-actor management rate limiting, and organization membership isolation. Shared utilities have tests for slug generation, organization roles, member-management policies, project permission policies, member and invitation contracts, project contracts, and avatar initials. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, workspace shell and route-aware tabs, workspace destination resolution and per-user workspace memory, sign-out success and failure, workspace creation cache updates, slug retries, the workspace limit message, workspace settings rename and deletion including role visibility and typed confirmation, project and member search debounce behavior, member table rendering and pagination, invitation management visibility, resend and cancel, member removal, project cards, project creation, and project role changes.
 
 `bun run --cwd apps/api verify:isolation` additionally proves tenant isolation against a live PostgreSQL database: literal wildcard handling, workspace-scoped search, private project hiding, cross-tenant project role rejection, and last-lead protection.
 
@@ -141,6 +153,9 @@ The API foundation currently has focused tests for security headers, CORS, reque
 - The current API is not yet a multi-tenant product surface because domain persistence beyond organizations is not implemented.
 - Organization and membership management relies on Better Auth plugin endpoints; TeamOS-specific management screens are still minimal.
 - The `MAX_ORGANIZATIONS_PER_USER` cap counts all memberships and is not atomic, so concurrent creation can exceed it.
+- OAuth access, refresh, and ID tokens are stored unencrypted in the account table; application-level encryption needs a key-management decision.
+- Sensitive organization administration does not yet require a fresh session or reauthentication.
+- Organization update and deletion now have TeamOS facades; ownership transfer and self-service leaving still await their own flows.
 - The account menu intentionally lists only the sign-out action; profile, billing, and support entries return when those flows exist.
 - Invitations require configured SMTP credentials; without them verification and invitation email cannot be delivered.
 - Development allows authentication without OAuth credentials, but production startup requires both Google and GitHub credentials plus SMTP configuration.
