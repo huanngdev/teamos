@@ -14,6 +14,31 @@ type ProjectVisibility = z.infer<typeof projectVisibilitySchema>;
 
 const projectVisibilities = projectVisibilitySchema.options;
 
+/*
+ * `projectRoleLabels` and `projectVisibilityLabels` are the single source of
+ * display copy for their domains. UI resolves labels through the matching
+ * `get...Label` function (or the record for option lists) instead of rendering
+ * the stored value.
+ */
+const projectRoleLabels: Record<ProjectRole, string> = {
+  lead: "Lead",
+  member: "Member",
+  viewer: "Viewer",
+};
+
+const projectVisibilityLabels: Record<ProjectVisibility, string> = {
+  private: "Private",
+  workspace: "Workspace",
+};
+
+function getProjectRoleLabel(role: ProjectRole): string {
+  return projectRoleLabels[role];
+}
+
+function getProjectVisibilityLabel(visibility: ProjectVisibility): string {
+  return projectVisibilityLabels[visibility];
+}
+
 const projectActionSchema = z.enum([
   "view",
   "update",
@@ -74,13 +99,17 @@ function parseProjectVisibility(value: string | null): ProjectVisibility | undef
 
 export {
   canPerformProjectAction,
+  getProjectRoleLabel,
+  getProjectVisibilityLabel,
   parseProjectRole,
   parseProjectVisibility,
   projectActionSchema,
   projectRoleCapabilities,
+  projectRoleLabels,
   projectRoleSchema,
   projectRoles,
   projectVisibilities,
+  projectVisibilityLabels,
   projectVisibilitySchema,
   type ProjectAccessContext,
   type ProjectAction,

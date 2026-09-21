@@ -8,7 +8,9 @@ export {
   canManageOrganizationMember,
   canUpdateOrganization,
   canViewPendingInvitations,
+  getOrganizationRoleLabel,
   isOrganizationAdministrator,
+  organizationRoleLabels,
   organizationRoleSchema,
   organizationRoles,
   parseAssignableOrganizationRole,
@@ -18,13 +20,17 @@ export {
 } from "./organization-roles.js";
 export {
   canPerformProjectAction,
+  getProjectRoleLabel,
+  getProjectVisibilityLabel,
   parseProjectRole,
   parseProjectVisibility,
   projectActionSchema,
   projectRoleCapabilities,
+  projectRoleLabels,
   projectRoleSchema,
   projectRoles,
   projectVisibilities,
+  projectVisibilityLabels,
   projectVisibilitySchema,
   type ProjectAccessContext,
   type ProjectAction,
@@ -33,4 +39,3 @@ export {
 } from "./project-roles.js";
 export { SEARCH_TERM_MAX_LENGTH, searchQuerySchema, searchTermSchema } from "./search.js";
 export { MAX_SLUG_LENGTH, slugify } from "./slug.js";
-export { capitalize } from "./text.js";

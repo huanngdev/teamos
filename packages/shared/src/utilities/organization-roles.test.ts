@@ -8,7 +8,10 @@ import {
   canManageOrganizationMember,
   canUpdateOrganization,
   canViewPendingInvitations,
+  getOrganizationRoleLabel,
   isOrganizationAdministrator,
+  organizationRoleLabels,
+  organizationRoleSchema,
   parseOrganizationRole,
 } from "./organization-roles.js";
 
@@ -35,6 +38,15 @@ describe("parseOrganizationRole", () => {
   test("returns undefined for unknown roles", () => {
     expect(parseOrganizationRole("superuser")).toBeUndefined();
     expect(parseOrganizationRole("")).toBeUndefined();
+  });
+});
+
+describe("getOrganizationRoleLabel", () => {
+  test("maps every organization role to non-code display copy", () => {
+    for (const role of organizationRoleSchema.options) {
+      expect(getOrganizationRoleLabel(role)).toBe(organizationRoleLabels[role]);
+      expect(getOrganizationRoleLabel(role)).not.toBe(role);
+    }
   });
 });
 
