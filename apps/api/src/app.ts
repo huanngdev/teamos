@@ -3,7 +3,7 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { RateLimiterLike } from "rate-limiter-flexible";
 
 import {
-  isManagedOrganizationPath,
+  isManagedAuthPath,
   type AuthService,
   type OrganizationAccessService,
 } from "@/auth/index.js";
@@ -25,8 +25,12 @@ import type {
   OrganizationMemberService,
   ProjectService,
   ReadinessService,
+  UserProfileService,
 } from "@/services/index.js";
-import { createUnavailableReadinessService } from "@/services/index.js";
+import {
+  createUnavailableReadinessService,
+  createUnavailableUserProfileService,
+} from "@/services/index.js";
 import type { AppEnv } from "@/types.js";
 
 interface OrganizationServices {
@@ -42,6 +46,7 @@ interface CreateAppOptions {
   logger?: ILogLayer;
   managementRateLimiter?: RateLimiterLike;
   organization?: OrganizationServices;
+  profile?: UserProfileService;
   rateLimiter?: RateLimiterLike;
   readiness?: ReadinessService;
 }
@@ -66,7 +71,15 @@ function createApp(options: CreateAppOptions): OpenAPIHono<AppEnv> {
   const auth = options.auth;
   if (auth !== undefined) {
     app.route("/api/authentication", createAuthenticationRoutes(options.env));
-    app.route("/api/me", createCurrentUserRoutes(auth));
+    app.route(
+      "/api/me",
+      createCurrentUserRoutes({
+        auth,
+        env: options.env,
+        managementRateLimiter,
+        profile: options.profile ?? createUnavailableUserProfileService(),
+      }),
+    );
 
     const organization = options.organization;
     if (organization !== undefined) {
@@ -89,7 +102,7 @@ function createApp(options: CreateAppOptions): OpenAPIHono<AppEnv> {
      * directly. Server-side calls through the auth API are unaffected.
      */
     app.all("/api/auth/*", async (context, next) => {
-      if (isManagedOrganizationPath(context.req.path)) {
+      if (isManagedAuthPath(context.req.path)) {
         logger
           .withMetadata({ path: context.req.path })
           .warn("blocked direct call to a TeamOS-managed auth endpoint");

@@ -13,6 +13,11 @@ interface RateLimitOptions {
    */
   key?: (context: Context<AppEnv>) => string;
   limiter: RateLimiterLike;
+  /*
+   * Restricts the limiter to specific HTTP methods. Routes that mix a frequently
+   * read method with a sensitive mutation can protect only the mutation.
+   */
+  methods?: readonly string[];
   points: number;
 }
 
@@ -35,6 +40,7 @@ function createRateLimitMiddleware(options: RateLimitOptions) {
   return createMiddleware<AppEnv>(async (context, next) => {
     if (
       !options.enabled ||
+      (options.methods !== undefined && !options.methods.includes(context.req.method)) ||
       context.req.path === "/health" ||
       context.req.path.startsWith("/health/")
     ) {

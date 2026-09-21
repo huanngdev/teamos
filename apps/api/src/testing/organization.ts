@@ -4,14 +4,17 @@ import type { AssignableOrganizationRole, OrganizationMember } from "@teamos/sha
 import type {
   AuthService,
   AuthSession,
+  AuthUser,
   OrganizationAccess,
   OrganizationAccessService,
   OrganizationGateway,
+  UserGateway,
 } from "@/auth/index.js";
 import type {
   OrganizationManagementService,
   OrganizationMemberService,
   ProjectService,
+  UserProfileService,
 } from "@/services/index.js";
 import type { ProjectSummary } from "@teamos/shared";
 
@@ -234,6 +237,57 @@ function createTestLogger(): MockLogLayer {
   return new MockLogLayer();
 }
 
+interface FakeUserGateway extends UserGateway {
+  readonly calls: { headers: Headers; name: string }[];
+}
+
+function createFakeUserGateway(options: { onUpdateError?: unknown } = {}): FakeUserGateway {
+  const calls: FakeUserGateway["calls"] = [];
+
+  return {
+    calls,
+    updateUser: async (input) => {
+      if (options.onUpdateError !== undefined) {
+        throw options.onUpdateError;
+      }
+
+      calls.push(input);
+
+      return { headers: input.headers, user: { ...buildSession().user, name: input.name } };
+    },
+  };
+}
+
+/*
+ * The route composes the profile service, so tests can inject a response whose
+ * headers prove Better Auth's session cookie is forwarded to the browser.
+ */
+function createFakeUserProfileService(
+  options: { setCookie?: string; user?: AuthUser } = {},
+): UserProfileService {
+  return {
+    updateProfile: async ({ name }) => {
+      const headers = new Headers();
+      const user = options.user ?? buildSession().user;
+
+      if (options.setCookie !== undefined) {
+        headers.append("set-cookie", options.setCookie);
+      }
+
+      return {
+        headers,
+        user: {
+          email: user.email,
+          emailVerified: user.emailVerified,
+          id: user.id,
+          image: user.image ?? null,
+          name,
+        },
+      };
+    },
+  };
+}
+
 export {
   buildOrganizationAccess,
   buildSession,
@@ -243,6 +297,9 @@ export {
   createFakeOrganizationManagementService,
   createFakeOrganizationMemberService,
   createFakeProjectService,
+  createFakeUserGateway,
+  createFakeUserProfileService,
   createTestLogger,
   type FakeOrganizationMemberService,
+  type FakeUserGateway,
 };

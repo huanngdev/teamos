@@ -7,8 +7,8 @@ export {
 } from "./middleware.js";
 export type { AuthSession, AuthSessionRecord, AuthUser } from "./models.js";
 export {
-  isManagedOrganizationPath,
-  MANAGED_ORGANIZATION_PATHS,
+  isManagedAuthPath,
+  MANAGED_AUTH_PATHS,
   normalizeAuthPath,
 } from "./native-endpoint-policy.js";
 export {
@@ -29,3 +29,4 @@ export {
   socialProviderDefinitions,
 } from "./providers.js";
 export { createAuthService, type AuthService } from "./service.js";
+export { createUserGateway, type UserGateway } from "./user-gateway.js";

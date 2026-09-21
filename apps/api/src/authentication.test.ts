@@ -9,6 +9,7 @@ import {
 import { createApp, type OrganizationServices } from "@/app.js";
 import type { AuthSession, OrganizationAccess } from "@/auth/index.js";
 import { loadEnv } from "@/config/index.js";
+import type { UserProfileService } from "@/services/index.js";
 import {
   buildOrganizationAccess,
   createFakeAuthService,
@@ -16,6 +17,7 @@ import {
   createFakeOrganizationManagementService,
   createFakeOrganizationMemberService,
   createFakeProjectService,
+  createFakeUserProfileService,
   createTestLogger,
 } from "@/testing/organization.js";
 
@@ -69,6 +71,7 @@ function createOrganizationServices(
 function createTestApp(
   options: {
     organization?: OrganizationServices;
+    profile?: UserProfileService;
     session?: AuthSession | null;
     source?: Record<string, string | undefined>;
   } = {},
@@ -84,6 +87,7 @@ function createTestApp(
     env,
     logger: createTestLogger(),
     organization: options.organization,
+    profile: options.profile ?? createFakeUserProfileService({ user: options.session?.user }),
   });
 }
 
@@ -96,6 +100,14 @@ async function readErrorResponse(response: Response) {
   }
 
   return result.data;
+}
+
+function patchCurrentUser(body: unknown): RequestInit {
+  return {
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+    method: "PATCH",
+  };
 }
 
 test("reports social provider availability from the environment", async () => {
@@ -156,6 +168,72 @@ test("returns the authenticated user and session", async () => {
   expect(body.user.emailVerified).toBe(true);
   expect(body.session.expiresAt).toBe("2026-01-08T00:00:00.000Z");
   expect(body.session.activeOrganizationId).toBeNull();
+});
+
+test("requires authentication to update the profile", async () => {
+  const app = createTestApp();
+  const response = await app.request("/api/me", patchCurrentUser({ name: "Ada" }));
+  const body = await readErrorResponse(response);
+
+  expect(response.status).toBe(401);
+  expect(body.error.code).toBe("UNAUTHENTICATED");
+});
+
+test("rejects an invalid profile name before reaching Better Auth", async () => {
+  const app = createTestApp({ session: verifiedSession });
+  const response = await app.request("/api/me", patchCurrentUser({ name: "   " }));
+  const body = await readErrorResponse(response);
+
+  expect(response.status).toBe(422);
+  expect(body.error.code).toBe("VALIDATION_ERROR");
+});
+
+test("rejects profile fields that have no TeamOS flow", async () => {
+  const app = createTestApp({ session: verifiedSession });
+  const response = await app.request(
+    "/api/me",
+    patchCurrentUser({ email: "new@example.com", name: "Ada" }),
+  );
+
+  expect(response.status).toBe(422);
+});
+
+test("updates the profile and returns the unchanged session", async () => {
+  const app = createTestApp({ session: verifiedSession });
+  const response = await app.request("/api/me", patchCurrentUser({ name: "  Ada Lovelace  " }));
+  const body = currentUserResponseSchema.parse(await response.json());
+
+  expect(response.status).toBe(200);
+  expect(body.user.name).toBe("Ada Lovelace");
+  expect(body.user.email).toBe("ada@example.com");
+  expect(body.session.id).toBe("session-1");
+  expect(JSON.stringify(body)).not.toContain("session-token");
+});
+
+test("allows an unverified session to update its profile", async () => {
+  const app = createTestApp({
+    session: {
+      ...verifiedSession,
+      user: { ...verifiedSession.user, emailVerified: false },
+    },
+  });
+  const response = await app.request("/api/me", patchCurrentUser({ name: "Ada" }));
+  const body = currentUserResponseSchema.parse(await response.json());
+
+  expect(response.status).toBe(200);
+  expect(body.user.emailVerified).toBe(false);
+});
+
+test("forwards the refreshed session cookie from Better Auth", async () => {
+  const cookie = "better-auth.session_token=fresh; Path=/; HttpOnly";
+  const app = createTestApp({
+    profile: createFakeUserProfileService({ setCookie: cookie }),
+    session: verifiedSession,
+  });
+  const response = await app.request("/api/me", patchCurrentUser({ name: "Ada" }));
+
+  expect(response.status).toBe(200);
+  expect(response.headers.getSetCookie()).toContain(cookie);
 });
 
 test("hides organizations the user is not a member of", async () => {
