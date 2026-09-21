@@ -1,4 +1,9 @@
-import { capitalize, formatDate, type ProjectSummary } from "@teamos/shared";
+import {
+  formatDate,
+  getProjectRoleLabel,
+  getProjectVisibilityLabel,
+  type ProjectSummary,
+} from "@teamos/shared";
 import { CalendarIcon, FolderIcon, LockIcon, UsersIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -93,7 +98,7 @@ function ProjectCards({ state }: ProjectCardsProps) {
               <CardAction>
                 <Badge variant="outline">
                   <LockIcon aria-hidden="true" />
-                  Private
+                  {getProjectVisibilityLabel(project.visibility)}
                 </Badge>
               </CardAction>
             ) : null}
@@ -111,7 +116,7 @@ function ProjectCards({ state }: ProjectCardsProps) {
                 {formatMemberCount(project.memberCount)}
               </span>
               {project.role === null ? null : (
-                <span className="truncate">{capitalize(project.role)}</span>
+                <span className="truncate">{getProjectRoleLabel(project.role)}</span>
               )}
             </div>
             <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">

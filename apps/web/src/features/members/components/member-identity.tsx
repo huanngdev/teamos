@@ -1,6 +1,6 @@
 import {
-  capitalize,
   getInitials,
+  getOrganizationRoleLabel,
   type OrganizationMember,
   type OrganizationRole,
 } from "@teamos/shared";
@@ -11,9 +11,9 @@ interface MemberIdentityProps {
   member: OrganizationMember;
 }
 
-/* Roles are stored lowercase, so they are capitalized once here for display. */
+/* Roles are stored as codes; the shared label mapper owns the display copy. */
 function MemberRole({ role }: { role: OrganizationRole }) {
-  return <span className="text-sm">{capitalize(role)}</span>;
+  return <span className="text-sm">{getOrganizationRoleLabel(role)}</span>;
 }
 
 /*

@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { getReadinessDependencyStatusLabel } from "../lib/readiness-labels";
 
 const dependencyLabels = [
   { key: "database", label: "Database" },
@@ -86,6 +87,11 @@ function ReadinessScreen({ onRetry, state }: ReadinessScreenProps) {
               <div className="flex flex-col gap-2" aria-label="Backend dependency status">
                 {dependencyLabels.map((dependency) => {
                   const status = state.readiness?.dependencies[dependency.key].status;
+
+                  if (status === undefined) {
+                    return null;
+                  }
+
                   const isReady = status === "ok";
 
                   return (
@@ -96,7 +102,7 @@ function ReadinessScreen({ onRetry, state }: ReadinessScreenProps) {
                       <span>{dependency.label}</span>
                       <Badge variant={isReady ? "secondary" : "destructive"}>
                         {isReady ? <CheckCircle2Icon data-icon="inline-start" /> : null}
-                        {status}
+                        {getReadinessDependencyStatusLabel(status)}
                       </Badge>
                     </div>
                   );
