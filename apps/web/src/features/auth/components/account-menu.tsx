@@ -1,5 +1,6 @@
 import { getInitials } from "@teamos/shared";
-import { LogOutIcon } from "lucide-react";
+import { LogOutIcon, UserRoundIcon } from "lucide-react";
+import { Link } from "react-router";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { accountProfilePath } from "../lib/account-paths";
 
 interface AccountMenuUser {
   email: string;
@@ -26,9 +28,9 @@ interface AccountMenuProps {
 }
 
 /*
- * Only the actions TeamOS actually implements are listed. Placeholder entries
- * for profile, billing, or support are intentionally omitted until those flows
- * exist.
+ * Only the actions TeamOS actually implements are listed. The profile entry
+ * links to the identity-scoped account page, and destructive sign-out stays in
+ * its own group below a separator.
  */
 function AccountMenu({ isSigningOut, onSignOut, user }: AccountMenuProps) {
   const initials = getInitials(user.name) || getInitials(user.email);
@@ -51,6 +53,13 @@ function AccountMenu({ isSigningOut, onSignOut, user }: AccountMenuProps) {
             <span className="truncate">{user.name}</span>
             <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
           </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem render={<Link to={accountProfilePath} />}>
+            <UserRoundIcon data-icon="inline-start" />
+            Profile
+          </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
