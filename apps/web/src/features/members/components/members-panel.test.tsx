@@ -97,6 +97,11 @@ test("invites a member and refreshes the pending invitations", async () => {
 
   const dialog = await screen.findByRole("dialog");
 
+  const roleTrigger = within(dialog).getByLabelText("Workspace role");
+
+  expect(roleTrigger).toHaveTextContent("Member");
+  expect(roleTrigger).not.toHaveTextContent("member");
+
   await userEvent.type(within(dialog).getByLabelText("Email address"), "  NEW@Example.com ");
   await userEvent.click(within(dialog).getByRole("button", { name: "Send invitation" }));
 

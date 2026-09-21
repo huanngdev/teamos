@@ -91,6 +91,11 @@ test("creates a project with a slug derived from the name", async () => {
 
   const dialog = await screen.findByRole("dialog");
 
+  const visibilityTrigger = within(dialog).getByLabelText("Project visibility");
+
+  expect(visibilityTrigger).toHaveTextContent("Workspace");
+  expect(visibilityTrigger).not.toHaveTextContent("workspace");
+
   await userEvent.type(within(dialog).getByLabelText("Name"), "Babbage Engine");
   await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
 
