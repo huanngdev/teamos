@@ -1,17 +1,16 @@
 import { PlusIcon } from "lucide-react";
 
-import { ProjectCards } from "./project-cards";
 import { SearchToolbar } from "@/shared/components/search-toolbar";
-import type { ProjectSummary } from "@teamos/shared";
+import { ProjectCards } from "./project-cards";
 import type { ProjectsState } from "../hooks/use-projects";
 
 interface ProjectsPanelProps {
   onCreateProject: () => void;
-  onManageMembers: (project: ProjectSummary) => void;
+  organizationSlug: string;
   state: ProjectsState;
 }
 
-function ProjectsPanel({ onCreateProject, onManageMembers, state }: ProjectsPanelProps) {
+function ProjectsPanel({ onCreateProject, organizationSlug, state }: ProjectsPanelProps) {
   return (
     <div className="flex flex-col gap-4">
       <SearchToolbar
@@ -23,7 +22,7 @@ function ProjectsPanel({ onCreateProject, onManageMembers, state }: ProjectsPane
         search={state.searchInput}
         searchLabel="Search projects"
       />
-      <ProjectCards onManageMembers={onManageMembers} state={state} />
+      <ProjectCards organizationSlug={organizationSlug} state={state} />
     </div>
   );
 }

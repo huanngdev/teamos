@@ -1,10 +1,6 @@
-import {
-  formatDate,
-  getProjectRoleLabel,
-  getProjectVisibilityLabel,
-  type ProjectSummary,
-} from "@teamos/shared";
+import { formatDate, getProjectRoleLabel, getProjectVisibilityLabel } from "@teamos/shared";
 import { CalendarIcon, FolderIcon, LockIcon, UsersIcon } from "lucide-react";
+import { Link } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -25,10 +21,11 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { projectOverviewPath } from "../lib/project-paths";
 import type { ProjectsState } from "../hooks/use-projects";
 
 interface ProjectCardsProps {
-  onManageMembers: (project: ProjectSummary) => void;
+  organizationSlug: string;
   state: ProjectsState;
 }
 
@@ -36,7 +33,7 @@ function formatMemberCount(count: number): string {
   return count === 1 ? "1 member" : `${count} members`;
 }
 
-function ProjectCards({ state }: ProjectCardsProps) {
+function ProjectCards({ organizationSlug, state }: ProjectCardsProps) {
   if (state.isPending) {
     return (
       <div aria-busy="true" className="grid gap-3 sm:grid-cols-2" role="status">
@@ -87,11 +84,18 @@ function ProjectCards({ state }: ProjectCardsProps) {
   return (
     <div aria-busy={state.isFetching} className="grid gap-3 sm:grid-cols-2">
       {state.projects.map((project) => (
-        <Card key={project.id}>
+        <Card className="relative" key={project.id}>
           <CardHeader className="min-h-16">
             <CardTitle>
               <span className="flex min-w-0 items-center gap-2">
-                <h3 className="truncate">{project.name}</h3>
+                <h3 className="truncate">
+                  <Link
+                    className="rounded-sm after:absolute after:inset-0 focus-visible:ring-2 focus-visible:ring-ring"
+                    to={projectOverviewPath(organizationSlug, project.slug)}
+                  >
+                    {project.name}
+                  </Link>
+                </h3>
               </span>
             </CardTitle>
             {project.visibility === "private" ? (

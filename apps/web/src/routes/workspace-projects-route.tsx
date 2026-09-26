@@ -1,11 +1,11 @@
-import { useProjects } from "@/features/projects/hooks/use-projects";
+import { useState } from "react";
+import { useParams } from "react-router";
+
 import { CreateProjectDialog } from "@/features/projects/components/create-project-dialog";
-import { ProjectMembersDialog } from "@/features/projects/components/project-members-dialog";
 import { ProjectsPanel } from "@/features/projects/components/projects-panel";
 import { useCreateProjectForm } from "@/features/projects/hooks/use-create-project-form";
+import { useProjects } from "@/features/projects/hooks/use-projects";
 import { useWorkspace } from "@/features/workspaces";
-import { useParams } from "react-router";
-import { useState } from "react";
 
 function WorkspaceProjectsRoute() {
   const { organizationSlug } = useParams();
@@ -32,9 +32,7 @@ function WorkspaceProjectsRoute() {
           onCreateProject={() => {
             setIsCreateOpen(true);
           }}
-          onManageMembers={(project) => {
-            projects.openMembers(project.id);
-          }}
+          organizationSlug={organizationSlug ?? ""}
           state={projects}
         />
       </div>
@@ -46,18 +44,6 @@ function WorkspaceProjectsRoute() {
           createProjectForm.reset();
         }}
         open={isCreateOpen}
-      />
-
-      <ProjectMembersDialog
-        errorMessage={projects.membersError}
-        isPending={projects.membersIsPending}
-        members={projects.members}
-        onClose={projects.closeMembers}
-        onRemoveMember={projects.removeMember}
-        onRoleChange={projects.changeMemberRole}
-        open={projects.selectedProject !== null}
-        pendingMemberId={projects.pendingMemberId}
-        projectName={projects.selectedProject?.name ?? "Project"}
       />
     </>
   );

@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-09-21
+Last updated: 2026-09-26
 
 ## Current Milestone
 
@@ -90,7 +90,8 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 - Feature-first `apps/web/src` layout: `app` (providers and routes), `layouts` (router layouts plus their orchestration hooks), `routes` (`*-route.tsx` URL modules), `features/<capability>` (`api`, `components`, `hooks`, `lib`, `query-keys`), and `shared` for genuinely cross-feature browser code.
 - `features/auth`, `features/workspaces`, `features/members`, `features/projects`, and `features/system` now own their components, hooks, API modules, and query keys; each exposes one `index.ts` barrel.
 - Generated shadcn primitives stay in `apps/web/src/components/ui` and the `cn` helper stays on the shadcn `utils` alias; neither is relocated for organizational reasons.
-- Nested React Router routes: `/workspaces/:organizationSlug` renders a `WorkspaceLayout` with `projects` and `members` children, an index redirect, and an explicit not-found route instead of a catch-all redirect.
+- Nested React Router routes: `/workspaces/:organizationSlug` renders a `WorkspaceLayout` with `projects`, `members`, and `settings` children, an index redirect, and an explicit not-found route instead of a catch-all redirect. A project overview lives beside that layout at `/workspaces/:organizationSlug/projects/:projectSlug`.
+- Workspace pages keep the centered tab shell. Only a project page uses the inset, icon-collapsible shadcn sidebar, with a back link to Projects, an Overview item, and the account identity in the footer. The overview is built from the visible project list and its members.
 - Account screens live under `/account` behind a dedicated `AccountLayout` that is a sibling of `WorkspaceLayout`; `/account/profile` renders the profile screen without loading any workspace or organization context.
 - The profile screen shows an avatar preview and read-only email, edits the display name with a single save action, updates the `current-user` cache so the account menu reflects the change immediately, and refreshes the shared organization member caches.
 - Workspace tabs are route-aware links, so refreshing, linking, and browser back/forward keep the selected tab.
