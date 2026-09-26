@@ -1,5 +1,16 @@
-import { relations } from "drizzle-orm";
-import { foreignKey, index, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import {
+  boolean,
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { member, organization } from "./auth.js";
 
@@ -79,10 +90,140 @@ export const projectMembership = pgTable(
 );
 
 export const projectRelations = relations(project, ({ one, many }) => ({
+  issues: many(issue),
   memberships: many(projectMembership),
   organization: one(organization, {
     fields: [project.organizationId],
     references: [organization.id],
+  }),
+  statuses: many(projectStatus),
+}));
+
+/*
+ * A status is a board column. `category` is the stable workflow meaning.
+ * `name` is the user-facing title. `is_default` marks the inbox for new issues.
+ * Position is not unique because a reorder rewrites every column in one transaction.
+ */
+export const projectStatus = pgTable(
+  "project_status",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: text("organization_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    name: text("name").notNull(),
+    category: text("category").notNull(),
+    position: integer("position").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    createdByMemberId: text("created_by_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
+    updatedByMemberId: text("updated_by_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique("project_status_id_project_organization_unique").on(
+      table.id,
+      table.projectId,
+      table.organizationId,
+    ),
+    uniqueIndex("project_status_project_name_unique").on(
+      table.projectId,
+      sql`lower(${table.name})`,
+    ),
+    uniqueIndex("project_status_one_default")
+      .on(table.projectId)
+      .where(sql`${table.isDefault} = true`),
+    index("project_status_project_position_idx").on(table.projectId, table.position),
+    foreignKey({
+      columns: [table.projectId, table.organizationId],
+      foreignColumns: [project.id, project.organizationId],
+      name: "project_status_project_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+/*
+ * Assignee uses a composite foreign key with ON DELETE RESTRICT. A composite
+ * ON DELETE SET NULL would also try to null organization_id. Callers must clear
+ * assignee_member_id before deleting the member row.
+ */
+export const issue = pgTable(
+  "issue",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: text("organization_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    statusId: uuid("status_id").notNull(),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    priority: text("priority").default("none").notNull(),
+    position: integer("position").notNull(),
+    assigneeMemberId: text("assignee_member_id"),
+    createdByMemberId: text("created_by_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
+    updatedByMemberId: text("updated_by_member_id").references(() => member.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique("issue_project_number_unique").on(table.projectId, table.number),
+    index("issue_project_status_position_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.statusId,
+      table.position,
+    ),
+    foreignKey({
+      columns: [table.projectId, table.organizationId],
+      foreignColumns: [project.id, project.organizationId],
+      name: "issue_project_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.statusId, table.projectId, table.organizationId],
+      foreignColumns: [projectStatus.id, projectStatus.projectId, projectStatus.organizationId],
+      name: "issue_status_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.assigneeMemberId, table.organizationId],
+      foreignColumns: [member.id, member.organizationId],
+      name: "issue_assignee_fk",
+    }).onDelete("restrict"),
+  ],
+);
+
+export const projectStatusRelations = relations(projectStatus, ({ one, many }) => ({
+  issues: many(issue),
+  project: one(project, {
+    fields: [projectStatus.projectId],
+    references: [project.id],
+  }),
+}));
+
+export const issueRelations = relations(issue, ({ one }) => ({
+  assignee: one(member, {
+    fields: [issue.assigneeMemberId],
+    references: [member.id],
+  }),
+  project: one(project, {
+    fields: [issue.projectId],
+    references: [project.id],
+  }),
+  status: one(projectStatus, {
+    fields: [issue.statusId],
+    references: [projectStatus.id],
   }),
 }));
 
