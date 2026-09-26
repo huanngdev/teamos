@@ -1,5 +1,4 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useSortable } from "@dnd-kit/react/sortable";
 import { getInitials, type IssueSummary, type ProjectMember } from "@teamos/shared";
 import { UserCircleIcon } from "@phosphor-icons/react";
 
@@ -11,37 +10,30 @@ import { IssuePriorityIcon } from "./issue-priority-icon";
 interface IssueCardProps {
   canDrag: boolean;
   issue: IssueSummary;
+  index: number;
   member: ProjectMember | undefined;
   onEdit: () => void;
-  shiftY: number;
+  statusId: string;
 }
 
-function IssueCard({ canDrag, issue, member, onEdit, shiftY }: IssueCardProps) {
-  const sortable = useSortable({ disabled: !canDrag, id: issueDragId(issue.id) });
-  const y = sortable.isDragging ? 0 : (sortable.transform?.y ?? 0) + shiftY;
-  const style = {
-    // The list does not reorder during drag; only the visual offset moves.
-    // eslint-disable-next-line shadcn/no-inline-styles
-    transform: CSS.Translate.toString({ scaleX: 1, scaleY: 1, x: 0, y }),
-    // eslint-disable-next-line shadcn/no-inline-styles
-    transition: sortable.isDragging
-      ? undefined
-      : (sortable.transition ?? "transform 180ms cubic-bezier(0.2, 0, 0, 1)"),
-  };
+function IssueCard({ canDrag, issue, index, member, onEdit, statusId }: IssueCardProps) {
+  const sortable = useSortable({
+    accept: "issue",
+    disabled: !canDrag,
+    group: statusId,
+    id: issueDragId(issue.id),
+    index,
+    type: "issue",
+  });
 
   return (
-    <div
-      className={sortable.isDragging ? "invisible" : "motion-reduce:transition-none"}
-      ref={sortable.setNodeRef}
-      style={style}
-    >
+    <div className="relative" ref={sortable.ref}>
       <button
         aria-label={issue.title}
         className="w-full text-left"
         onClick={onEdit}
+        ref={sortable.handleRef}
         type="button"
-        {...sortable.attributes}
-        {...sortable.listeners}
       >
         <IssueCardBody issue={issue} member={member} />
       </button>
@@ -75,10 +67,10 @@ function IssueCardBody({
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border">
-      <Card size="sm">
+      <Card>
         <CardContent>
           <div className="flex flex-col gap-2">
-            <span className="line-clamp-2 font-medium">{issue.title}</span>
+            <span className="line-clamp-2 h-10 font-medium leading-5">{issue.title}</span>
             <div className="flex items-center justify-between gap-2">
               <IssuePriorityIcon priority={issue.priority} />
               <IssueAssignee member={member} />

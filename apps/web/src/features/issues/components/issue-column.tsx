@@ -1,6 +1,7 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+/* eslint-disable shadcn/no-arbitrary-values -- the issue viewport fills the column below its fixed 3rem header */
+import { CollisionPriority } from "@dnd-kit/abstract";
+import { useDroppable } from "@dnd-kit/react";
+import { useSortable } from "@dnd-kit/react/sortable";
 import type { IssueStatusCategory, ProjectMember } from "@teamos/shared";
 import {
   CheckCircleIcon,
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { BoardColumn } from "../lib/board-columns";
-import { columnDragId, issueDragId } from "../query-keys";
+import { columnDragId } from "../query-keys";
 import { IssueCard } from "./issue-card";
 
 const categoryIcons: Record<IssueStatusCategory, { className: string; icon: Icon }> = {
@@ -42,8 +43,7 @@ interface IssueColumnProps {
   canDragCards: boolean;
   canUpdateProject: boolean;
   column: BoardColumn;
-  gapHeight: number | null;
-  gapIndex: number | null;
+  columnIndex: number;
   members: readonly ProjectMember[];
   onCreateIssue: () => void;
   onDelete: () => void;
@@ -56,8 +56,7 @@ function IssueColumn({
   canDragCards,
   canUpdateProject,
   column,
-  gapHeight,
-  gapIndex,
+  columnIndex,
   members,
   onCreateIssue,
   onDelete,
@@ -65,33 +64,33 @@ function IssueColumn({
   onRename,
 }: IssueColumnProps) {
   const sortable = useSortable({
-    disabled: { draggable: !canUpdateProject, droppable: !canDragCards && !canUpdateProject },
+    accept: "column",
+    disabled: !canUpdateProject,
     id: columnDragId(column.status.id),
+    index: columnIndex,
+    type: "column",
+  });
+  const droppable = useDroppable({
+    accept: "issue",
+    collisionPriority: CollisionPriority.Low,
+    disabled: !canDragCards,
+    id: column.status.id,
   });
   const categoryIcon = categoryIcons[column.status.category];
   const CategoryIcon = categoryIcon.icon;
-  const style = {
-    // dnd-kit shifts the other columns while this one is dragged.
-    // eslint-disable-next-line shadcn/no-inline-styles
-    transform: CSS.Transform.toString(sortable.transform),
-    // eslint-disable-next-line shadcn/no-inline-styles
-    transition: sortable.transition,
-  };
 
   return (
     <div
-      className={`relative flex h-full w-72 shrink-0 flex-col border-r ${sortable.isDragging ? "opacity-40" : ""}`}
-      ref={sortable.setNodeRef}
-      style={style}
+      className={`relative flex h-full w-72 shrink-0 flex-col rounded-lg border bg-background ${sortable.isDragging ? "shadow-lg" : ""}`}
+      ref={sortable.ref}
     >
-      <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+      <div className="flex h-12 shrink-0 items-center gap-2 px-3 py-2">
         {canUpdateProject ? (
           <Button
             aria-label={`Reorder ${column.status.name}`}
             size="icon"
             variant="ghost"
-            {...sortable.attributes}
-            {...sortable.listeners}
+            ref={sortable.handleRef}
           >
             <DotsSixVerticalIcon />
           </Button>
@@ -139,53 +138,28 @@ function IssueColumn({
           ) : null}
         </div>
       </div>
-      <ScrollArea className="min-h-0 flex-1">
-        <SortableContext
-          items={column.issues.map((issue) => issueDragId(issue.id))}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="relative flex flex-col gap-2 px-3 pb-3">
-            {column.issues.length === 0 ? (
-              gapIndex === 0 && gapHeight !== null ? (
-                <DropGap height={gapHeight} />
-              ) : (
-                <p className="text-sm text-muted-foreground">No issues</p>
-              )
-            ) : (
-              column.issues.map((issue, index) => (
-                <IssueCard
-                  canDrag={canDragCards}
-                  issue={issue}
-                  key={issue.id}
-                  member={members.find((member) => member.memberId === issue.assigneeMemberId)}
-                  onEdit={() => {
-                    onEditIssue(issue.id);
-                  }}
-                  shiftY={
-                    gapHeight !== null && gapIndex !== null && index >= gapIndex ? gapHeight : 0
-                  }
-                />
-              ))
-            )}
-            {gapIndex === column.issues.length && column.issues.length > 0 && gapHeight !== null ? (
-              <DropGap height={gapHeight} />
-            ) : null}
-          </div>
-        </SortableContext>
+      <ScrollArea className="h-[calc(100%-3rem)] w-full" ref={droppable.ref}>
+        <div className="relative flex flex-col gap-2 px-3 pb-3">
+          {column.issues.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No issues</p>
+          ) : (
+            column.issues.map((issue, index) => (
+              <IssueCard
+                canDrag={canDragCards}
+                issue={issue}
+                index={index}
+                key={issue.id}
+                member={members.find((member) => member.memberId === issue.assigneeMemberId)}
+                onEdit={() => {
+                  onEditIssue(issue.id);
+                }}
+                statusId={column.status.id}
+              />
+            ))
+          )}
+        </div>
       </ScrollArea>
     </div>
-  );
-}
-
-function DropGap({ height }: { height: number }) {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none"
-      // The gap matches the dragged card so the cards below slide down together.
-      // eslint-disable-next-line shadcn/no-inline-styles
-      style={{ height }}
-    />
   );
 }
 

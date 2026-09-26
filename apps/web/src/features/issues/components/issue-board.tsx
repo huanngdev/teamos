@@ -1,65 +1,19 @@
-/* eslint-disable shadcn/no-arbitrary-values -- viewport height is a fixed calc, not a theme token */
-import {
-  DndContext,
-  DragOverlay,
-  MeasuringStrategy,
-  pointerWithin,
-  type CollisionDetection,
-} from "@dnd-kit/core";
-import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
-import { useReducedMotion } from "framer-motion";
+import { DragDropProvider } from "@dnd-kit/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIssueBoardDrag } from "../hooks/use-issue-board-drag";
 import type { IssueBoardState } from "../hooks/use-issue-board";
-import { columnDragId } from "../query-keys";
 import { ColumnFormDialog } from "./column-form-dialog";
 import { DeleteColumnDialog } from "./delete-column-dialog";
-import { IssueCardBody } from "./issue-card";
 import { IssueColumn } from "./issue-column";
 import { IssueFormDialog } from "./issue-form-dialog";
-import { DotsSixVerticalIcon, PlusIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
+import { PlusIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
 
 interface IssueBoardProps {
   state: IssueBoardState;
 }
-
-const boardCollision: CollisionDetection = (args) => {
-  if (!String(args.active.id).startsWith("column:")) {
-    return issueCollision(args);
-  }
-
-  const columns = args.droppableContainers.filter((container) => {
-    const id = String(container.id);
-
-    return id.startsWith("column:") && id !== String(args.active.id);
-  });
-  const scoped = { ...args, droppableContainers: columns };
-
-  return pointerWithin(scoped);
-};
-
-const issueCollision: CollisionDetection = (args) => {
-  const activeId = String(args.active.id);
-  const issues = args.droppableContainers.filter((container) => {
-    const id = String(container.id);
-
-    return id.startsWith("issue:") && id !== activeId;
-  });
-  const issueHit = pointerWithin({ ...args, droppableContainers: issues });
-
-  if (issueHit.length > 0) {
-    return issueHit;
-  }
-
-  const columns = args.droppableContainers.filter((container) =>
-    String(container.id).startsWith("column:"),
-  );
-
-  return pointerWithin({ ...args, droppableContainers: columns });
-};
 
 function IssueBoard({ state }: IssueBoardProps) {
   if (state.status === "loading") {
@@ -98,25 +52,19 @@ function IssueBoardReady({
 }: {
   view: Extract<IssueBoardState, { status: "ready" }>["view"];
 }) {
-  const reduceMotion = useReducedMotion();
   const drag = useIssueBoardDrag({
     columns: view.columns,
-    members: view.members,
     onDrop: view.onDrop,
   });
-  const sourceStatusId = drag.activeIssue?.statusId ?? null;
-  const foreignGap =
-    drag.issueDrop !== null && drag.issueDrop.statusId !== sourceStatusId ? drag.issueDrop : null;
   const board = (
-    <div className="flex h-[calc(100vh-4rem)] w-max ">
-      {view.columns.map((column) => (
+    <div className="flex h-full w-max gap-2 p-2">
+      {drag.columns.map((column, index) => (
         <IssueColumn
           canCreateIssue={view.canCreateIssue}
           canDragCards={view.canUpdateIssue}
           canUpdateProject={view.canUpdateProject}
           column={column}
-          gapHeight={foreignGap?.statusId === column.status.id ? drag.activeHeight : null}
-          gapIndex={foreignGap?.statusId === column.status.id ? foreignGap.index : null}
+          columnIndex={index}
           key={column.status.id}
           members={view.members}
           onCreateIssue={() => {
@@ -143,7 +91,7 @@ function IssueBoardReady({
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex h-full min-h-0 flex-col">
       {view.truncated === null ? null : (
         <Alert>
           <AlertTitle>Board truncated</AlertTitle>
@@ -152,43 +100,14 @@ function IssueBoardReady({
           </AlertDescription>
         </Alert>
       )}
-      <ScrollArea className="h-[calc(100vh-4rem)]">
-        <DndContext
-          collisionDetection={boardCollision}
-          measuring={{ droppable: { strategy: MeasuringStrategy.BeforeDragging } }}
-          onDragCancel={drag.onDragCancel}
+      <ScrollArea className="min-h-0 flex-1">
+        <DragDropProvider
           onDragEnd={drag.onDragEnd}
-          onDragMove={drag.onDragMove}
+          onDragOver={drag.onDragOver}
           onDragStart={drag.onDragStart}
-          sensors={drag.sensors}
         >
-          <SortableContext
-            items={view.columns.map((column) => columnDragId(column.status.id))}
-            strategy={horizontalListSortingStrategy}
-          >
-            {board}
-          </SortableContext>
-          <DragOverlay
-            dropAnimation={
-              reduceMotion ? null : { duration: 180, easing: "cubic-bezier(0.2, 0, 0, 1)" }
-            }
-          >
-            {drag.activeIssue !== null ? (
-              <div
-                // The overlay must keep the card's measured width so it does not resize on drop.
-                // eslint-disable-next-line shadcn/no-inline-styles
-                style={drag.activeWidth === null ? undefined : { width: drag.activeWidth }}
-              >
-                <IssueCardBody issue={drag.activeIssue} member={drag.activeMember} />
-              </div>
-            ) : drag.activeColumn !== null ? (
-              <div className="flex items-center gap-2 rounded-md bg-background px-3 py-2 text-sm shadow-md ring-1 ring-foreground/10">
-                <DotsSixVerticalIcon />
-                <span className="truncate">{drag.activeColumn.status.name}</span>
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+          {board}
+        </DragDropProvider>
       </ScrollArea>
       <IssueFormDialog
         form={view.issueForm}

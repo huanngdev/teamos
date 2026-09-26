@@ -18,12 +18,7 @@ import {
   updateIssue,
   updateProjectStatus,
 } from "../api/issue-api";
-import {
-  columnDropIndex,
-  groupBoardColumns,
-  issueDropTarget,
-  type BoardColumn,
-} from "../lib/board-columns";
+import { groupBoardColumns, type BoardColumn } from "../lib/board-columns";
 import { readIssueError } from "../lib/issue-errors";
 import { parseDragId } from "../query-keys";
 import { useColumnForm, type ColumnFormState, type DeleteColumnState } from "./use-column-form";
@@ -57,7 +52,6 @@ interface IssueBoardView {
   onDeleteColumn: (statusId: string) => void;
   onDrop: (
     activeId: string,
-    overId: string,
     issueSlot: { index: number; statusId: string } | null,
     columnIndex: number | null,
   ) => void;
@@ -214,8 +208,7 @@ function useIssueBoard(options: UseIssueBoardOptions): IssueBoardState {
         .getState()
         .setBoard(boardKey(options.organizationSlug, projectId), variables.previous);
       notify.error(
-        readIssueError(error, "The column could not be moved.") ??
-          "The column could not be moved.",
+        readIssueError(error, "The column could not be moved.") ?? "The column could not be moved.",
       );
     },
   });
@@ -288,16 +281,15 @@ function useIssueBoard(options: UseIssueBoardOptions): IssueBoardState {
           columnForm.openDelete(status);
         }
       },
-      onDrop: (activeId, overId, issueSlot, columnIndex) => {
+      onDrop: (activeId, issueSlot, columnIndex) => {
         const active = parseDragId(activeId);
-        const over = parseDragId(overId);
 
-        if (active === null || over === null || projectId === null) {
+        if (active === null || projectId === null) {
           return;
         }
 
         if (active.kind === "issue" && canUpdateIssue) {
-          const target = issueSlot ?? issueDropTarget(columns, active.id, over.id);
+          const target = issueSlot;
           const source = columns.find((column) =>
             column.issues.some((issue) => issue.id === active.id),
           );
@@ -329,7 +321,7 @@ function useIssueBoard(options: UseIssueBoardOptions): IssueBoardState {
         }
 
         if (active.kind === "column" && canUpdateProject) {
-          const index = columnIndex ?? columnDropIndex(columns, active.id, over.id);
+          const index = columnIndex;
 
           if (index !== null) {
             const generation = moveGeneration.current + 1;

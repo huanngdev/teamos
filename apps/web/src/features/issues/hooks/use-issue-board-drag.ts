@@ -1,167 +1,104 @@
-import {
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragMoveEvent,
-  type DragOverEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { move } from "@dnd-kit/helpers";
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/react";
 import { useRef, useState } from "react";
-import type { IssueSummary, ProjectMember } from "@teamos/shared";
+import type { IssueSummary } from "@teamos/shared";
 
-import {
-  columnDropSlot,
-  issueDropSlot,
-  type BoardColumn,
-  type IssueDropTarget,
-} from "../lib/board-columns";
-import { parseDragId } from "../query-keys";
+import type { BoardColumn, IssueDropTarget } from "../lib/board-columns";
+import { columnDragId, issueDragId, parseDragId } from "../query-keys";
 
-interface IssueBoardDragState {
-  activeColumn: BoardColumn | null;
-  activeHeight: number | null;
-  activeIssue: IssueSummary | null;
-  activeMember: ProjectMember | undefined;
-  activeWidth: number | null;
-  issueDrop: IssueDropTarget | null;
-  onDragCancel: () => void;
-  onDragEnd: (event: DragEndEvent) => void;
-  onDragMove: (event: DragMoveEvent) => void;
-  onDragStart: (event: DragStartEvent) => void;
-  sensors: ReturnType<typeof useSensors>;
+type IssueOrder = Record<string, string[]>;
+
+function issueOrderFor(columns: readonly BoardColumn[]): IssueOrder {
+  return Object.fromEntries(
+    columns.map((column) => [
+      column.status.id,
+      column.issues.map((issue) => issueDragId(issue.id)),
+    ]),
+  );
 }
 
 function useIssueBoardDrag(options: {
   columns: readonly BoardColumn[];
-  members: readonly ProjectMember[];
-  onDrop: (
-    activeId: string,
-    overId: string,
-    issueSlot: IssueDropTarget | null,
-    columnIndex: number | null,
-  ) => void;
-}): IssueBoardDragState {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeHeight, setActiveHeight] = useState<number | null>(null);
-  const [activeWidth, setActiveWidth] = useState<number | null>(null);
-  const [issueDrop, setIssueDrop] = useState<IssueDropTarget | null>(null);
-  const columnDropRef = useRef<number | null>(null);
-  const issueDropRef = useRef<IssueDropTarget | null>(null);
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  onDrop: (activeId: string, issueSlot: IssueDropTarget | null, columnIndex: number | null) => void;
+}) {
+  const [previewOrder, setPreviewOrder] = useState<IssueOrder | null>(null);
+  const orderRef = useRef<IssueOrder | null>(null);
+  const activeColumnIndex = useRef<number | null>(null);
+  const sourceIssues = new Map<string, IssueSummary>(
+    options.columns.flatMap((column) =>
+      column.issues.map((issue) => [issueDragId(issue.id), issue] as const),
+    ),
   );
-  const activeIssue =
-    options.columns
-      .flatMap((column) => column.issues)
-      .find((issue) => `issue:${issue.id}` === activeId) ?? null;
-  const activeColumn =
-    options.columns.find((column) => `column:${column.status.id}` === activeId) ?? null;
+  const issueOrder = previewOrder ?? issueOrderFor(options.columns);
+  const columns = options.columns.map((column) => ({
+    ...column,
+    issues: (issueOrder[column.status.id] ?? [])
+      .map((id) => sourceIssues.get(id))
+      .filter((issue): issue is IssueSummary => issue !== undefined),
+  }));
 
-  function rememberDrop(event: DragOverEvent | DragMoveEvent) {
-    if (event.over === null) {
-      return;
+  function clearDrag() {
+    orderRef.current = null;
+    activeColumnIndex.current = null;
+    setPreviewOrder(null);
+  }
+
+  function onDragStart(event: DragStartEvent) {
+    const active = parseDragId(String(event.operation.source?.id));
+
+    if (active?.kind === "issue") {
+      orderRef.current = issueOrderFor(options.columns);
+    } else if (active?.kind === "column") {
+      activeColumnIndex.current = options.columns.findIndex(
+        (column) => column.status.id === active.id,
+      );
     }
+  }
 
-    const active = parseDragId(String(event.active.id));
-    const over = parseDragId(String(event.over.id));
+  function onDragOver(event: DragOverEvent) {
+    const active = parseDragId(String(event.operation.source?.id));
 
-    if (active === null || over === null || active.id === over.id) {
+    if (active?.kind === "issue") {
+      const next = move(orderRef.current ?? issueOrderFor(options.columns), event);
+      orderRef.current = next;
+      setPreviewOrder(next);
+    }
+  }
+
+  function onDragEnd(event: DragEndEvent) {
+    const active = parseDragId(String(event.operation.source?.id));
+    const currentOrder = orderRef.current ?? issueOrderFor(options.columns);
+    const initialColumnIndex = activeColumnIndex.current;
+    clearDrag();
+
+    if (event.canceled || active === null || event.operation.target === null) {
       return;
     }
 
     if (active.kind === "issue") {
-      const slot = issueDropSlot(
-        options.columns,
-        active.id,
-        over.id,
-        pointerPastMiddle(event, event.over.rect, "y"),
-      );
+      const next = move(currentOrder, event);
+      const id = issueDragId(active.id);
+      const target = Object.entries(next).find(([, ids]) => ids.includes(id));
 
-      if (slot === null || sameSlot(issueDropRef.current, slot)) {
-        return;
+      if (target !== undefined) {
+        options.onDrop(id, { statusId: target[0], index: target[1].indexOf(id) }, null);
       }
-
-      issueDropRef.current = slot;
-      setIssueDrop(slot);
       return;
     }
 
-    const index = columnDropSlot(
-      options.columns,
-      active.id,
-      over.id,
-      pointerPastMiddle(event, event.over.rect, "x"),
+    const id = columnDragId(active.id);
+    const next = move(
+      options.columns.map((column) => columnDragId(column.status.id)),
+      event,
     );
+    const index = next.indexOf(id);
 
-    if (index === null || columnDropRef.current === index) {
-      return;
+    if (index >= 0 && index !== initialColumnIndex) {
+      options.onDrop(id, null, index);
     }
-
-    columnDropRef.current = index;
   }
 
-  function clearDrag() {
-    columnDropRef.current = null;
-    issueDropRef.current = null;
-    setActiveHeight(null);
-    setActiveId(null);
-    setActiveWidth(null);
-    setIssueDrop(null);
-  }
-
-  return {
-    activeColumn,
-    activeHeight,
-    activeIssue,
-    activeMember: options.members.find(
-      (member) => member.memberId === activeIssue?.assigneeMemberId,
-    ),
-    activeWidth,
-    issueDrop,
-    onDragCancel: clearDrag,
-    onDragEnd: (event) => {
-      const issueSlot = issueDropRef.current;
-      const columnIndex = columnDropRef.current;
-      clearDrag();
-
-      if (event.over === null) {
-        return;
-      }
-
-      options.onDrop(String(event.active.id), String(event.over.id), issueSlot, columnIndex);
-    },
-    onDragMove: rememberDrop,
-    onDragStart: (event) => {
-      setActiveHeight(event.active.rect.current.initial?.height ?? null);
-      setActiveId(String(event.active.id));
-      setActiveWidth(event.active.rect.current.initial?.width ?? null);
-    },
-    sensors,
-  };
-}
-
-function sameSlot(left: IssueDropTarget | null, right: IssueDropTarget) {
-  return left?.statusId === right.statusId && left.index === right.index;
-}
-
-function pointerPastMiddle(
-  event: DragMoveEvent,
-  rect: { height: number; left: number; top: number; width: number } | null,
-  axis: "x" | "y",
-): boolean {
-  if (rect === null || !(event.activatorEvent instanceof PointerEvent)) {
-    return false;
-  }
-
-  if (axis === "x") {
-    return event.activatorEvent.clientX + event.delta.x > rect.left + rect.width / 2;
-  }
-
-  return event.activatorEvent.clientY + event.delta.y > rect.top + rect.height / 2;
+  return { columns, onDragEnd, onDragOver, onDragStart };
 }
 
 export { useIssueBoardDrag };

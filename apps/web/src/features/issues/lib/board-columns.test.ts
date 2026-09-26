@@ -1,13 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { IssueSummary, ProjectStatusSummary } from "@teamos/shared";
 
-import {
-  columnDropIndex,
-  columnDropSlot,
-  groupBoardColumns,
-  issueDropSlot,
-  issueDropTarget,
-} from "./board-columns";
+import { applyIssueMove, groupBoardColumns } from "./board-columns";
 
 const backlog: ProjectStatusSummary = {
   category: "backlog",
@@ -52,49 +46,36 @@ describe("groupBoardColumns", () => {
   });
 });
 
-describe("issueDropTarget", () => {
-  test("drops a card on another column at the requested index", () => {
-    const columns = groupBoardColumns(
-      [backlog, todo],
-      [issue("a", backlog.id, 0), issue("b", todo.id, 0)],
-    );
+describe("applyIssueMove", () => {
+  test("keeps the displayed slot after moving up or down in one column", () => {
+    const issues = [
+      issue("a", backlog.id, 0),
+      issue("b", backlog.id, 1),
+      issue("c", backlog.id, 2),
+    ];
 
-    expect(issueDropTarget(columns, "a", "b")).toEqual({ index: 0, statusId: todo.id });
+    expect(applyIssueMove(issues, "a", backlog.id, 1).map((item) => item.id)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+    expect(applyIssueMove(issues, "c", backlog.id, 1).map((item) => item.id)).toEqual([
+      "a",
+      "c",
+      "b",
+    ]);
   });
 
-  test("ignores a drop back on the same card", () => {
-    const columns = groupBoardColumns([backlog], [issue("a", backlog.id, 0)]);
+  test("places an issue in another column at the previewed index", () => {
+    const issues = [
+      issue("a", backlog.id, 0),
+      issue("b", backlog.id, 1),
+      issue("c", todo.id, 0),
+      issue("d", todo.id, 1),
+    ];
+    const columns = groupBoardColumns([backlog, todo], applyIssueMove(issues, "a", todo.id, 1));
 
-    expect(issueDropTarget(columns, "a", "a")).toBeNull();
-  });
-});
-
-describe("issueDropSlot", () => {
-  test("inserts after the hovered card when the pointer is in its lower half", () => {
-    const columns = groupBoardColumns(
-      [backlog],
-      [issue("a", backlog.id, 0), issue("b", backlog.id, 1)],
-    );
-
-    expect(issueDropSlot(columns, "a", "b", true)).toEqual({ index: 1, statusId: backlog.id });
-    expect(issueDropSlot(columns, "a", "b")).toEqual({ index: 0, statusId: backlog.id });
-  });
-});
-
-describe("columnDropSlot", () => {
-  test("inserts after the hovered column when the pointer is in its right half", () => {
-    const columns = groupBoardColumns([backlog, todo], []);
-
-    expect(columnDropSlot(columns, backlog.id, todo.id, true)).toBe(1);
-    expect(columnDropSlot(columns, backlog.id, todo.id)).toBeNull();
-  });
-});
-
-describe("columnDropIndex", () => {
-  test("returns the over column index", () => {
-    const columns = groupBoardColumns([backlog, todo], []);
-
-    expect(columnDropIndex(columns, backlog.id, todo.id)).toBe(1);
-    expect(columnDropIndex(columns, backlog.id, backlog.id)).toBeNull();
+    expect(columns[0]?.issues.map((item) => item.id)).toEqual(["b"]);
+    expect(columns[1]?.issues.map((item) => item.id)).toEqual(["c", "a", "d"]);
   });
 });
