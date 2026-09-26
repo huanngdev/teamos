@@ -109,6 +109,7 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 ## In Progress
 
 - Issue board screen in `docs/plans/issue-board-frontend.md` is implemented on top of the API in `docs/plans/issue-board-backend.md`. Labels, a list view, and realtime are still out of scope.
+- The board uses the current dnd-kit React multi-list pattern for issue and column sorting, including empty-column drops and keyboard cancellation. Columns have complete borders during sorting, and each issue list scrolls within its remaining column height.
 - Invitation delivery reliability through a durable outbox and background worker.
 
 ## Not Started
