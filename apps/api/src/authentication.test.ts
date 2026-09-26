@@ -16,7 +16,9 @@ import {
   createFakeOrganizationAccessService,
   createFakeOrganizationManagementService,
   createFakeOrganizationMemberService,
+  createFakeIssueService,
   createFakeProjectService,
+  createFakeProjectStatusService,
   createFakeUserProfileService,
   createTestLogger,
 } from "@/testing/organization.js";
@@ -61,9 +63,11 @@ function createOrganizationServices(
   ]);
 
   return {
+    issues: createFakeIssueService(),
     management: createFakeOrganizationManagementService(),
     members,
     organizationAccess: createFakeOrganizationAccessService(organizations),
+    projectStatuses: createFakeProjectStatusService(),
     projects: createFakeProjectService(),
   };
 }

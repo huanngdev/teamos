@@ -51,6 +51,7 @@ interface Harness {
     created: { email: string; role: string }[];
     deleted: string[];
     removed: string[];
+    removalOrder: string[];
     roleUpdates: { memberId: string; role: string }[];
     updated: { name: string; organizationId: string }[];
   };
@@ -74,6 +75,7 @@ function createHarness(
     created: [],
     deleted: [],
     removed: [],
+    removalOrder: [],
     roleUpdates: [],
     updated: [],
   };
@@ -106,6 +108,7 @@ function createHarness(
       return [...(options.pendingInvitations ?? [])];
     },
     removeMember: async ({ memberIdOrEmail }) => {
+      calls.removalOrder.push("gateway");
       calls.removed.push(memberIdOrEmail);
     },
     updateMemberRole: async ({ memberId, role }) => {
@@ -129,6 +132,9 @@ function createHarness(
   };
 
   const service = createOrganizationManagementService({
+    clearAssignees: async () => {
+      calls.removalOrder.push("clear");
+    },
     gateway,
     logger: new MockLogLayer(),
     members: {
@@ -390,6 +396,7 @@ describe("member management", () => {
     });
 
     expect(calls.removed).toEqual(["member-plain"]);
+    expect(calls.removalOrder).toEqual(["clear", "gateway"]);
   });
 
   test("maps the last-owner protection to a conflict", async () => {

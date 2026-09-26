@@ -192,7 +192,8 @@ Project access is a TeamOS domain concern; Better Auth organization roles and te
 | Update project settings  | Yes         | Yes  | No     | No     | No                |
 | Manage project members   | Yes         | Yes  | No     | No     | No                |
 | Create or update issues  | Yes         | Yes  | Yes    | No     | No                |
-| Delete issues            | Yes         | Yes  | Yes    | No     | No                |
+| Delete issues            | Yes         | Yes  | No     | No     | No                |
+| Manage issue columns     | Yes         | Yes  | No     | No     | No                |
 | Delete a project         | Yes         | No   | No     | No     | No                |
 
 `GET /api/organizations/{slug}/projects` accepts an optional `search` term that matches the project name with the same literal, case-insensitive substring comparison used for members.
@@ -202,6 +203,21 @@ Every workspace member may create a project and becomes its `lead` in the same t
 Cross-tenant integrity is enforced by the database, not only by service checks. `member(id, organization_id)` carries a composite unique constraint and `project_membership` references both `project(id, organization_id)` and `member(id, organization_id)` with composite foreign keys, so granting a project role to a member of another workspace fails at the database level.
 
 An inaccessible project is reported as `404 PROJECT_NOT_FOUND` even when it exists, so private projects cannot be enumerated. A visible project with a denied action returns `403 FORBIDDEN`.
+
+### Issues
+
+Issue columns and cards are TeamOS data on top of the project authorization above. A new project is seeded with Backlog, Todo, In Progress, Done, and Canceled. Backlog is the default column. A new issue with no `statusId` is inserted at the top of that column. The client sends a drop `index`. It never sends a raw `position`.
+
+- `GET /api/organizations/{slug}/projects/{projectId}/statuses` lists columns in board order.
+- `POST /api/organizations/{slug}/projects/{projectId}/statuses` adds a column. This requires project `update`, so a lead or an organization administrator can do it and a member cannot.
+- `PATCH /api/organizations/{slug}/projects/{projectId}/statuses/{statusId}` renames or reorders a column. Category cannot change.
+- `DELETE /api/organizations/{slug}/projects/{projectId}/statuses/{statusId}` deletes an empty non-default column. The default column and a column that still has issues return `409 CONFLICT`.
+- `GET /api/organizations/{slug}/projects/{projectId}/issues` returns at most 200 issues plus the unfiltered `total`.
+- `POST /api/organizations/{slug}/projects/{projectId}/issues` creates an issue. A project member can create and update. A viewer cannot.
+- `PATCH /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` updates fields and, when `statusId` or `index` is present, places the card.
+- `DELETE /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` deletes an issue. A project member cannot delete an issue. A lead, owner, or admin can.
+
+A missing issue in a visible project is `404 ISSUE_NOT_FOUND`. A missing column is `404 PROJECT_STATUS_NOT_FOUND`. A duplicate column name is `409 PROJECT_STATUS_NAME_TAKEN`. A project accepts at most 200 issues and 20 columns.
 
 ## Testing The API
 

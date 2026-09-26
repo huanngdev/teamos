@@ -20,6 +20,8 @@ import { and, asc, count, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 
 import type { OrganizationAccess } from "@/auth/index.js";
 import { AppError } from "@/errors/index.js";
+import { clearIssueAssignees } from "@/services/issues.js";
+import { insertDefaultProjectStatuses } from "@/services/project-statuses.js";
 import { buildLiteralSearchCondition } from "@/services/search.js";
 
 type ProjectTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -279,6 +281,11 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
             projectId: record.id,
             role: "lead",
           });
+          await insertDefaultProjectStatuses(transaction, {
+            createdByMemberId: organization.memberId,
+            organizationId: organization.organizationId,
+            projectId: record.id,
+          });
 
           return record;
         });
@@ -439,6 +446,16 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
         if (targetRole === "lead") {
           await assertLeadCanChange(transaction, projectId, organization.role);
         }
+
+        /*
+         * Assignee points at the member with ON DELETE RESTRICT, so clear this
+         * project's assignments before the membership row disappears.
+         */
+        await clearIssueAssignees(transaction, {
+          memberId: targetMemberId,
+          organizationId: organization.organizationId,
+          projectId,
+        });
 
         await transaction
           .delete(projectMembership)

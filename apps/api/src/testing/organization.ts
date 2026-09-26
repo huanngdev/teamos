@@ -11,9 +11,11 @@ import type {
   UserGateway,
 } from "@/auth/index.js";
 import type {
+  IssueService,
   OrganizationManagementService,
   OrganizationMemberService,
   ProjectService,
+  ProjectStatusService,
   UserProfileService,
 } from "@/services/index.js";
 import type { ProjectSummary } from "@teamos/shared";
@@ -191,6 +193,29 @@ function createFakeOrganizationManagementService(): OrganizationManagementServic
   };
 }
 
+function rejectFakeMutation(): never {
+  throw new Error("Fake issue service does not mutate.");
+}
+
+function createFakeIssueService(): IssueService {
+  return {
+    clearAssignees: async () => {},
+    create: rejectFakeMutation,
+    list: async () => ({ issues: [], total: 0 }),
+    remove: async () => {},
+    update: rejectFakeMutation,
+  };
+}
+
+function createFakeProjectStatusService(): ProjectStatusService {
+  return {
+    create: rejectFakeMutation,
+    list: async () => [],
+    remove: async () => {},
+    update: rejectFakeMutation,
+  };
+}
+
 function createFakeProjectService(projects: readonly ProjectSummary[] = []): ProjectService {
   return {
     create: async ({ request }) => ({
@@ -292,11 +317,13 @@ export {
   buildOrganizationAccess,
   buildSession,
   createFakeAuthService,
+  createFakeIssueService,
   createFakeOrganizationAccessService,
   createFakeOrganizationGateway,
   createFakeOrganizationManagementService,
   createFakeOrganizationMemberService,
   createFakeProjectService,
+  createFakeProjectStatusService,
   createFakeUserGateway,
   createFakeUserProfileService,
   createTestLogger,

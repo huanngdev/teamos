@@ -2,8 +2,10 @@ import { createDatabase } from "@teamos/db";
 import { sql } from "drizzle-orm";
 
 import { createOrganizationAccessService } from "../src/auth/organization-access.js";
+import { createIssueService } from "../src/services/issues.js";
 import { createOrganizationMemberService } from "../src/services/organization-members.js";
 import { createProjectService } from "../src/services/projects.js";
+import { createProjectStatusService } from "../src/services/project-statuses.js";
 
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://teamos_user:teamos_password@localhost:5432/teamos";
@@ -92,6 +94,8 @@ async function main() {
   const access = createOrganizationAccessService(db);
   const members = createOrganizationMemberService(db);
   const projects = createProjectService({ db, members });
+  const issues = createIssueService({ db, members });
+  const statuses = createProjectStatusService(db);
 
   const orgA = await access.resolve({ organizationSlug: ids.orgA, userId: ids.userA });
   const orgB = await access.resolve({ organizationSlug: ids.orgB, userId: ids.userB });
@@ -168,6 +172,21 @@ async function main() {
       projects.listMembers({ organization: orgAMember, projectId: privateProject.id }),
     ),
   );
+  check(
+    "private project issues are hidden from an unassigned member",
+    await rejects(() => issues.list({ organization: orgAMember, projectId: privateProject.id })),
+  );
+  const seededStatuses = await statuses.list({
+    organization: orgA,
+    projectId: privateProject.id,
+  });
+  const defaultStatus = seededStatuses.find((status) => status.isDefault);
+  check("a new project seeds five columns", seededStatuses.length === 5);
+  check(
+    "exactly one column is the default backlog",
+    seededStatuses.filter((status) => status.isDefault).length === 1 &&
+      defaultStatus?.name === "Backlog",
+  );
 
   const workspaceProject = await projects.create({
     organization: orgAMember,
@@ -238,10 +257,127 @@ async function main() {
     (await projects.list({ organization: orgAMember })).length === 1,
   );
 
+  const firstIssue = await issues.create({
+    organization: orgAMember,
+    projectId: privateProject.id,
+    request: { title: "First" },
+  });
+  const secondIssue = await issues.create({
+    organization: orgA,
+    projectId: privateProject.id,
+    request: { title: "Second" },
+  });
+  const board = await issues.list({ organization: orgA, projectId: privateProject.id });
+  const todo = seededStatuses.find((status) => status.name === "Todo");
+  check(
+    "first issue lands on the default column as number 1",
+    firstIssue.statusId === defaultStatus?.id && firstIssue.number === 1,
+  );
+  check("newer issue sorts ahead in the same column", board.issues[0]?.id === secondIssue.id);
+  check(
+    "member cannot create a column",
+    await rejects(() =>
+      statuses.create({
+        organization: orgAMember,
+        projectId: privateProject.id,
+        request: { category: "started", name: "Review" },
+      }),
+    ),
+  );
+  check(
+    "member cannot delete an issue",
+    await rejects(() =>
+      issues.remove({
+        issueId: firstIssue.id,
+        organization: orgAMember,
+        projectId: privateProject.id,
+      }),
+    ),
+  );
+  if (todo !== undefined) {
+    const moved = await issues.update({
+      issueId: firstIssue.id,
+      organization: orgAMember,
+      projectId: privateProject.id,
+      request: { index: 0, statusId: todo.id },
+    });
+    check("member can move an issue to another column", moved.statusId === todo.id);
+    check(
+      "a column that still has an issue cannot be deleted",
+      await rejects(() =>
+        statuses.remove({
+          organization: orgA,
+          projectId: privateProject.id,
+          statusId: todo.id,
+        }),
+      ),
+    );
+  } else {
+    check("member can move an issue to another column", false);
+    check("a column that still has an issue cannot be deleted", false);
+  }
+  check(
+    "the default column cannot be deleted",
+    defaultStatus !== undefined &&
+      (await rejects(() =>
+        statuses.remove({
+          organization: orgA,
+          projectId: privateProject.id,
+          statusId: defaultStatus.id,
+        }),
+      )),
+  );
+  try {
+    await issues.remove({
+      issueId: secondIssue.id,
+      organization: orgA,
+      projectId: privateProject.id,
+    });
+    check("owner can delete an issue", true);
+  } catch {
+    check("owner can delete an issue", false);
+  }
+  try {
+    const added = await statuses.create({
+      organization: orgA,
+      projectId: privateProject.id,
+      request: { category: "started", name: "Review" },
+    });
+    check("owner can add a column", added.name === "Review");
+  } catch {
+    check("owner can add a column", false);
+  }
+
   const memberProject = await projects.create({
     organization: orgAMember,
     request: { name: "Solo", slug: "solo", visibility: "private" },
   });
+  try {
+    const leadColumn = await statuses.create({
+      organization: orgAMember,
+      projectId: memberProject.id,
+      request: { category: "started", name: "QA" },
+    });
+    check("project lead can add a column", leadColumn.name === "QA");
+  } catch {
+    check("project lead can add a column", false);
+  }
+  const otherStatuses = await statuses.list({
+    organization: orgA,
+    projectId: memberProject.id,
+  });
+  const otherStatus = otherStatuses[0];
+  check(
+    "a status from another project is rejected",
+    otherStatus !== undefined &&
+      (await rejects(() =>
+        issues.create({
+          organization: orgA,
+          projectId: privateProject.id,
+          request: { statusId: otherStatus.id, title: "Cross" },
+        }),
+      )),
+  );
   check(
     "sole project lead cannot demote themselves",
     await rejects(() =>
@@ -262,6 +398,16 @@ async function main() {
   } catch {
     check("organization owner can recover the last lead", false);
   }
+  check(
+    "viewer cannot create an issue",
+    await rejects(() =>
+      issues.create({
+        organization: orgAMember,
+        projectId: memberProject.id,
+        request: { title: "Nope" },
+      }),
+    ),
+  );
 }
 
 try {
