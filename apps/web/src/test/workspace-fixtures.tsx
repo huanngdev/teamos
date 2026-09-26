@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router";
 import { ProjectLayout } from "@/layouts/project-layout";
 import { WorkspaceLayout } from "@/layouts/workspace-layout";
 import { WorkspaceMembersRoute } from "@/routes/workspace-members-route";
+import { ProjectIssuesRoute } from "@/routes/project-issues-route";
 import { ProjectOverviewRoute } from "@/routes/project-overview-route";
 import { WorkspaceProjectsRoute } from "@/routes/workspace-projects-route";
 import { WorkspaceSettingsRoute } from "@/routes/workspace-settings-route";
@@ -80,6 +81,27 @@ function organizationContext(
   };
 }
 
+const boardStatuses = {
+  statuses: [
+    {
+      category: "backlog",
+      id: "11111111-1111-4111-8111-111111111111",
+      isDefault: true,
+      name: "Backlog",
+      position: 0,
+    },
+    {
+      category: "unstarted",
+      id: "22222222-2222-4222-8222-222222222222",
+      isDefault: false,
+      name: "Todo",
+      position: 1000,
+    },
+  ],
+} as const;
+
+const emptyIssues = { issues: [], total: 0 } as const;
+
 const projectResponse = {
   projects: [
     {
@@ -124,6 +146,12 @@ function useWorkspaceHandlers(options: WorkspaceHandlerOptions = {}) {
       return HttpResponse.json(organizationContext(role, { name }));
     }),
     http.delete(`${apiUrl}/api/organizations/acme`, () => new HttpResponse(null, { status: 204 })),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/statuses`, () =>
+      HttpResponse.json(boardStatuses),
+    ),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues`, () =>
+      HttpResponse.json(emptyIssues),
+    ),
     http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/members`, () =>
       HttpResponse.json({
         members: [
@@ -186,6 +214,7 @@ function renderWorkspace(route = "/workspaces/acme/projects") {
     <Routes>
       <Route element={<ProjectLayout />} path="/workspaces/:organizationSlug/projects/:projectSlug">
         <Route element={<ProjectOverviewRoute />} index />
+        <Route element={<ProjectIssuesRoute />} path="issues" />
       </Route>
       <Route element={<WorkspaceLayout />} path="/workspaces/:organizationSlug">
         <Route element={<Navigate replace to="projects" />} index />
@@ -204,6 +233,7 @@ export {
   organizationContext,
   organizationsResponse,
   ownerMember,
+  boardStatuses,
   projectResponse,
   renderWorkspace,
   secondMember,

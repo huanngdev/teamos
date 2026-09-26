@@ -1,4 +1,3 @@
-/* Query keys owned by the projects feature. */
 function projectKeys(slug: string) {
   return {
     list: (search = "") => ["organization", slug, "projects", search] as const,

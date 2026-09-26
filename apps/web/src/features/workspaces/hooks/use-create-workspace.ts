@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { slugify, type OrganizationSummary } from "@teamos/shared";
 
 import { readAuthClientError, authClient } from "@/features/auth";
-import { notify } from "@/shared";
+import { notify, useShellStore } from "@/shared";
 import { ORGANIZATIONS_QUERY_KEY } from "../query-keys";
 import { workspaceProjectsPath } from "../lib/workspace-paths";
 
@@ -85,11 +85,12 @@ function useCreateWorkspace() {
         slug: data.slug,
       };
 
-      queryClient.setQueryData<OrganizationSummary[]>(ORGANIZATIONS_QUERY_KEY, (current) =>
-        current?.some((organization) => organization.id === created.id) === true
-          ? current
-          : [...(current ?? []), created],
+      const nextOrganizations = [...(useShellStore.getState().organizations ?? []), created].filter(
+        (organization, index, organizations) =>
+          organizations.findIndex((item) => item.id === organization.id) === index,
       );
+      useShellStore.getState().setOrganizations(nextOrganizations);
+      queryClient.setQueryData<OrganizationSummary[]>(ORGANIZATIONS_QUERY_KEY, nextOrganizations);
       await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
 
       notify.success("Workspace created");

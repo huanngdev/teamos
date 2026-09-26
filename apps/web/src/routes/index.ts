@@ -3,6 +3,7 @@ export { CreateWorkspaceRoute } from "./create-workspace-route";
 export { InvitationRoute } from "./invitation-route";
 export { LoginRoute } from "./login-route";
 export { NotFoundRoute } from "./not-found-route";
+export { ProjectIssuesRoute } from "./project-issues-route";
 export { ProjectOverviewRoute } from "./project-overview-route";
 export { ProfileRoute } from "./profile-route";
 export { VerifyEmailRoute } from "./verify-email-route";

@@ -13,5 +13,6 @@ export {
 } from "./hooks/use-project-list";
 export { useProjectMembers, type ProjectMembersState } from "./hooks/use-project-members";
 export { useProjects, type ProjectsState } from "./hooks/use-projects";
+export { listProjectMembers } from "./api/project-api";
 export { projectOverviewPath } from "./lib/project-paths";
 export { projectKeys } from "./query-keys";

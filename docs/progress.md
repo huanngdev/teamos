@@ -4,7 +4,7 @@ Last updated: 2026-09-26
 
 ## Current Milestone
 
-TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentication with organization-scoped authorization. The next milestone is the first durable project and issue workflow.
+TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentication with organization-scoped authorization. The next milestone is the project issue board described in `docs/plans/issue-list.md`.
 
 ## Completed
 
@@ -108,13 +108,12 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 
 ## In Progress
 
-- Issue domain model and workflow.
+- Issue board screen in `docs/plans/issue-board-frontend.md` is implemented on top of the API in `docs/plans/issue-board-backend.md`. Labels, a list view, and realtime are still out of scope.
 - Invitation delivery reliability through a durable outbox and background worker.
 
 ## Not Started
 
-- Issue Drizzle tables, statuses, priorities, labels, assignment, and ordering.
-- Issue board and list screens.
+- Issue labels, list view, comments, and realtime. The first board slice deliberately excludes them.
 - Workspace and project settings beyond member management.
 - Durable chat channels and messages.
 - Schedule, events, and team availability.
@@ -177,7 +176,7 @@ The API foundation currently has focused tests for security headers, CORS, reque
 
 ## Recommended Next Priorities
 
-1. Add the issue tables, workflow, and screens on top of the existing project authorization.
+1. Implement the agreed issue board in `docs/plans/issue-list.md`: seeded workflow columns, per-column ordering, and a board on the existing project authorization. Labels, a list view, and realtime stay out of this slice.
 2. Add ownership transfer and self-service workspace leaving with last-owner protection.
 3. Add a durable outbox and background worker for transactional email, including invitation resend.
 4. Add integration tests against PostgreSQL, Redis, and MinIO for real session and membership flows.

@@ -19,3 +19,4 @@ export { useIsMobile } from "./hooks/use-mobile";
 export { useModeToggle } from "./hooks/use-mode-toggle";
 export { notify } from "./notifications/notify";
 export { queryClient } from "./query/query-client";
+export { memberCacheKey, useShellStore } from "./stores/shell-store";

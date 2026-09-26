@@ -1,4 +1,4 @@
-import { LayoutDashboardIcon } from "lucide-react";
+import { ListChecksIcon } from "@phosphor-icons/react";
 import { Link, NavLink } from "react-router";
 
 import { AccountMenu, type AccountMenuUser } from "@/features/auth";
@@ -16,10 +16,14 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Logo } from "@/shared";
+import { SquaresFourIcon } from "@phosphor-icons/react";
 
 interface ProjectSidebarView {
   isSigningOut: boolean;
+  issuesActive: boolean;
+  issuesPath: string;
   onSignOut: () => void;
+  overviewActive: boolean;
   overviewPath: string;
   projectName: string | null;
   projectsPath: string;
@@ -56,12 +60,22 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive
+                  isActive={view.overviewActive}
                   render={<NavLink end to={view.overviewPath} />}
                   tooltip="Overview"
                 >
-                  <LayoutDashboardIcon />
+                  <SquaresFourIcon className="text-muted-foreground" />
                   <span>Overview</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={view.issuesActive}
+                  render={<NavLink end to={view.issuesPath} />}
+                  tooltip="Issues"
+                >
+                  <ListChecksIcon className="text-muted-foreground" />
+                  <span>Issues</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

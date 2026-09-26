@@ -1,8 +1,3 @@
-/*
- * Member and invitation query keys. Membership changes also affect the
- * workspace member count, so member hooks may invalidate the workspaces
- * feature's `workspaceKeys(...).detail()` as well.
- */
 function memberKeys(slug: string) {
   return {
     invitations: () => ["organization", slug, "invitations"] as const,

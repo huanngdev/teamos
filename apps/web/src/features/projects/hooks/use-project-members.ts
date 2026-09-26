@@ -9,7 +9,7 @@ import {
 } from "@teamos/shared";
 import { useState } from "react";
 
-import { notify } from "@/shared";
+import { notify, useShellStore } from "@/shared";
 import { listProjectMembers, removeProjectMember, setProjectMember } from "../api/project-api";
 import { useProjectListInvalidator } from "./use-project-list";
 import { projectKeys } from "../query-keys";
@@ -59,6 +59,10 @@ function useProjectMembers(options: UseProjectMembersOptions): ProjectMembersSta
     },
     onSettled: invalidateList,
     onSuccess: () => {
+      if (selectedProjectId !== null) {
+        useShellStore.getState().clearMembers(options.organizationSlug, selectedProjectId);
+      }
+
       notify.success("Project role updated");
     },
   });
@@ -71,6 +75,10 @@ function useProjectMembers(options: UseProjectMembersOptions): ProjectMembersSta
     },
     onSettled: invalidateList,
     onSuccess: () => {
+      if (selectedProjectId !== null) {
+        useShellStore.getState().clearMembers(options.organizationSlug, selectedProjectId);
+      }
+
       notify.success("Member removed from project");
     },
   });

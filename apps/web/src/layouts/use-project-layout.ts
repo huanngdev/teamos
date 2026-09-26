@@ -1,8 +1,9 @@
 import type { OrganizationSummary, ProjectSummary } from "@teamos/shared";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useMatch, useNavigate, useParams } from "react-router";
 
 import { useAuthSession, useSignOut } from "@/features/auth";
+import { projectIssuesPath } from "@/features/issues";
 import {
   projectOverviewPath,
   useCreateProjectForm,
@@ -32,6 +33,7 @@ interface ProjectLayoutView extends ProjectSidebarView {
   organizationSlug: string;
   organizations: readonly OrganizationSummary[];
   organizationsErrorMessage: string | null;
+  pageLabel: string | null;
   projectSlug: string;
   projects: readonly ProjectSummary[];
   signOutError: string | null;
@@ -45,6 +47,14 @@ function useProjectLayout(): ProjectLayoutState {
   const { organizationSlug: organizationSlugParam, projectSlug = "" } = useParams();
   const organizationSlug = organizationSlugParam ?? "";
   const navigate = useNavigate();
+  const overviewMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug",
+  });
+  const issuesMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug/issues",
+  });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const workspace = useWorkspace(organizationSlug);
   const organizations = useOrganizations();
@@ -111,6 +121,10 @@ function useProjectLayout(): ProjectLayoutState {
       organizationSlug: workspace.organization.slug,
       organizations: organizations.organizations,
       organizationsErrorMessage: organizations.errorMessage,
+      pageLabel: projectPageLabel(overviewMatch !== null, issuesMatch !== null),
+      issuesActive: issuesMatch !== null,
+      issuesPath: projectIssuesPath(organizationSlug, projectSlug),
+      overviewActive: overviewMatch !== null,
       overviewPath: projectOverviewPath(organizationSlug, projectSlug),
       projectName,
       projectSlug,
@@ -124,6 +138,15 @@ function useProjectLayout(): ProjectLayoutState {
       },
     },
   };
+}
+
+function projectPageLabel(isOverview: boolean, isIssues: boolean): string | null {
+  const pages = [
+    { active: isOverview, label: "Overview" },
+    { active: isIssues, label: "Issues" },
+  ];
+
+  return pages.find((page) => page.active)?.label ?? null;
 }
 
 export { useProjectLayout, type ProjectLayoutState, type ProjectLayoutView };

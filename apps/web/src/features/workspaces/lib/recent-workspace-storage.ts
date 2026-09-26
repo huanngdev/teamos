@@ -1,8 +1,3 @@
-/*
- * The previously opened workspace is remembered per authenticated user so a
- * sign-out and sign-in on the same browser returns to the same place, while a
- * second account on the same browser never inherits it.
- */
 const RECENT_WORKSPACE_KEY_PREFIX = "teamos.recent-workspace.";
 
 function recentWorkspaceKey(userId: string): string {

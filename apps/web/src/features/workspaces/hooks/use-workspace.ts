@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { OrganizationContext } from "@teamos/shared";
 
+import { useShellStore } from "@/shared";
 import { ApiClientError } from "@/shared/api/api-client";
 import { getOrganizationContext } from "../api/organization-api";
 import { workspaceKeys } from "../query-keys";
@@ -12,12 +13,24 @@ type WorkspaceState =
   | { message: string; status: "error" };
 
 function useWorkspace(organizationSlug: string): WorkspaceState {
+  const cached = useShellStore((state) => state.workspaces[organizationSlug]);
+  const setWorkspace = useShellStore((state) => state.setWorkspace);
   const query = useQuery({
-    queryFn: () => getOrganizationContext(organizationSlug),
+    enabled: organizationSlug.length > 0 && cached === undefined,
+    queryFn: async () => {
+      const workspace = await getOrganizationContext(organizationSlug);
+      setWorkspace(organizationSlug, workspace);
+
+      return workspace;
+    },
     queryKey: workspaceKeys(organizationSlug).detail(),
     retry: (failureCount, error) =>
       !(error instanceof ApiClientError && error.status === 404) && failureCount < 1,
   });
+
+  if (cached !== undefined) {
+    return { organization: cached, status: "ready" };
+  }
 
   if (query.isPending) {
     return { status: "loading" };
