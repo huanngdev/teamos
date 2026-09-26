@@ -306,6 +306,9 @@ test("blocks direct calls to the replaced Better Auth management endpoints", asy
     "/api/auth/organization/leave",
     "/api/auth/organization/list-invitations/",
     "/api/auth/organization/%69nvite-member",
+    "/api/auth/update-user",
+    "/api/auth/update-user/",
+    "/api/auth/%75pdate-user",
   ];
 
   for (const path of blocked) {

@@ -34,7 +34,9 @@ test("shows dependency failures and retries on request", () => {
   render(<ReadinessScreen state={unavailableState} onRetry={onRetry} />);
 
   expect(screen.getByText("Backend not ready")).toBeInTheDocument();
-  expect(screen.getByText("error")).toBeInTheDocument();
+  expect(screen.getByText("Unavailable")).toBeInTheDocument();
+  expect(screen.queryByText("error")).not.toBeInTheDocument();
+  expect(screen.getAllByText("Ready")).toHaveLength(2);
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(onRetry).toHaveBeenCalledOnce();
 });

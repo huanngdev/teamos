@@ -1,3 +1,4 @@
+import { getOrganizationRoleLabel, parseOrganizationRole } from "@teamos/shared";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 
 import { AuthCard } from "@/features/auth/components/auth-card";
@@ -119,6 +120,7 @@ function InvitationView({ invitationId }: InvitationViewProps) {
   }
 
   const record = invitation.state.invitation;
+  const role = parseOrganizationRole(record.role ?? "member") ?? "member";
 
   return (
     <AuthCard
@@ -129,7 +131,7 @@ function InvitationView({ invitationId }: InvitationViewProps) {
         <div className="rounded-lg border px-3 py-2 text-sm">
           <p className="font-medium">{record.organizationName ?? "Organization"}</p>
           <p className="text-muted-foreground">{record.email}</p>
-          <p className="text-muted-foreground">Role: {record.role ?? "member"}</p>
+          <p className="text-muted-foreground">Role: {getOrganizationRoleLabel(role)}</p>
         </div>
 
         {invitation.actionError === null ? null : (

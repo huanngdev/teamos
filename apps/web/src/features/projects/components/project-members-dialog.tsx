@@ -1,6 +1,9 @@
 import {
   getInitials,
+  getProjectRoleLabel,
   parseProjectRole,
+  projectRoleLabels,
+  projectRoles,
   type ProjectMember,
   type ProjectRole,
 } from "@teamos/shared";
@@ -45,8 +48,6 @@ interface ProjectMembersDialogProps {
   pendingMemberId: string | null;
   projectName: string;
 }
-
-const projectRoles: readonly ProjectRole[] = ["lead", "member", "viewer"];
 
 function ProjectMembersDialog({
   errorMessage,
@@ -115,6 +116,7 @@ function ProjectMembersDialog({
                 </ItemContent>
                 <ItemActions>
                   <Select
+                    items={projectRoleLabels}
                     onValueChange={(value) => {
                       const role = parseProjectRole(value);
 
@@ -131,7 +133,7 @@ function ProjectMembersDialog({
                       <SelectGroup>
                         {projectRoles.map((role) => (
                           <SelectItem key={role} value={role}>
-                            {role}
+                            {getProjectRoleLabel(role)}
                           </SelectItem>
                         ))}
                       </SelectGroup>

@@ -13,7 +13,7 @@ export { PageError } from "./components/page-error";
 export { PageLoading } from "./components/page-loading";
 export { SearchToolbar, type SearchToolbarAction } from "./components/search-toolbar";
 export { ThemeProvider } from "./components/theme-provider";
-export { useActiveTheme, type ActiveTheme } from "./hooks/use-active-theme";
+export { getActiveThemeLabel, useActiveTheme, type ActiveTheme } from "./hooks/use-active-theme";
 export { useDebouncedValue } from "./hooks/use-debounced-value";
 export { useIsMobile } from "./hooks/use-mobile";
 export { useModeToggle } from "./hooks/use-mode-toggle";

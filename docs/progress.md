@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-09-20
+Last updated: 2026-09-26
 
 ## Current Milestone
 
@@ -82,13 +82,18 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 - The browser reads its session from the sanitized `/api/me` response, so the Better Auth session token stays out of JavaScript; session failures surface as a retryable error instead of a forced logout.
 - Login preserves the requested deep link, and invitation sign-in carries the invitation through email verification so the recipient returns to it.
 - Better Auth mutations reset their pending state on thrown errors, and invitation acceptance falls back to the root route if opening the workspace fails.
+- Profile updates go through `PATCH /api/me`: the facade accepts only a trimmed 1-80 character display name, applies the per-actor management rate limit, forwards Better Auth's refreshed session cookie, and writes a `user.profile.updated` audit record containing only the actor and changed field names.
+- The native `/api/auth/update-user` endpoint is blocked for browser callers, so name edits cannot bypass TeamOS validation and auditing; email, avatar, and password changes have no TeamOS flow yet.
 
 ### Frontend architecture
 
 - Feature-first `apps/web/src` layout: `app` (providers and routes), `layouts` (router layouts plus their orchestration hooks), `routes` (`*-route.tsx` URL modules), `features/<capability>` (`api`, `components`, `hooks`, `lib`, `query-keys`), and `shared` for genuinely cross-feature browser code.
 - `features/auth`, `features/workspaces`, `features/members`, `features/projects`, and `features/system` now own their components, hooks, API modules, and query keys; each exposes one `index.ts` barrel.
 - Generated shadcn primitives stay in `apps/web/src/components/ui` and the `cn` helper stays on the shadcn `utils` alias; neither is relocated for organizational reasons.
-- Nested React Router routes: `/workspaces/:organizationSlug` renders a `WorkspaceLayout` with `projects` and `members` children, an index redirect, and an explicit not-found route instead of a catch-all redirect.
+- Nested React Router routes: `/workspaces/:organizationSlug` renders a `WorkspaceLayout` with `projects`, `members`, and `settings` children, an index redirect, and an explicit not-found route instead of a catch-all redirect. A project overview lives beside that layout at `/workspaces/:organizationSlug/projects/:projectSlug`.
+- Workspace pages keep the centered tab shell. Only a project page uses the inset, icon-collapsible shadcn sidebar, with a back link to Projects, an Overview item, and the account identity in the footer. The overview is built from the visible project list and its members.
+- Account screens live under `/account` behind a dedicated `AccountLayout` that is a sibling of `WorkspaceLayout`; `/account/profile` renders the profile screen without loading any workspace or organization context.
+- The profile screen shows an avatar preview and read-only email, edits the display name with a single save action, updates the `current-user` cache so the account menu reflects the change immediately, and refreshes the shared organization member caches.
 - Workspace tabs are route-aware links, so refreshing, linking, and browser back/forward keep the selected tab.
 - The previously oversized workspace page was split into a workspace layout hook, two feature route modules, and focused `useProjectList`/`useProjectMembers`/`useProjectSearch` hooks.
 - The 566-line workspace integration test was split into layout, projects, and members suites with shared MSW fixtures in `apps/web/src/test`.
@@ -96,6 +101,7 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 - Project cards use the shadcn `Card` composition with a semantic heading, visibility badge, member count, and an overflow action menu.
 - The members view is a semantic responsive `Table`: the role column collapses under the member email on narrow screens, and pending invitations use their own table with one overflow action menu.
 - Application code no longer passes compact `size="sm"` overrides; only semantic icon sizes such as `size="icon"` remain.
+- Coded domain values are rendered through typed label mappers: `getOrganizationRoleLabel`, `getProjectRoleLabel`, and `getProjectVisibilityLabel` live in `packages/shared`, readiness dependency labels and theme labels are mapped where they are used, and Base UI selects receive the label record through `items` so the trigger shows the label rather than the stored value.
 - Workspace selection is deterministic: the client remembers the last opened workspace per user in `localStorage`, reopens it while the user is still a member, and otherwise opens the newest workspace using the organization `createdAt` rather than the undefined Better Auth row order. Users without workspaces go to `/workspaces/new`.
 - Sign-out now clears the query cache and navigates only after the server confirms it; a failed sign-out keeps the user in place and surfaces a retryable alert.
 - `OrganizationSummary` and the organization context response now include `createdAt`.
@@ -144,7 +150,7 @@ The current repository has scripts for:
 - `bun run db:migrate`
 - `bun run --cwd apps/api verify:isolation`
 
-The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, CSRF behavior including bodyless unsafe requests, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, member listing pagination and search, invitation and member management authorization, workspace rename and deletion authorization and confirmation, blocked native Better Auth endpoints, per-actor management rate limiting, and organization membership isolation. Shared utilities have tests for slug generation, organization roles, member-management policies, project permission policies, member and invitation contracts, project contracts, and avatar initials. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, workspace shell and route-aware tabs, workspace destination resolution and per-user workspace memory, sign-out success and failure, workspace creation cache updates, slug retries, the workspace limit message, workspace settings rename and deletion including role visibility and typed confirmation, project and member search debounce behavior, member table rendering and pagination, invitation management visibility, resend and cancel, member removal, project cards, project creation, and project role changes.
+The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, CSRF behavior including bodyless unsafe requests, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, member listing pagination and search, invitation and member management authorization, workspace rename and deletion authorization and confirmation, profile update validation, cookie forwarding, and native endpoint blocking, blocked native Better Auth endpoints, per-actor management rate limiting, and organization membership isolation. Shared utilities have tests for slug generation, organization roles, member-management policies, project permission policies, member and invitation contracts, project contracts, and avatar initials. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, workspace shell and route-aware tabs, workspace destination resolution and per-user workspace memory, sign-out success and failure, workspace creation cache updates, slug retries, the workspace limit message, workspace settings rename and deletion including role visibility and typed confirmation, profile editing including read-only email, draft preservation, and immediate account-menu refresh, project and member search debounce behavior, member table rendering and pagination, invitation management visibility, resend and cancel, member removal, project cards, project creation, and project role changes.
 
 `bun run --cwd apps/api verify:isolation` additionally proves tenant isolation against a live PostgreSQL database: literal wildcard handling, workspace-scoped search, private project hiding, cross-tenant project role rejection, and last-lead protection.
 
@@ -156,7 +162,9 @@ The API foundation currently has focused tests for security headers, CORS, reque
 - OAuth access, refresh, and ID tokens are stored unencrypted in the account table; application-level encryption needs a key-management decision.
 - Sensitive organization administration does not yet require a fresh session or reauthentication.
 - Organization update and deletion now have TeamOS facades; ownership transfer and self-service leaving still await their own flows.
-- The account menu intentionally lists only the sign-out action; profile, billing, and support entries return when those flows exist.
+- The account menu exposes a Profile link and sign-out; billing and support entries return when those flows exist.
+- Email changes are not configured and remain read-only on the profile screen; a change requires verifying the new address plus a non-enumerating confirmation flow.
+- Avatars are display-only: MinIO has no bucket, upload, signing, or object-ownership workflow, so remote image URLs are not accepted.
 - Invitations require configured SMTP credentials; without them verification and invitation email cannot be delivered.
 - Development allows authentication without OAuth credentials, but production startup requires both Google and GitHub credentials plus SMTP configuration.
 - The readiness endpoint verifies connectivity but does not replace ongoing dependency monitoring.

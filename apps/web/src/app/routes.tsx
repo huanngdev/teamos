@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from "react-router";
 
+import { AccountLayout } from "@/layouts/account-layout";
+import { ProjectLayout } from "@/layouts/project-layout";
 import { ProtectedLayout } from "@/layouts/protected-layout";
 import { WorkspaceLayout } from "@/layouts/workspace-layout";
 import {
@@ -8,8 +10,10 @@ import {
   InvitationRoute,
   LoginRoute,
   NotFoundRoute,
+  ProfileRoute,
   VerifyEmailRoute,
   WorkspaceIndexRoute,
+  ProjectOverviewRoute,
   WorkspaceMembersRoute,
   WorkspaceProjectsRoute,
   WorkspaceSettingsRoute,
@@ -26,6 +30,19 @@ function AppRoutes() {
       <Route element={<ProtectedLayout />}>
         <Route element={<WorkspaceIndexRoute />} path="/" />
         <Route element={<CreateWorkspaceRoute />} path="/workspaces/new" />
+
+        <Route element={<AccountLayout />} path="/account">
+          <Route element={<Navigate replace to="profile" />} index />
+          <Route element={<ProfileRoute />} path="profile" />
+        </Route>
+
+        <Route
+          element={<ProjectLayout />}
+          path="/workspaces/:organizationSlug/projects/:projectSlug"
+        >
+          <Route element={<ProjectOverviewRoute />} index />
+        </Route>
+
         <Route element={<WorkspaceLayout />} path="/workspaces/:organizationSlug">
           <Route element={<Navigate replace to="projects" />} index />
           <Route element={<WorkspaceProjectsRoute />} path="projects" />

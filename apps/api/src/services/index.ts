@@ -15,3 +15,8 @@ export {
   type ReadinessProbes,
   type ReadinessService,
 } from "@/services/readiness.js";
+export {
+  createUnavailableUserProfileService,
+  createUserProfileService,
+  type UserProfileService,
+} from "@/services/user-profile.js";

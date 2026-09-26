@@ -3,6 +3,7 @@ import {
   socialProvidersResponseSchema,
   type CurrentUserResponse,
   type SocialProvider,
+  type UpdateCurrentUserRequest,
 } from "@teamos/shared";
 
 import {
@@ -19,6 +20,18 @@ import {
  */
 async function getCurrentUser(): Promise<CurrentUserResponse> {
   return requestParsed(currentUserResponseSchema, { method: "get", url: "/api/me" });
+}
+
+/*
+ * Profile edits go through the TeamOS facade so validation, auditing, and rate
+ * limiting cannot be skipped by calling Better Auth's native endpoint.
+ */
+async function updateCurrentUser(request: UpdateCurrentUserRequest): Promise<CurrentUserResponse> {
+  return requestParsed(currentUserResponseSchema, {
+    data: request,
+    method: "PATCH",
+    url: "/api/me",
+  });
 }
 
 async function getSocialProviders(): Promise<SocialProvider[]> {
@@ -43,4 +56,4 @@ async function getSocialProviders(): Promise<SocialProvider[]> {
   }
 }
 
-export { getCurrentUser, getSocialProviders };
+export { getCurrentUser, getSocialProviders, updateCurrentUser };

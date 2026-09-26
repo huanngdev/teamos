@@ -1,8 +1,10 @@
 import { http, HttpResponse } from "msw";
 import { Navigate, Route, Routes } from "react-router";
 
+import { ProjectLayout } from "@/layouts/project-layout";
 import { WorkspaceLayout } from "@/layouts/workspace-layout";
 import { WorkspaceMembersRoute } from "@/routes/workspace-members-route";
+import { ProjectOverviewRoute } from "@/routes/project-overview-route";
 import { WorkspaceProjectsRoute } from "@/routes/workspace-projects-route";
 import { WorkspaceSettingsRoute } from "@/routes/workspace-settings-route";
 import { apiUrl } from "@/shared";
@@ -122,6 +124,28 @@ function useWorkspaceHandlers(options: WorkspaceHandlerOptions = {}) {
       return HttpResponse.json(organizationContext(role, { name }));
     }),
     http.delete(`${apiUrl}/api/organizations/acme`, () => new HttpResponse(null, { status: 204 })),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/members`, () =>
+      HttpResponse.json({
+        members: [
+          {
+            email: "ada@example.com",
+            image: null,
+            memberId: "member-1",
+            name: "Ada Lovelace",
+            role: "lead",
+            userId: "user-1",
+          },
+          {
+            email: "charles@example.com",
+            image: null,
+            memberId: "member-2",
+            name: "Charles Babbage",
+            role: "member",
+            userId: "user-2",
+          },
+        ],
+      }),
+    ),
     http.get(`${apiUrl}/api/organizations/acme/projects`, ({ request }) => {
       const url = new URL(request.url);
 
@@ -160,6 +184,9 @@ function useWorkspaceHandlers(options: WorkspaceHandlerOptions = {}) {
 function renderWorkspace(route = "/workspaces/acme/projects") {
   return renderWithProviders(
     <Routes>
+      <Route element={<ProjectLayout />} path="/workspaces/:organizationSlug/projects/:projectSlug">
+        <Route element={<ProjectOverviewRoute />} index />
+      </Route>
       <Route element={<WorkspaceLayout />} path="/workspaces/:organizationSlug">
         <Route element={<Navigate replace to="projects" />} index />
         <Route element={<WorkspaceProjectsRoute />} path="projects" />

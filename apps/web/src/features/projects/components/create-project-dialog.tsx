@@ -1,4 +1,9 @@
-import { parseProjectVisibility } from "@teamos/shared";
+import {
+  getProjectVisibilityLabel,
+  parseProjectVisibility,
+  projectVisibilities,
+  projectVisibilityLabels,
+} from "@teamos/shared";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -70,6 +75,7 @@ function CreateProjectDialog({ form, onClose, open }: CreateProjectDialogProps) 
             <Field>
               <FieldLabel htmlFor="create-project-visibility">Visibility</FieldLabel>
               <Select
+                items={projectVisibilityLabels}
                 onValueChange={(value) => {
                   const visibility = parseProjectVisibility(value);
 
@@ -84,8 +90,11 @@ function CreateProjectDialog({ form, onClose, open }: CreateProjectDialogProps) 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="workspace">Workspace</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
+                    {projectVisibilities.map((visibility) => (
+                      <SelectItem key={visibility} value={visibility}>
+                        {getProjectVisibilityLabel(visibility)}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>

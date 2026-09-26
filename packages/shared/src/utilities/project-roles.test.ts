@@ -3,6 +3,8 @@ import { describe, expect, test } from "bun:test";
 import type { OrganizationRole } from "./organization-roles.js";
 import {
   canPerformProjectAction,
+  getProjectRoleLabel,
+  getProjectVisibilityLabel,
   projectRoleSchema,
   projectVisibilitySchema,
   type ProjectAction,
@@ -32,6 +34,20 @@ describe("project role schemas", () => {
   test("only exposes the supported project roles and visibilities", () => {
     expect(projectRoleSchema.options).toEqual(["lead", "member", "viewer"]);
     expect(projectVisibilitySchema.options).toEqual(["workspace", "private"]);
+  });
+});
+
+describe("project label mappers", () => {
+  test("maps every project role to non-code display copy", () => {
+    for (const role of projectRoleSchema.options) {
+      expect(getProjectRoleLabel(role)).not.toBe(role);
+    }
+  });
+
+  test("maps every project visibility to non-code display copy", () => {
+    for (const visibility of projectVisibilitySchema.options) {
+      expect(getProjectVisibilityLabel(visibility)).not.toBe(visibility);
+    }
   });
 });
 

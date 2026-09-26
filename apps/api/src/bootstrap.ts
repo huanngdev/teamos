@@ -8,6 +8,7 @@ import {
   createAuthService,
   createOrganizationAccessService,
   createOrganizationGateway,
+  createUserGateway,
 } from "@/auth/index.js";
 import type { Env } from "@/config/index.js";
 import {
@@ -27,6 +28,7 @@ import {
   createOrganizationMemberService,
   createProjectService,
   createReadinessService,
+  createUserProfileService,
 } from "@/services/index.js";
 
 interface ServiceResource {
@@ -222,6 +224,10 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
           members: memberService,
         }),
       },
+      profile: createUserProfileService({
+        gateway: createUserGateway(auth),
+        logger,
+      }),
       rateLimiter: createRedisRateLimiter(resources.redis, options.env),
       readiness,
     });

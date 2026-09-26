@@ -1,5 +1,6 @@
 import { getInitials } from "@teamos/shared";
-import { LogOutIcon } from "lucide-react";
+import { ChevronsUpDownIcon, LogOutIcon, UserRoundIcon } from "lucide-react";
+import { Link } from "react-router";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import { accountProfilePath } from "../lib/account-paths";
 
 interface AccountMenuUser {
   email: string;
@@ -23,15 +26,83 @@ interface AccountMenuProps {
   isSigningOut: boolean;
   onSignOut: () => void;
   user: AccountMenuUser;
+  variant?: "icon" | "sidebar";
+}
+
+function AccountMenuContent({ isSigningOut, onSignOut, user }: Omit<AccountMenuProps, "variant">) {
+  return (
+    <>
+      <DropdownMenuGroup>
+        <DropdownMenuLabel className="flex min-w-0 flex-col">
+          <span className="truncate">{user.name}</span>
+          <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+        </DropdownMenuLabel>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuItem render={<Link to={accountProfilePath} />}>
+          <UserRoundIcon data-icon="inline-start" />
+          Profile
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          disabled={isSigningOut}
+          onClick={() => {
+            onSignOut();
+          }}
+          variant="destructive"
+        >
+          <LogOutIcon data-icon="inline-start" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </>
+  );
 }
 
 /*
- * Only the actions TeamOS actually implements are listed. Placeholder entries
- * for profile, billing, or support are intentionally omitted until those flows
- * exist.
+ * Only the actions TeamOS actually implements are listed. The sidebar variant
+ * is the workspace footer identity and must render inside SidebarProvider.
  */
-function AccountMenu({ isSigningOut, onSignOut, user }: AccountMenuProps) {
+function AccountMenu({ isSigningOut, onSignOut, user, variant = "icon" }: AccountMenuProps) {
   const initials = getInitials(user.name) || getInitials(user.email);
+  const content = (
+    <AccountMenuContent isSigningOut={isSigningOut} onSignOut={onSignOut} user={user} />
+  );
+
+  if (variant === "sidebar") {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                aria-label="Open account menu"
+                className="min-w-0"
+                size="lg"
+                tooltip={user.name}
+              >
+                <Avatar>
+                  <AvatarImage alt="" src={user.image ?? undefined} />
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <span className="grid min-w-0 flex-1 text-left leading-tight">
+                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                </span>
+                <ChevronsUpDownIcon className="ml-auto" />
+              </SidebarMenuButton>
+            }
+          />
+          <DropdownMenuContent align="start" className="w-56" side="top">
+            {content}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
 
   return (
     <DropdownMenu>
@@ -46,25 +117,7 @@ function AccountMenu({ isSigningOut, onSignOut, user }: AccountMenuProps) {
         }
       />
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="flex min-w-0 flex-col">
-            <span className="truncate">{user.name}</span>
-            <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            disabled={isSigningOut}
-            onClick={() => {
-              onSignOut();
-            }}
-            variant="destructive"
-          >
-            <LogOutIcon data-icon="inline-start" />
-            Log out
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        {content}
       </DropdownMenuContent>
     </DropdownMenu>
   );

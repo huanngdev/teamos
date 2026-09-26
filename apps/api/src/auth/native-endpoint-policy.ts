@@ -5,7 +5,13 @@ import { assignableOrganizationRoleSchema } from "@teamos/shared";
 const INVITE_MEMBER_PATH = "/organization/invite-member";
 const UPDATE_MEMBER_ROLE_PATH = "/organization/update-member-role";
 
-const MANAGED_ORGANIZATION_PATHS = new Set([
+/*
+ * These native Better Auth endpoints are replaced by TeamOS routes that add
+ * authorization, validation, auditing, rate limiting, and stable contracts. The
+ * TeamOS routes call the Better Auth server API directly, which does not pass
+ * through this list, so blocking the HTTP paths cannot bypass the facade.
+ */
+const MANAGED_AUTH_PATHS = new Set([
   "/organization/cancel-invitation",
   /*
    * Organization update, deletion, and leaving stay behind the TeamOS facade so
@@ -22,6 +28,12 @@ const MANAGED_ORGANIZATION_PATHS = new Set([
   "/organization/remove-member",
   "/organization/update",
   "/organization/update-member-role",
+  /*
+   * The profile facade owns display-name edits with stricter validation and
+   * auditing. Email, avatar, and password changes have no TeamOS flow yet, so the
+   * native endpoint stays blocked rather than exposing an unvalidated surface.
+   */
+  "/update-user",
 ]);
 
 function readRole(body: unknown): unknown {
@@ -86,9 +98,8 @@ const organizationLifecycleHooks = {
 };
 
 /*
- * These endpoints are replaced by TeamOS routes that add authorization,
- * auditing, rate limiting, and stable contracts. The TeamOS routes call the
- * Better Auth server API directly, which does not pass through this list.
+ * Normalizes an auth path before comparison so encoded characters, duplicate
+ * slashes, trailing slashes, and casing cannot slip an endpoint past the block.
  */
 function normalizeAuthPath(pathname: string): string {
   let normalized = pathname;
@@ -115,19 +126,14 @@ function normalizeAuthPath(pathname: string): string {
     .toLowerCase();
 }
 
-function isManagedOrganizationPath(pathname: string): boolean {
+function isManagedAuthPath(pathname: string): boolean {
   const normalized = normalizeAuthPath(pathname);
 
   if (!normalized.startsWith("/api/auth/")) {
     return false;
   }
 
-  return MANAGED_ORGANIZATION_PATHS.has(normalized.slice("/api/auth".length));
+  return MANAGED_AUTH_PATHS.has(normalized.slice("/api/auth".length));
 }
 
-export {
-  isManagedOrganizationPath,
-  MANAGED_ORGANIZATION_PATHS,
-  normalizeAuthPath,
-  organizationLifecycleHooks,
-};
+export { isManagedAuthPath, MANAGED_AUTH_PATHS, normalizeAuthPath, organizationLifecycleHooks };

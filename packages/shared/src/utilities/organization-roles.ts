@@ -17,6 +17,21 @@ type AssignableOrganizationRole = z.infer<typeof assignableOrganizationRoleSchem
 
 const assignableOrganizationRoles = assignableOrganizationRoleSchema.options;
 
+/*
+ * The single source of display copy for an organization role. UI must resolve
+ * labels through `getOrganizationRoleLabel` (or this record for option lists),
+ * never by rendering the stored value or mechanically capitalizing it.
+ */
+const organizationRoleLabels: Record<OrganizationRole, string> = {
+  admin: "Admin",
+  member: "Member",
+  owner: "Owner",
+};
+
+function getOrganizationRoleLabel(role: OrganizationRole): string {
+  return organizationRoleLabels[role];
+}
+
 function isOrganizationAdministrator(role: OrganizationRole): boolean {
   return role === "owner" || role === "admin";
 }
@@ -106,7 +121,9 @@ export {
   canManageOrganizationMember,
   canUpdateOrganization,
   canViewPendingInvitations,
+  getOrganizationRoleLabel,
   isOrganizationAdministrator,
+  organizationRoleLabels,
   organizationRoleSchema,
   parseAssignableOrganizationRole,
   organizationRoles,

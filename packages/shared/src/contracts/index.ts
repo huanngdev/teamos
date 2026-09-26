@@ -10,15 +10,18 @@ export {
   authenticatedSessionSchema,
   authenticatedUserSchema,
   currentUserResponseSchema,
+  profileNameSchema,
   socialProviderIdSchema,
   socialProviderSchema,
   socialProvidersResponseSchema,
+  updateCurrentUserRequestSchema,
   type AuthenticatedSession,
   type AuthenticatedUser,
   type CurrentUserResponse,
   type SocialProvider,
   type SocialProviderId,
   type SocialProvidersResponse,
+  type UpdateCurrentUserRequest,
 } from "./authentication.js";
 export {
   getHealthStatus,

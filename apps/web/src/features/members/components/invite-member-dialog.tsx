@@ -1,4 +1,9 @@
-import { parseAssignableOrganizationRole, type AssignableOrganizationRole } from "@teamos/shared";
+import {
+  getOrganizationRoleLabel,
+  organizationRoleLabels,
+  parseAssignableOrganizationRole,
+  type AssignableOrganizationRole,
+} from "@teamos/shared";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -31,11 +36,6 @@ interface InviteMemberDialogProps {
   organizationName: string;
 }
 
-const roleLabels: Record<AssignableOrganizationRole, string> = {
-  admin: "Admin",
-  member: "Member",
-};
-
 function InviteMemberDialog({
   canAssignAdmin,
   form,
@@ -44,6 +44,9 @@ function InviteMemberDialog({
   organizationName,
 }: InviteMemberDialogProps) {
   const hasFieldError = form.fieldErrorMessage !== null;
+  const invitableRoles: readonly AssignableOrganizationRole[] = canAssignAdmin
+    ? ["admin", "member"]
+    : ["member"];
 
   return (
     <Dialog
@@ -89,6 +92,7 @@ function InviteMemberDialog({
             <Field>
               <FieldLabel htmlFor="invite-member-role">Workspace role</FieldLabel>
               <Select
+                items={organizationRoleLabels}
                 onValueChange={(value) => {
                   const role = parseAssignableOrganizationRole(value);
 
@@ -103,10 +107,11 @@ function InviteMemberDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="member">{roleLabels.member}</SelectItem>
-                    {canAssignAdmin ? (
-                      <SelectItem value="admin">{roleLabels.admin}</SelectItem>
-                    ) : null}
+                    {invitableRoles.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {getOrganizationRoleLabel(role)}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>

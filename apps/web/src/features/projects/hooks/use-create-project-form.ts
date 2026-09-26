@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { slugify, type ProjectVisibility } from "@teamos/shared";
+import { slugify, type ProjectSummary, type ProjectVisibility } from "@teamos/shared";
 
 import { ApiClientError } from "@/shared/api/api-client";
 import { notify } from "@/shared";
@@ -20,7 +20,7 @@ interface CreateProjectFormState {
 }
 
 interface UseCreateProjectFormOptions {
-  onCreated: () => void | Promise<void>;
+  onCreated: (project: ProjectSummary) => void | Promise<void>;
   organizationSlug: string;
 }
 
@@ -61,7 +61,7 @@ function useCreateProjectForm(options: UseCreateProjectFormOptions): CreateProje
       mutation.mutate(
         { name: name.trim(), slug, visibility },
         {
-          onSuccess: async () => {
+          onSuccess: async (project) => {
             /*
              * Prefix invalidation so every filtered project list refreshes, not
              * just the unfiltered one.
@@ -72,7 +72,7 @@ function useCreateProjectForm(options: UseCreateProjectFormOptions): CreateProje
             notify.success("Project created");
             setName("");
             setVisibility("workspace");
-            await options.onCreated();
+            await options.onCreated(project);
           },
         },
       );
