@@ -72,6 +72,28 @@ export {
   type UpdateOrganizationRequest,
 } from "./organization.js";
 export {
+  createIssueRequestSchema,
+  createProjectStatusRequestSchema,
+  issueListResponseSchema,
+  issueResponseSchema,
+  issueSummarySchema,
+  projectStatusListResponseSchema,
+  projectStatusResponseSchema,
+  projectStatusSummarySchema,
+  updateIssueRequestSchema,
+  updateProjectStatusRequestSchema,
+  type CreateIssueRequest,
+  type CreateProjectStatusRequest,
+  type IssueListResponse,
+  type IssueResponse,
+  type IssueSummary,
+  type ProjectStatusListResponse,
+  type ProjectStatusResponse,
+  type ProjectStatusSummary,
+  type UpdateIssueRequest,
+  type UpdateProjectStatusRequest,
+} from "./issue.js";
+export {
   createProjectRequestSchema,
   projectDetailResponseSchema,
   projectListQuerySchema,

@@ -1,4 +1,19 @@
 export { formatDate } from "./date.js";
+export {
+  ISSUE_BOARD_MAX,
+  ISSUE_POSITION_GAP,
+  PROJECT_STATUS_MAX,
+  getIssuePriorityLabel,
+  getIssueStatusCategoryLabel,
+  issuePriorities,
+  issuePriorityLabels,
+  issuePrioritySchema,
+  issueStatusCategories,
+  issueStatusCategoryLabels,
+  issueStatusCategorySchema,
+  type IssuePriority,
+  type IssueStatusCategory,
+} from "./issue-workflow.js";
 export { getInitials } from "./initials.js";
 export {
   assignableOrganizationRoleSchema,
