@@ -1,6 +1,5 @@
-/* eslint-disable shadcn/no-restyle */
 import { formatDate, type OrganizationInvitation } from "@teamos/shared";
-import { LoaderCircleIcon, MoreHorizontalIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { CircleNotchIcon } from "@phosphor-icons/react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -34,6 +33,7 @@ import {
 import type { PendingInvitationsState } from "../hooks/use-pending-invitations";
 import { Card } from "@/components/ui/card";
 import { MemberRole } from "./member-identity";
+import { DotsThreeOutlineIcon, ArrowsClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 
 interface PendingInvitationsProps {
   state: PendingInvitationsState;
@@ -82,7 +82,7 @@ function PendingInvitations({ state }: PendingInvitationsProps) {
         </Alert>
       )}
 
-      <Card className="p-0">
+      <Card>
         <Table>
           <TableHeader>
             <TableRow>
@@ -128,9 +128,9 @@ function PendingInvitations({ state }: PendingInvitationsProps) {
                             variant="ghost"
                           >
                             {isResending ? (
-                              <LoaderCircleIcon className="animate-spin" />
+                              <CircleNotchIcon className="animate-spin" />
                             ) : (
-                              <MoreHorizontalIcon />
+                              <DotsThreeOutlineIcon />
                             )}
                           </Button>
                         }
@@ -147,7 +147,7 @@ function PendingInvitations({ state }: PendingInvitationsProps) {
                               state.resend(invitation.id);
                             }}
                           >
-                            <RefreshCwIcon data-icon="inline-start" />
+                            <ArrowsClockwiseIcon data-icon="inline-start" />
                             Resend invitation
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -156,7 +156,7 @@ function PendingInvitations({ state }: PendingInvitationsProps) {
                             }}
                             variant="destructive"
                           >
-                            <Trash2Icon data-icon="inline-start" />
+                            <TrashIcon data-icon="inline-start" />
                             Cancel invitation
                           </DropdownMenuItem>
                         </DropdownMenuGroup>

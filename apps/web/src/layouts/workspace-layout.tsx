@@ -1,13 +1,14 @@
 import { NavLink, Outlet } from "react-router";
-import { FolderKanbanIcon, SettingsIcon, UsersIcon } from "lucide-react";
+import { KanbanIcon } from "@phosphor-icons/react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountMenu } from "@/features/auth";
 import { WorkspaceMessage, WorkspaceSwitcher } from "@/features/workspaces";
 import { useWorkspaceLayout } from "@/layouts/use-workspace-layout";
 import { Logo, ModeToggle, PageLoading } from "@/shared";
+import { GearIcon, UsersIcon } from "@phosphor-icons/react";
 
 function WorkspaceLayout() {
   const state = useWorkspaceLayout();
@@ -64,7 +65,7 @@ function WorkspaceLayout() {
         >
           <TabsList variant="line">
             <TabsTrigger render={<NavLink to={view.projectsPath} />} value="projects">
-              <FolderKanbanIcon data-icon="inline-start" />
+              <KanbanIcon data-icon="inline-start" />
               Projects <Badge variant="secondary">{view.projectCount}</Badge>
             </TabsTrigger>
             <TabsTrigger render={<NavLink to={view.membersPath} />} value="members">
@@ -73,11 +74,10 @@ function WorkspaceLayout() {
             </TabsTrigger>
             {view.canViewSettings ? (
               <TabsTrigger render={<NavLink to={view.settingsPath} />} value="settings">
-                <SettingsIcon data-icon="inline-start" />
+                <GearIcon data-icon="inline-start" />
                 Settings
               </TabsTrigger>
             ) : null}
-            <TabsIndicator />
           </TabsList>
         </Tabs>
 

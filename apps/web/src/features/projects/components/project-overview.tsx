@@ -4,7 +4,6 @@ import {
   getProjectRoleLabel,
   getProjectVisibilityLabel,
 } from "@teamos/shared";
-import { ArrowLeftIcon, LockIcon, RefreshCwIcon, UsersIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -23,6 +22,7 @@ import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/comp
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ProjectOverviewState } from "../hooks/use-project-overview";
 import { ProjectMembersDialog } from "./project-members-dialog";
+import { ArrowLeftIcon, LockKeyIcon, ArrowsClockwiseIcon, UsersIcon } from "@phosphor-icons/react";
 
 interface ProjectOverviewProps {
   state: ProjectOverviewState;
@@ -54,7 +54,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
         <AlertDescription>
           <span className="block">{state.message}</span>
           <Button className="mt-2" onClick={state.retry} variant="outline">
-            <RefreshCwIcon data-icon="inline-start" />
+            <ArrowsClockwiseIcon data-icon="inline-start" />
             Retry
           </Button>
         </AlertDescription>
@@ -83,7 +83,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
   const { project } = view;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="truncate font-heading text-2xl font-semibold">{project.name}</h1>
@@ -93,7 +93,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Badge variant="outline">
-            {project.visibility === "private" ? <LockIcon aria-hidden="true" /> : null}
+            {project.visibility === "private" ? <LockKeyIcon aria-hidden="true" /> : null}
             {getProjectVisibilityLabel(project.visibility)}
           </Badge>
           {project.role === null ? null : (
@@ -138,7 +138,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
                 <AlertDescription>
                   <span className="block">{view.membersError}</span>
                   <Button className="mt-2" onClick={view.onRetryMembers} variant="outline">
-                    <RefreshCwIcon data-icon="inline-start" />
+                    <ArrowsClockwiseIcon data-icon="inline-start" />
                     Retry
                   </Button>
                 </AlertDescription>

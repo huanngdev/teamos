@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { http, HttpResponse } from "msw";
 import { expect, test } from "vitest";
 

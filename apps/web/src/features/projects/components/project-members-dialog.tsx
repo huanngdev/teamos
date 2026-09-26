@@ -7,7 +7,7 @@ import {
   type ProjectMember,
   type ProjectRole,
 } from "@teamos/shared";
-import { LoaderCircleIcon } from "lucide-react";
+import { CircleNotchIcon } from "@phosphor-icons/react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -147,7 +147,7 @@ function ProjectMembersDialog({
                     variant="ghost"
                   >
                     {pendingMemberId === member.memberId ? (
-                      <LoaderCircleIcon className="animate-spin" />
+                      <CircleNotchIcon className="animate-spin" />
                     ) : null}
                     Remove
                   </Button>

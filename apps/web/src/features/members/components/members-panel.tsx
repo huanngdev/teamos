@@ -1,5 +1,5 @@
 import type { OrganizationRole } from "@teamos/shared";
-import { UserPlusIcon } from "lucide-react";
+import { UserPlusIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
 import { InviteMemberDialog } from "./invite-member-dialog";

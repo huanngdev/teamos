@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -26,7 +24,11 @@ test("opens a project overview from its card", async () => {
     "href",
     "/workspaces/acme/projects",
   );
-  expect(screen.getByRole("link", { current: "page", name: "Overview" })).toBeInTheDocument();
+  expect(
+    screen
+      .getAllByRole("link", { name: "Overview" })
+      .some((link) => link.getAttribute("href") === "/workspaces/acme/projects/apollo"),
+  ).toBe(true);
   expect(screen.queryByRole("link", { name: "Members" })).not.toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "Switch workspace, current workspace Analytical Engines" }),

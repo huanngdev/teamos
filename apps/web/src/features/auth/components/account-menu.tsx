@@ -1,5 +1,5 @@
 import { getInitials } from "@teamos/shared";
-import { ChevronsUpDownIcon, LogOutIcon, UserRoundIcon } from "lucide-react";
+import { UserCircleIcon } from "@phosphor-icons/react";
 import { Link } from "react-router";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { accountProfilePath } from "../lib/account-paths";
+import { CaretUpDownIcon, SignOutIcon } from "@phosphor-icons/react";
 
 interface AccountMenuUser {
   email: string;
@@ -41,7 +42,7 @@ function AccountMenuContent({ isSigningOut, onSignOut, user }: Omit<AccountMenuP
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuItem render={<Link to={accountProfilePath} />}>
-          <UserRoundIcon data-icon="inline-start" />
+          <UserCircleIcon data-icon="inline-start" />
           Profile
         </DropdownMenuItem>
       </DropdownMenuGroup>
@@ -54,7 +55,7 @@ function AccountMenuContent({ isSigningOut, onSignOut, user }: Omit<AccountMenuP
           }}
           variant="destructive"
         >
-          <LogOutIcon data-icon="inline-start" />
+          <SignOutIcon data-icon="inline-start" />
           Log out
         </DropdownMenuItem>
       </DropdownMenuGroup>
@@ -92,7 +93,7 @@ function AccountMenu({ isSigningOut, onSignOut, user, variant = "icon" }: Accoun
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                 </span>
-                <ChevronsUpDownIcon className="ml-auto" />
+                <CaretUpDownIcon className="ml-auto" />
               </SidebarMenuButton>
             }
           />

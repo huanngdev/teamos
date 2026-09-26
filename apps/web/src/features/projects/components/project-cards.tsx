@@ -1,5 +1,4 @@
 import { formatDate, getProjectRoleLabel, getProjectVisibilityLabel } from "@teamos/shared";
-import { CalendarIcon, FolderIcon, LockIcon, UsersIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -23,6 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { projectOverviewPath } from "../lib/project-paths";
 import type { ProjectsState } from "../hooks/use-projects";
+import { CalendarIcon, FolderIcon, LockKeyIcon, UsersIcon } from "@phosphor-icons/react";
 
 interface ProjectCardsProps {
   organizationSlug: string;
@@ -101,7 +101,7 @@ function ProjectCards({ organizationSlug, state }: ProjectCardsProps) {
             {project.visibility === "private" ? (
               <CardAction>
                 <Badge variant="outline">
-                  <LockIcon aria-hidden="true" />
+                  <LockKeyIcon aria-hidden="true" />
                   {getProjectVisibilityLabel(project.visibility)}
                 </Badge>
               </CardAction>

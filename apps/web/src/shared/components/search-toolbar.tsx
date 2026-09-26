@@ -1,11 +1,10 @@
-import type { LucideIcon } from "lucide-react";
-import { SearchIcon } from "lucide-react";
-
+import type { Icon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
 interface SearchToolbarAction {
-  icon: LucideIcon;
+  icon: Icon;
   label: string;
   onClick: () => void;
 }
@@ -40,7 +39,7 @@ function SearchToolbar({
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <InputGroup className="sm:max-w-xs">
         <InputGroupAddon>
-          <SearchIcon aria-hidden="true" />
+          <MagnifyingGlassIcon aria-hidden="true" />
         </InputGroupAddon>
         <InputGroupInput
           aria-label={searchLabel}

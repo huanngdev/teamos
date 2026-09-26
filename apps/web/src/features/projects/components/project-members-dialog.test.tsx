@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import type { ProjectMember, ProjectRole } from "@teamos/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

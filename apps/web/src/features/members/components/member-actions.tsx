@@ -1,6 +1,4 @@
 import type { OrganizationMember } from "@teamos/shared";
-import { MoreHorizontalIcon } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DotsThreeOutlineIcon } from "@phosphor-icons/react";
 
 interface MemberActionsProps {
   canChangeRole: boolean;
@@ -43,7 +42,7 @@ function MemberActions({
             size="icon"
             variant="ghost"
           >
-            <MoreHorizontalIcon />
+            <DotsThreeOutlineIcon />
           </Button>
         }
       />

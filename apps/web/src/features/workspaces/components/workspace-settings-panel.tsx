@@ -1,5 +1,3 @@
-import { SaveIcon } from "lucide-react";
-
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { WorkspaceDangerZone } from "./workspace-danger-zone";
 import type { WorkspaceSettingsView } from "../hooks/use-workspace-settings";
+import { FloppyDiskIcon } from "@phosphor-icons/react";
 
 interface WorkspaceSettingsPanelProps {
   view: WorkspaceSettingsView;
@@ -86,7 +85,7 @@ function WorkspaceSettingsPanel({ view }: WorkspaceSettingsPanelProps) {
               {view.isRenaming ? (
                 <Spinner data-icon="inline-start" />
               ) : (
-                <SaveIcon data-icon="inline-start" />
+                <FloppyDiskIcon data-icon="inline-start" />
               )}
               Save changes
             </Button>

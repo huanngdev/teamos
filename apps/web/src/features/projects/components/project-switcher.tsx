@@ -1,5 +1,4 @@
 import type { ProjectSummary } from "@teamos/shared";
-import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { projectOverviewPath } from "../lib/project-paths";
+import { CheckIcon, CaretUpDownIcon, PlusIcon } from "@phosphor-icons/react";
 
 interface ProjectSwitcherProps {
   currentName: string;
@@ -39,7 +39,7 @@ function ProjectSwitcher({
             variant="ghost"
           >
             <span className="min-w-0 truncate">{currentName}</span>
-            <ChevronsUpDownIcon data-icon="inline-end" />
+            <CaretUpDownIcon data-icon="inline-end" />
           </Button>
         }
       />

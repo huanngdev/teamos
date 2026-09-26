@@ -1,4 +1,4 @@
-import { SaveIcon, Undo2Icon } from "lucide-react";
+import { ArrowUUpLeftIcon } from "@phosphor-icons/react";
 import { getInitials } from "@teamos/shared";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,6 +16,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import type { ProfileView } from "../hooks/use-profile-form";
+import { FloppyDiskIcon } from "@phosphor-icons/react";
 
 interface ProfilePanelProps {
   view: ProfileView;
@@ -89,14 +90,14 @@ function ProfilePanel({ view }: ProfilePanelProps) {
               type="button"
               variant="outline"
             >
-              <Undo2Icon data-icon="inline-start" />
+              <ArrowUUpLeftIcon data-icon="inline-start" />
               Cancel
             </Button>
             <Button disabled={!view.canSave} type="submit">
               {view.isSaving ? (
                 <Spinner data-icon="inline-start" />
               ) : (
-                <SaveIcon data-icon="inline-start" />
+                <FloppyDiskIcon data-icon="inline-start" />
               )}
               Save changes
             </Button>
