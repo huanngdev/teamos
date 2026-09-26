@@ -83,14 +83,16 @@ function ProjectLayout() {
             <ModeToggle />
           </div>
         </header>
-        <div className="flex min-w-0 flex-col gap-4 overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
           {view.signOutError === null ? null : (
             <Alert variant="destructive">
               <AlertTitle>Sign-out failed</AlertTitle>
               <AlertDescription>{view.signOutError}</AlertDescription>
             </Alert>
           )}
-          <div className="overflow-x-hidden overflow-y-auto h-[calc(100vh-4rem)] ">
+          <div
+            className={`min-h-0 min-w-0 flex-1 ${view.issuesActive ? "overflow-hidden" : "overflow-x-hidden overflow-y-auto"}`}
+          >
             <Outlet />
           </div>
           {view.organizationsErrorMessage === null ? null : (
