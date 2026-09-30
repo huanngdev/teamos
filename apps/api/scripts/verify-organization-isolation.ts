@@ -78,11 +78,28 @@ function check(label: string, condition: boolean) {
 }
 
 async function rejects(action: () => Promise<unknown>): Promise<boolean> {
+  return (await rejected(action)) !== null;
+}
+
+async function rejected(
+  action: () => Promise<unknown>,
+): Promise<{ code: string; status: number } | null> {
   try {
     await action();
-    return false;
-  } catch {
-    return true;
+    return null;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      "status" in error &&
+      typeof error.code === "string" &&
+      typeof error.status === "number"
+    ) {
+      return { code: error.code, status: error.status };
+    }
+
+    return { code: "UNKNOWN", status: 0 };
   }
 }
 
@@ -208,17 +225,64 @@ async function main() {
     "project search cannot cross the workspace boundary",
     (await projects.list({ organization: orgB, search: "apollo" })).length === 0,
   );
+  const leadDelete = await rejected(() =>
+    projects.remove({
+      organization: orgAMember,
+      projectId: workspaceProject.id,
+      request: { confirmationName: "Zephyr" },
+    }),
+  );
   check(
     "project lead cannot delete a project",
-    await rejects(() =>
-      projects.remove({ organization: orgAMember, projectId: workspaceProject.id }),
-    ),
+    leadDelete?.code === "FORBIDDEN" && leadDelete.status === 403,
   );
   try {
-    await projects.remove({ organization: orgA, projectId: workspaceProject.id });
+    await projects.remove({
+      organization: orgA,
+      projectId: workspaceProject.id,
+      request: { confirmationName: "Zephyr" },
+    });
     check("owner can delete a project", true);
   } catch {
     check("owner can delete a project", false);
+  }
+
+  const disposable = await projects.create({
+    organization: orgA,
+    request: { name: "Disposable", slug: "disposable", visibility: "workspace" },
+  });
+  await issues.create({
+    organization: orgA,
+    projectId: disposable.id,
+    request: { title: "Gone" },
+  });
+  const wrongName = await rejected(() =>
+    projects.remove({
+      organization: orgA,
+      projectId: disposable.id,
+      request: { confirmationName: "disposable" },
+    }),
+  );
+  check(
+    "wrong project name does not delete",
+    wrongName?.code === "VALIDATION_ERROR" && wrongName.status === 422,
+  );
+  check(
+    "project remains after a wrong confirmation",
+    (await projects.list({ organization: orgA })).some((item) => item.id === disposable.id),
+  );
+  try {
+    await projects.remove({
+      organization: orgA,
+      projectId: disposable.id,
+      request: { confirmationName: "Disposable" },
+    });
+    check(
+      "owner can delete a project that has an issue",
+      (await projects.list({ organization: orgA })).every((item) => item.id !== disposable.id),
+    );
+  } catch {
+    check("owner can delete a project that has an issue", false);
   }
 
   check(

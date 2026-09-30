@@ -6,21 +6,26 @@ This document is the working guide for adding, testing, and consuming the TeamOS
 
 When `API_DOCS_ENABLED=true`, the API exposes:
 
-| Endpoint                                                 | Purpose                                          |
-| -------------------------------------------------------- | ------------------------------------------------ |
-| `/docs`                                                  | Interactive Scalar API reference                 |
-| `/openapi.json`                                          | OpenAPI 3.1 document for generators and tooling  |
-| `/`                                                      | API identity and liveness response               |
-| `/health`                                                | Lightweight liveness endpoint                    |
-| `/health/ready`                                          | PostgreSQL, Redis, and MinIO readiness status    |
-| `/api/auth/*`                                            | Better Auth handler (sign-in, callback, session) |
-| `/api/authentication/providers`                          | Enabled social sign-in providers                 |
-| `/api/me`                                                | Authenticated user and session                   |
-| `/api/organizations/{organizationSlug}`                  | Organization context for a member                |
-| `/api/organizations/{slug}/members`                      | Searchable, paginated workspace members          |
-| `/api/organizations/{slug}/invitations`                  | Pending workspace invitations                    |
-| `/api/organizations/{slug}/projects`                     | Searchable workspace projects                    |
-| `/api/organizations/{slug}/projects/{projectId}/members` | Project roles                                    |
+| Endpoint                                                  | Purpose                                          |
+| --------------------------------------------------------- | ------------------------------------------------ |
+| `/docs`                                                   | Interactive Scalar API reference                 |
+| `/openapi.json`                                           | OpenAPI 3.1 document for generators and tooling  |
+| `/`                                                       | API identity and liveness response               |
+| `/health`                                                 | Lightweight liveness endpoint                    |
+| `/health/ready`                                           | PostgreSQL, Redis, and MinIO readiness status    |
+| `/api/auth/*`                                             | Better Auth handler (sign-in, callback, session) |
+| `/api/authentication/providers`                           | Enabled social sign-in providers                 |
+| `/api/me`                                                 | Authenticated user, session, and display name    |
+| `/api/organizations/{organizationSlug}`                   | Organization context, rename, and deletion       |
+| `/api/organizations/{slug}/members`                       | Searchable, paginated workspace members          |
+| `/api/organizations/{slug}/invitations`                   | Pending workspace invitations                    |
+| `/api/organizations/{slug}/projects`                      | Searchable workspace projects                    |
+| `/api/organizations/{slug}/projects/{projectId}`          | Project update and deletion                      |
+| `/api/organizations/{slug}/projects/{projectId}/members`  | Project roles                                    |
+| `/api/organizations/{slug}/projects/{projectId}/statuses` | Board columns                                    |
+| `/api/organizations/{slug}/projects/{projectId}/issues`   | Project issues                                   |
+
+The product snapshot, including which of these have a screen, is in `docs/progress.md`.
 
 Documentation is enabled by default in development and test. It is disabled by default in production and must be explicitly enabled with `API_DOCS_ENABLED=true`.
 
@@ -203,6 +208,10 @@ Every workspace member may create a project and becomes its `lead` in the same t
 Cross-tenant integrity is enforced by the database, not only by service checks. `member(id, organization_id)` carries a composite unique constraint and `project_membership` references both `project(id, organization_id)` and `member(id, organization_id)` with composite foreign keys, so granting a project role to a member of another workspace fails at the database level.
 
 An inaccessible project is reported as `404 PROJECT_NOT_FOUND` even when it exists, so private projects cannot be enumerated. A visible project with a denied action returns `403 FORBIDDEN`.
+
+`PATCH /api/organizations/{slug}/projects/{projectId}` changes `name`, `description`, and `visibility`. A slug in the body is ignored. A lead or an organization administrator can update a project. A member cannot.
+
+`DELETE /api/organizations/{slug}/projects/{projectId}` requires `{ confirmationName }` to match the stored project name exactly, including case. A mismatch is `422 VALIDATION_ERROR`. Only an organization owner or admin can delete a project. A lead who can see the project receives `403`. The service deletes the project's issues before the project row, because `issue_status_fk` is `ON DELETE RESTRICT` and column rows cascade from the project.
 
 ### Issues
 

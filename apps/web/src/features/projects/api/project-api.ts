@@ -3,6 +3,7 @@ import {
   projectListResponseSchema,
   projectMemberListResponseSchema,
   type CreateProjectRequest,
+  type DeleteProjectRequest,
   type ProjectMember,
   type ProjectRole,
   type ProjectSummary,
@@ -56,8 +57,13 @@ async function updateProject(
   return response.project;
 }
 
-async function deleteProject(slug: string, projectId: string): Promise<void> {
+async function deleteProject(
+  slug: string,
+  projectId: string,
+  request: DeleteProjectRequest,
+): Promise<void> {
   await requestVoid({
+    data: request,
     method: "DELETE",
     url: projectPath(slug, `/${encodeURIComponent(projectId)}`),
   });

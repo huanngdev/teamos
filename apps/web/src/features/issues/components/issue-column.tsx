@@ -138,7 +138,7 @@ function IssueColumn({
           ) : null}
         </div>
       </div>
-      <ScrollArea className="h-[calc(100%-3rem)] w-full" ref={droppable.ref}>
+      <ScrollArea className="h-[calc(100%-3rem)] w-full" fade="y" ref={droppable.ref}>
         <div className="relative flex flex-col gap-2 px-3 pb-3">
           {column.issues.length === 0 ? (
             <p className="text-sm text-muted-foreground">No issues</p>

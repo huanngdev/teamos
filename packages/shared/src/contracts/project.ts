@@ -65,12 +65,22 @@ const updateProjectRequestSchema = z.object({
   visibility: projectVisibilitySchema.optional(),
 });
 
+/*
+ * Deletion echoes the project name so the server can confirm the caller meant
+ * this exact project, not one that was renamed in another tab. The value is
+ * not trimmed: it must match the stored name character for character.
+ */
+const deleteProjectRequestSchema = z.object({
+  confirmationName: z.string().min(1).max(80),
+});
+
 const setProjectMemberRequestSchema = z.object({
   memberId: z.string().min(1),
   role: projectRoleSchema.default("member"),
 });
 
 type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
+type DeleteProjectRequest = z.infer<typeof deleteProjectRequestSchema>;
 type ProjectDetailResponse = z.infer<typeof projectDetailResponseSchema>;
 type ProjectListQuery = z.infer<typeof projectListQuerySchema>;
 type ProjectListResponse = z.infer<typeof projectListResponseSchema>;
@@ -83,6 +93,7 @@ type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
 
 export {
   createProjectRequestSchema,
+  deleteProjectRequestSchema,
   projectDetailResponseSchema,
   projectListQuerySchema,
   projectListResponseSchema,
@@ -93,6 +104,7 @@ export {
   setProjectMemberRequestSchema,
   updateProjectRequestSchema,
   type CreateProjectRequest,
+  type DeleteProjectRequest,
   type ProjectDetailResponse,
   type ProjectListResponse,
   type ProjectListQuery,

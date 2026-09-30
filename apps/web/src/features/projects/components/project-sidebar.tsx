@@ -1,4 +1,4 @@
-import { ListChecksIcon } from "@phosphor-icons/react";
+import { GearIcon, ListChecksIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import { Link, NavLink } from "react-router";
 
 import { AccountMenu, type AccountMenuUser } from "@/features/auth";
@@ -16,7 +16,6 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Logo } from "@/shared";
-import { SquaresFourIcon } from "@phosphor-icons/react";
 
 interface ProjectSidebarView {
   isSigningOut: boolean;
@@ -27,6 +26,9 @@ interface ProjectSidebarView {
   overviewPath: string;
   projectName: string | null;
   projectsPath: string;
+  settingsActive: boolean;
+  settingsPath: string;
+  showSettings: boolean;
   user: AccountMenuUser;
 }
 
@@ -58,7 +60,7 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
           )}
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
+              <SidebarMenuItem className="not-first:mt-1">
                 <SidebarMenuButton
                   isActive={view.overviewActive}
                   render={<NavLink end to={view.overviewPath} />}
@@ -68,7 +70,7 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
                   <span>Overview</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
+              <SidebarMenuItem className="not-first:mt-1">
                 <SidebarMenuButton
                   isActive={view.issuesActive}
                   render={<NavLink end to={view.issuesPath} />}
@@ -78,6 +80,18 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
                   <span>Issues</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {view.showSettings ? (
+                <SidebarMenuItem className="not-first:mt-1">
+                  <SidebarMenuButton
+                    isActive={view.settingsActive}
+                    render={<NavLink end to={view.settingsPath} />}
+                    tooltip="Settings"
+                  >
+                    <GearIcon className="text-muted-foreground" />
+                    <span>Settings</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ) : null}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

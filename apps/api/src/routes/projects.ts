@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import {
   createProjectRequestSchema,
+  deleteProjectRequestSchema,
   organizationSlugSchema,
   projectDetailResponseSchema,
   projectListQuerySchema,
@@ -115,11 +116,15 @@ const deleteProjectRoute = createRoute({
   operationId: "deleteProject",
   path: "/{organizationSlug}/projects/{projectId}",
   request: {
+    body: {
+      content: { "application/json": { schema: deleteProjectRequestSchema } },
+      required: true,
+    },
     params: projectParamsSchema,
   },
   responses: {
     204: {
-      description: "The project was deleted.",
+      description: "The project, its columns, and its issues were deleted.",
       headers: requestIdHeaders,
     },
     ...protectedRouteErrorResponses,
@@ -250,13 +255,14 @@ function registerProjectRoutes(
   routes.openapi(deleteProjectRoute, async (context) => {
     const session = getAuthenticatedSession(context);
     const { organizationSlug, projectId } = context.req.valid("param");
+    const request = context.req.valid("json");
     const organization = await requireOrganizationAccess(
       organizationAccess,
       organizationSlug,
       session.user.id,
     );
 
-    await projects.remove({ organization, projectId });
+    await projects.remove({ organization, projectId, request });
 
     return context.body(null, 204);
   });

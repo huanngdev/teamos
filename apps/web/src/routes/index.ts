@@ -5,6 +5,7 @@ export { LoginRoute } from "./login-route";
 export { NotFoundRoute } from "./not-found-route";
 export { ProjectIssuesRoute } from "./project-issues-route";
 export { ProjectOverviewRoute } from "./project-overview-route";
+export { ProjectSettingsRoute } from "./project-settings-route";
 export { ProfileRoute } from "./profile-route";
 export { VerifyEmailRoute } from "./verify-email-route";
 export { WorkspaceIndexRoute } from "./workspace-index-route";

@@ -1,11 +1,12 @@
 import type { Database } from "@teamos/db";
-import { member, project, projectMembership, user } from "@teamos/db/schema";
+import { issue, member, project, projectMembership, user } from "@teamos/db/schema";
 import {
   canPerformProjectAction,
   isOrganizationAdministrator,
   parseProjectRole,
   parseProjectVisibility,
   type CreateProjectRequest,
+  type DeleteProjectRequest,
   type OrganizationMember,
   type ProjectAction,
   type ProjectAccessContext,
@@ -59,7 +60,11 @@ interface ProjectService {
     organization: OrganizationAccess;
     projectId: string;
   }) => Promise<ProjectMember[]>;
-  remove: (input: { organization: OrganizationAccess; projectId: string }) => Promise<void>;
+  remove: (input: {
+    organization: OrganizationAccess;
+    projectId: string;
+    request: DeleteProjectRequest;
+  }) => Promise<void>;
   removeMember: (input: {
     organization: OrganizationAccess;
     projectId: string;
@@ -374,7 +379,7 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
         userId: record.userId,
       }));
     },
-    remove: async ({ organization, projectId }) => {
+    remove: async ({ organization, projectId, request }) => {
       const resolved = await resolveProject({
         actorMemberId: organization.memberId,
         organizationId: organization.organizationId,
@@ -394,6 +399,32 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
           locked.visibility,
           "delete",
         );
+
+        /*
+         * Compare against the locked name so a stale tab cannot delete a project
+         * that was renamed after the dialog opened. Authorization already ran,
+         * so a hidden project does not reveal whether the typed name matched.
+         */
+        if (request.confirmationName !== locked.name) {
+          throw new AppError(
+            422,
+            "VALIDATION_ERROR",
+            "Type the project name exactly to confirm deletion.",
+          );
+        }
+
+        /*
+         * issue_status_fk is ON DELETE RESTRICT. Delete cards before the project
+         * row so Postgres can cascade columns without a restrict violation.
+         */
+        await transaction
+          .delete(issue)
+          .where(
+            and(
+              eq(issue.organizationId, organization.organizationId),
+              eq(issue.projectId, projectId),
+            ),
+          );
 
         await transaction
           .delete(project)
@@ -580,9 +611,9 @@ async function lockProject(
   transaction: ProjectTransaction,
   organizationId: string,
   projectId: string,
-): Promise<{ id: string; visibility: string }> {
+): Promise<{ id: string; name: string; visibility: string }> {
   const [record] = await transaction
-    .select({ id: project.id, visibility: project.visibility })
+    .select({ id: project.id, name: project.name, visibility: project.visibility })
     .from(project)
     .where(and(eq(project.organizationId, organizationId), eq(project.id, projectId)))
     .for("update")

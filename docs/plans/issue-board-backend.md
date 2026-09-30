@@ -1,6 +1,6 @@
 # Issue Board Backend
 
-Status: implemented. The board screen is still not started.
+Status: implemented. The board screen in `docs/plans/issue-board-frontend.md` is implemented too.
 
 Branch: `feat/issue-list`.
 

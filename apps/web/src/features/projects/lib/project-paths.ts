@@ -2,4 +2,8 @@ function projectOverviewPath(organizationSlug: string, projectSlug: string): str
   return `/workspaces/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectSlug)}`;
 }
 
-export { projectOverviewPath };
+function projectSettingsPath(organizationSlug: string, projectSlug: string): string {
+  return `${projectOverviewPath(organizationSlug, projectSlug)}/settings`;
+}
+
+export { projectOverviewPath, projectSettingsPath };

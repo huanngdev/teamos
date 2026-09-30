@@ -100,7 +100,7 @@ function IssueBoardReady({
           </AlertDescription>
         </Alert>
       )}
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className="min-h-0 min-w-0 flex-1" fade="x">
         <DragDropProvider
           onDragEnd={drag.onDragEnd}
           onDragOver={drag.onDragOver}

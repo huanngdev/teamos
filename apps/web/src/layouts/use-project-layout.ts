@@ -1,4 +1,8 @@
-import type { OrganizationSummary, ProjectSummary } from "@teamos/shared";
+import {
+  canPerformProjectAction,
+  type OrganizationSummary,
+  type ProjectSummary,
+} from "@teamos/shared";
 import { useState } from "react";
 import { useMatch, useNavigate, useParams } from "react-router";
 
@@ -6,6 +10,7 @@ import { useAuthSession, useSignOut } from "@/features/auth";
 import { projectIssuesPath } from "@/features/issues";
 import {
   projectOverviewPath,
+  projectSettingsPath,
   useCreateProjectForm,
   useProjectList,
   type CreateProjectFormState,
@@ -55,6 +60,10 @@ function useProjectLayout(): ProjectLayoutState {
     end: true,
     path: "/workspaces/:organizationSlug/projects/:projectSlug/issues",
   });
+  const settingsMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug/settings",
+  });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const workspace = useWorkspace(organizationSlug);
   const organizations = useOrganizations();
@@ -98,8 +107,15 @@ function useProjectLayout(): ProjectLayoutState {
     return { status: "loading" };
   }
 
-  const projectName =
-    projectList.projects.find((project) => project.slug === projectSlug)?.name ?? null;
+  const currentProject =
+    projectList.projects.find((project) => project.slug === projectSlug) ?? null;
+  const showSettings =
+    currentProject !== null &&
+    canPerformProjectAction("update", {
+      organizationRole: workspace.organization.role,
+      projectRole: currentProject.role,
+      visibility: currentProject.visibility,
+    });
 
   return {
     status: "ready",
@@ -121,12 +137,19 @@ function useProjectLayout(): ProjectLayoutState {
       organizationSlug: workspace.organization.slug,
       organizations: organizations.organizations,
       organizationsErrorMessage: organizations.errorMessage,
-      pageLabel: projectPageLabel(overviewMatch !== null, issuesMatch !== null),
+      pageLabel: projectPageLabel(
+        overviewMatch !== null,
+        issuesMatch !== null,
+        settingsMatch !== null,
+      ),
       issuesActive: issuesMatch !== null,
       issuesPath: projectIssuesPath(organizationSlug, projectSlug),
       overviewActive: overviewMatch !== null,
       overviewPath: projectOverviewPath(organizationSlug, projectSlug),
-      projectName,
+      projectName: currentProject?.name ?? null,
+      settingsActive: settingsMatch !== null,
+      settingsPath: projectSettingsPath(organizationSlug, projectSlug),
+      showSettings,
       projectSlug,
       projects: projectList.projects,
       projectsPath: workspaceProjectsPath(organizationSlug),
@@ -140,10 +163,15 @@ function useProjectLayout(): ProjectLayoutState {
   };
 }
 
-function projectPageLabel(isOverview: boolean, isIssues: boolean): string | null {
+function projectPageLabel(
+  isOverview: boolean,
+  isIssues: boolean,
+  isSettings: boolean,
+): string | null {
   const pages = [
     { active: isOverview, label: "Overview" },
     { active: isIssues, label: "Issues" },
+    { active: isSettings, label: "Settings" },
   ];
 
   return pages.find((page) => page.active)?.label ?? null;

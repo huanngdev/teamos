@@ -20,6 +20,20 @@ const createdIssue = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
+test("fades the issue list and the column row as they scroll", async () => {
+  useWorkspaceHandlers();
+  renderWorkspace("/workspaces/acme/projects/apollo/issues");
+
+  expect(await screen.findByText("Backlog")).toBeInTheDocument();
+
+  const viewports = [...document.querySelectorAll("[data-slot='scroll-area-viewport']")].map(
+    (node) => [...node.classList],
+  );
+
+  expect(viewports.filter((names) => names.includes("scroll-fade"))).toHaveLength(2);
+  expect(viewports.filter((names) => names.includes("scroll-fade-x"))).toHaveLength(1);
+});
+
 test("renders column names instead of category codes", async () => {
   useWorkspaceHandlers();
   renderWorkspace("/workspaces/acme/projects/apollo/issues");

@@ -4,8 +4,11 @@ import { cn } from "cn"
 function ScrollArea({
   className,
   children,
+  fade,
   ...props
-}: ScrollAreaPrimitive.Root.Props) {
+}: ScrollAreaPrimitive.Root.Props & {
+  fade?: "x" | "y"
+}) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
@@ -14,7 +17,11 @@ function ScrollArea({
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        className={cn(
+          "size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1",
+          fade === "x" && "scroll-fade-x",
+          fade === "y" && "scroll-fade"
+        )}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

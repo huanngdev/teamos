@@ -1,6 +1,6 @@
 # Issue Board
 
-Status: agreed, not started.
+Status: implemented. The board, its API, and its screen are in place. Labels, a list view, and realtime remain out of scope.
 
 Branch: `feat/issue-list`.
 

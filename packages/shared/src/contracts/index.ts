@@ -95,6 +95,7 @@ export {
 } from "./issue.js";
 export {
   createProjectRequestSchema,
+  deleteProjectRequestSchema,
   projectDetailResponseSchema,
   projectListQuerySchema,
   projectListResponseSchema,
@@ -105,6 +106,7 @@ export {
   setProjectMemberRequestSchema,
   updateProjectRequestSchema,
   type CreateProjectRequest,
+  type DeleteProjectRequest,
   type ProjectDetailResponse,
   type ProjectListQuery,
   type ProjectListResponse,

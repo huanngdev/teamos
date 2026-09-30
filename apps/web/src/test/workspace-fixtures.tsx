@@ -6,6 +6,7 @@ import { WorkspaceLayout } from "@/layouts/workspace-layout";
 import { WorkspaceMembersRoute } from "@/routes/workspace-members-route";
 import { ProjectIssuesRoute } from "@/routes/project-issues-route";
 import { ProjectOverviewRoute } from "@/routes/project-overview-route";
+import { ProjectSettingsRoute } from "@/routes/project-settings-route";
 import { WorkspaceProjectsRoute } from "@/routes/workspace-projects-route";
 import { WorkspaceSettingsRoute } from "@/routes/workspace-settings-route";
 import { apiUrl } from "@/shared";
@@ -215,6 +216,7 @@ function renderWorkspace(route = "/workspaces/acme/projects") {
       <Route element={<ProjectLayout />} path="/workspaces/:organizationSlug/projects/:projectSlug">
         <Route element={<ProjectOverviewRoute />} index />
         <Route element={<ProjectIssuesRoute />} path="issues" />
+        <Route element={<ProjectSettingsRoute />} path="settings" />
       </Route>
       <Route element={<WorkspaceLayout />} path="/workspaces/:organizationSlug">
         <Route element={<Navigate replace to="projects" />} index />
