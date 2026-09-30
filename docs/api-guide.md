@@ -228,13 +228,20 @@ Issue columns and cards are TeamOS data on top of the project authorization abov
   - `assignee` is a comma-separated list of member ids. `unassigned` matches a null assignee.
   - `title` and `description` are substring filters.
   - `number` is `min..max`. `created` and `updated` are `YYYY-MM-DD..YYYY-MM-DD`. Either side may be empty. Date bounds use `timeZone`, or UTC when that zone is missing or invalid.
-- `POST /api/organizations/{slug}/projects/{projectId}/issues` creates one issue. A project member can create and update. A viewer cannot.
-- `POST /api/organizations/{slug}/projects/{projectId}/issues/bulk` creates `{ issues: CreateIssueRequest[] }` in one transaction and returns `{ issues }`. The development seed uses this so one click is one management-rate-limit point. The batch plus the issues already in the project cannot pass 200. That case is `409 CONFLICT`.
+- `POST /api/organizations/{slug}/projects/{projectId}/issues` creates one issue. A project member can create and update. A viewer cannot. There is no bulk-create HTTP route. Local fixtures are inserted by `bun run seed:issues`, which reads `SEED_*` from `apps/api/.env` and is not reachable from the browser.
 - `PATCH /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` updates fields and, when `statusId` or `index` is present, places the card.
 - `POST /api/organizations/{slug}/projects/{projectId}/issues/bulk-delete` deletes `{ issueIds }` in one transaction. Duplicate ids are removed. If any id is missing from that project, the request is `404 ISSUE_NOT_FOUND` and nothing is deleted. A project member cannot delete issues. A lead, owner, or admin can.
 - `DELETE /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` deletes one issue. A project member cannot delete an issue. A lead, owner, or admin can.
 
 A missing issue in a visible project is `404 ISSUE_NOT_FOUND`. A missing column is `404 PROJECT_STATUS_NOT_FOUND`. A duplicate column name is `409 PROJECT_STATUS_NAME_TAKEN`. A project accepts at most 200 issues and 20 columns.
+
+Local sample issues are not created through HTTP. From the repository root:
+
+```bash
+bun run seed:issues
+```
+
+The script reads `apps/api/.env` and refuses to run unless `SEED_ISSUES=true`. It also requires `SEED_ORGANIZATION_ID`, `SEED_PROJECT_ID`, and `SEED_ACTOR_MEMBER_ID`. `SEED_ASSIGNEE_MEMBER_ID` is optional. `SEED_ISSUE_COUNT` defaults to 15 and cannot pass 200. The actor must already be allowed to create issues in that project. The API process does not load these variables.
 
 ## Testing The API
 

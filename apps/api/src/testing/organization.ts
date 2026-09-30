@@ -201,7 +201,6 @@ function createFakeIssueService(): IssueService {
   return {
     clearAssignees: async () => {},
     create: rejectFakeMutation,
-    createMany: rejectFakeMutation,
     list: async () => ({ issues: [], total: 0 }),
     remove: async () => {},
     removeMany: async () => {},

@@ -1,11 +1,9 @@
 import {
-  createIssuesResponseSchema,
   issueListResponseSchema,
   issueResponseSchema,
   projectStatusListResponseSchema,
   projectStatusResponseSchema,
   type CreateIssueRequest,
-  type CreateIssuesRequest,
   type DeleteIssuesRequest,
   type CreateProjectStatusRequest,
   type IssueListResponse,
@@ -85,20 +83,6 @@ async function listIssues(
   });
 }
 
-async function createIssues(
-  slug: string,
-  projectId: string,
-  request: CreateIssuesRequest,
-): Promise<IssueSummary[]> {
-  const response = await requestParsed(createIssuesResponseSchema, {
-    data: request,
-    method: "POST",
-    url: issuePath(slug, projectId, "/issues/bulk"),
-  });
-
-  return response.issues;
-}
-
 async function createIssue(
   slug: string,
   projectId: string,
@@ -149,7 +133,6 @@ async function deleteIssue(slug: string, projectId: string, issueId: string): Pr
 
 export {
   createIssue,
-  createIssues,
   createProjectStatus,
   deleteIssue,
   deleteIssues,

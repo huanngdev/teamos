@@ -94,14 +94,6 @@ const deleteIssuesRequestSchema = z
     issueIds: [...new Set(value.issueIds)],
   }));
 
-const createIssuesRequestSchema = z.object({
-  issues: z.array(createIssueRequestSchema).min(1).max(ISSUE_BOARD_MAX),
-});
-
-const createIssuesResponseSchema = z.object({
-  issues: z.array(issueSummarySchema),
-});
-
 const updateIssueRequestSchema = z.object({
   assigneeMemberId: z.string().min(1).nullable().optional(),
   description: issueDescriptionSchema.nullable().optional(),
@@ -121,8 +113,6 @@ const updateProjectStatusRequestSchema = z.object({
   name: issueStatusNameSchema.optional(),
 });
 
-type CreateIssuesRequest = z.infer<typeof createIssuesRequestSchema>;
-type CreateIssuesResponse = z.infer<typeof createIssuesResponseSchema>;
 type DeleteIssuesRequest = z.infer<typeof deleteIssuesRequestSchema>;
 type CreateIssueRequest = z.infer<typeof createIssueRequestSchema>;
 type CreateProjectStatusRequest = z.infer<typeof createProjectStatusRequestSchema>;
@@ -139,8 +129,6 @@ type UpdateProjectStatusRequest = z.infer<typeof updateProjectStatusRequestSchem
 
 export {
   createIssueRequestSchema,
-  createIssuesRequestSchema,
-  createIssuesResponseSchema,
   deleteIssuesRequestSchema,
   createProjectStatusRequestSchema,
   issueListFacetsSchema,
@@ -154,8 +142,6 @@ export {
   updateIssueRequestSchema,
   updateProjectStatusRequestSchema,
   type CreateIssueRequest,
-  type CreateIssuesRequest,
-  type CreateIssuesResponse,
   type DeleteIssuesRequest,
   type CreateProjectStatusRequest,
   type IssueListFacets,

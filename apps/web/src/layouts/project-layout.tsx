@@ -10,7 +10,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { SeedIssuesButton } from "@/features/issues";
 import { CreateProjectDialog, ProjectSwitcher } from "@/features/projects";
 import { ProjectSidebar } from "@/features/projects/components/project-sidebar";
 import { WorkspaceMessage, WorkspaceSwitcher } from "@/features/workspaces";
@@ -79,9 +78,6 @@ function ProjectLayout() {
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ml-auto flex items-center gap-2">
-            {import.meta.env.DEV && (view.issuesActive || view.boardActive) ? (
-              <SeedIssuesButton />
-            ) : null}
             <ModeToggle />
           </div>
         </header>

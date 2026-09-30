@@ -3,7 +3,6 @@ import { describe, expect, test } from "bun:test";
 import {
   createIssueRequestSchema,
   createProjectStatusRequestSchema,
-  createIssuesRequestSchema,
   deleteIssuesRequestSchema,
   updateIssueRequestSchema,
   updateProjectStatusRequestSchema,
@@ -39,13 +38,6 @@ describe("updateIssueRequestSchema", () => {
 
   test("rejects an index past the board cap", () => {
     expect(updateIssueRequestSchema.safeParse({ index: 201 }).success).toBe(false);
-  });
-});
-
-describe("createIssuesRequestSchema", () => {
-  test("accepts a batch and rejects an empty one", () => {
-    expect(createIssuesRequestSchema.parse({ issues: [{ title: "Gate" }] }).issues).toHaveLength(1);
-    expect(createIssuesRequestSchema.safeParse({ issues: [] }).success).toBe(false);
   });
 });
 

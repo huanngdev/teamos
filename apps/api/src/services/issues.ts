@@ -11,7 +11,6 @@ import {
   parseIssueListQuery,
   unassignedAssigneeId,
   type CreateIssueRequest,
-  type CreateIssuesRequest,
   type DeleteIssuesRequest,
   type IssueListFacets,
   type IssueListFilters,
@@ -65,11 +64,6 @@ interface IssueService {
     projectId: string;
     request: CreateIssueRequest;
   }) => Promise<IssueSummary>;
-  createMany: (input: {
-    organization: OrganizationAccess;
-    projectId: string;
-    request: CreateIssuesRequest;
-  }) => Promise<IssueSummary[]>;
   list: (input: {
     filters?: IssueListFilters;
     organization: OrganizationAccess;
@@ -440,106 +434,6 @@ function createIssueService(dependencies: {
         });
 
         return toIssueSummary(created);
-      } catch (error) {
-        throw mapIssueWriteError(error);
-      }
-    },
-    createMany: async ({ organization, projectId, request }) => {
-      const resolved = await access.resolveProject({
-        actorMemberId: organization.memberId,
-        organizationId: organization.organizationId,
-        organizationRole: organization.role,
-        projectId,
-      });
-      assertProjectAction(resolved.access, "create-issue");
-
-      try {
-        const created = await db.transaction(async (transaction) => {
-          const locked = await lockProject(transaction, organization.organizationId, projectId);
-          await assertActorAccessAfterLock(
-            transaction,
-            organization,
-            projectId,
-            locked.visibility,
-            "create-issue",
-          );
-          const [issueCount] = await transaction
-            .select({ value: count() })
-            .from(issue)
-            .where(
-              and(
-                eq(issue.organizationId, organization.organizationId),
-                eq(issue.projectId, projectId),
-              ),
-            );
-
-          if ((issueCount?.value ?? 0) + request.issues.length > ISSUE_BOARD_MAX) {
-            throw new AppError(409, "CONFLICT", "A project can have at most 200 issues.");
-          }
-
-          const [maxNumber] = await transaction
-            .select({ value: max(issue.number) })
-            .from(issue)
-            .where(
-              and(
-                eq(issue.organizationId, organization.organizationId),
-                eq(issue.projectId, projectId),
-              ),
-            );
-          let nextNumber = maxNumber?.value ?? 0;
-          const records = [];
-
-          for (const item of request.issues) {
-            const statusId = await resolveCreateStatusId(transaction, {
-              organizationId: organization.organizationId,
-              projectId,
-              statusId: item.statusId,
-            });
-
-            if (item.assigneeMemberId != null) {
-              await requireAssignee(transaction, {
-                assigneeMemberId: item.assigneeMemberId,
-                organizationId: organization.organizationId,
-                projectId,
-                visibility: resolved.access.visibility,
-              });
-            }
-
-            const position = await placeIssue(transaction, {
-              index: 0,
-              organizationId: organization.organizationId,
-              projectId,
-              statusId,
-            });
-            nextNumber += 1;
-            const [record] = await transaction
-              .insert(issue)
-              .values({
-                assigneeMemberId: item.assigneeMemberId ?? null,
-                createdByMemberId: organization.memberId,
-                description: item.description ?? null,
-                number: nextNumber,
-                organizationId: organization.organizationId,
-                position,
-                priority: item.priority ?? "none",
-                projectId,
-                statusId,
-                title: item.title,
-                updatedByMemberId: organization.memberId,
-              })
-              .returning(issueSelection);
-
-            if (record === undefined) {
-              throw new AppError(500, "INTERNAL_SERVER_ERROR", "The issue could not be created.");
-            }
-
-            records.push(record);
-          }
-
-          return records;
-        });
-
-        return created.map(toIssueSummary);
       } catch (error) {
         throw mapIssueWriteError(error);
       }

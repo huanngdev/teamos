@@ -73,8 +73,6 @@ export {
 } from "./organization.js";
 export {
   createIssueRequestSchema,
-  createIssuesRequestSchema,
-  createIssuesResponseSchema,
   deleteIssuesRequestSchema,
   createProjectStatusRequestSchema,
   issueListFacetsSchema,
@@ -88,8 +86,6 @@ export {
   updateIssueRequestSchema,
   updateProjectStatusRequestSchema,
   type CreateIssueRequest,
-  type CreateIssuesRequest,
-  type CreateIssuesResponse,
   type DeleteIssuesRequest,
   type CreateProjectStatusRequest,
   type IssueListFacets,

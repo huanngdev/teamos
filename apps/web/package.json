@@ -52,7 +52,6 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@faker-js/faker": "^10.6.0",
     "@tanstack/eslint-plugin-query": "^5.103.0",
     "@teamos/eslint-config": "workspace:*",
     "@teamos/prettier-config": "workspace:*",

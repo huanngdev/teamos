@@ -1,8 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import {
   createIssueRequestSchema,
-  createIssuesRequestSchema,
-  createIssuesResponseSchema,
   deleteIssuesRequestSchema,
   issueListQuerySchema,
   issueListResponseSchema,
@@ -103,31 +101,6 @@ const updateIssueRoute = createRoute({
   tags: ["Issues"],
 });
 
-const createIssuesRoute = createRoute({
-  method: "post",
-  operationId: "createIssues",
-  path: "/{organizationSlug}/projects/{projectId}/issues/bulk",
-  request: {
-    body: {
-      content: { "application/json": { schema: createIssuesRequestSchema } },
-      required: true,
-    },
-    params: projectParamsSchema,
-  },
-  responses: {
-    201: {
-      content: { "application/json": { schema: createIssuesResponseSchema } },
-      description: "The issues were created in one request.",
-      headers: requestIdHeaders,
-    },
-    ...protectedRouteErrorResponses,
-    ...apiErrorResponses,
-  },
-  security: [{ sessionCookie: [] }],
-  summary: "Create issues",
-  tags: ["Issues"],
-});
-
 const deleteIssuesRoute = createRoute({
   method: "post",
   operationId: "deleteIssues",
@@ -216,20 +189,6 @@ function registerIssueRoutes(
     const updated = await issues.update({ issueId, organization, projectId, request });
 
     return context.json(issueResponseSchema.parse({ issue: updated }), 200);
-  });
-
-  routes.openapi(createIssuesRoute, async (context) => {
-    const session = getAuthenticatedSession(context);
-    const { organizationSlug, projectId } = context.req.valid("param");
-    const request = context.req.valid("json");
-    const organization = await requireOrganizationAccess(
-      organizationAccess,
-      organizationSlug,
-      session.user.id,
-    );
-    const created = await issues.createMany({ organization, projectId, request });
-
-    return context.json(createIssuesResponseSchema.parse({ issues: created }), 201);
   });
 
   routes.openapi(deleteIssuesRoute, async (context) => {
