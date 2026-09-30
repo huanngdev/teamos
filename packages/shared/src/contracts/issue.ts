@@ -40,7 +40,36 @@ const projectStatusResponseSchema = z.object({
   status: projectStatusSummarySchema,
 });
 
+const issueListFacetCountsSchema = z.record(z.string(), z.number().int().min(0));
+
+const issueListFacetsSchema = z.object({
+  assignee: issueListFacetCountsSchema,
+  category: issueListFacetCountsSchema,
+  priority: issueListFacetCountsSchema,
+  status: issueListFacetCountsSchema,
+});
+
+/*
+ * Raw query strings for `GET .../issues`. The service parses them into a
+ * filter. Absent fields mean "do not filter", which is what the board sends.
+ */
+const issueListQuerySchema = z.object({
+  assignee: z.string().max(4_000).optional(),
+  category: z.string().max(200).optional(),
+  created: z.string().max(40).optional(),
+  description: z.string().max(200).optional(),
+  facets: z.literal("1").optional(),
+  number: z.string().max(40).optional(),
+  priority: z.string().max(200).optional(),
+  q: z.string().max(140).optional(),
+  status: z.string().max(4_000).optional(),
+  timeZone: z.string().max(100).optional(),
+  title: z.string().max(140).optional(),
+  updated: z.string().max(40).optional(),
+});
+
 const issueListResponseSchema = z.object({
+  facets: issueListFacetsSchema.optional(),
   issues: z.array(issueSummarySchema),
   total: z.number().int().min(0),
 });
@@ -55,6 +84,22 @@ const createIssueRequestSchema = z.object({
   priority: issuePrioritySchema.optional(),
   statusId: z.uuid().optional(),
   title: issueTitleSchema,
+});
+
+const deleteIssuesRequestSchema = z
+  .object({
+    issueIds: z.array(z.uuid()).min(1).max(ISSUE_BOARD_MAX),
+  })
+  .transform((value) => ({
+    issueIds: [...new Set(value.issueIds)],
+  }));
+
+const createIssuesRequestSchema = z.object({
+  issues: z.array(createIssueRequestSchema).min(1).max(ISSUE_BOARD_MAX),
+});
+
+const createIssuesResponseSchema = z.object({
+  issues: z.array(issueSummarySchema),
 });
 
 const updateIssueRequestSchema = z.object({
@@ -76,8 +121,13 @@ const updateProjectStatusRequestSchema = z.object({
   name: issueStatusNameSchema.optional(),
 });
 
+type CreateIssuesRequest = z.infer<typeof createIssuesRequestSchema>;
+type CreateIssuesResponse = z.infer<typeof createIssuesResponseSchema>;
+type DeleteIssuesRequest = z.infer<typeof deleteIssuesRequestSchema>;
 type CreateIssueRequest = z.infer<typeof createIssueRequestSchema>;
 type CreateProjectStatusRequest = z.infer<typeof createProjectStatusRequestSchema>;
+type IssueListFacets = z.infer<typeof issueListFacetsSchema>;
+type IssueListQuery = z.infer<typeof issueListQuerySchema>;
 type IssueListResponse = z.infer<typeof issueListResponseSchema>;
 type IssueResponse = z.infer<typeof issueResponseSchema>;
 type IssueSummary = z.infer<typeof issueSummarySchema>;
@@ -89,7 +139,12 @@ type UpdateProjectStatusRequest = z.infer<typeof updateProjectStatusRequestSchem
 
 export {
   createIssueRequestSchema,
+  createIssuesRequestSchema,
+  createIssuesResponseSchema,
+  deleteIssuesRequestSchema,
   createProjectStatusRequestSchema,
+  issueListFacetsSchema,
+  issueListQuerySchema,
   issueListResponseSchema,
   issueResponseSchema,
   issueSummarySchema,
@@ -99,7 +154,12 @@ export {
   updateIssueRequestSchema,
   updateProjectStatusRequestSchema,
   type CreateIssueRequest,
+  type CreateIssuesRequest,
+  type CreateIssuesResponse,
+  type DeleteIssuesRequest,
   type CreateProjectStatusRequest,
+  type IssueListFacets,
+  type IssueListQuery,
   type IssueListResponse,
   type IssueResponse,
   type IssueSummary,

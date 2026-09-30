@@ -1,4 +1,9 @@
-export { formatDate } from "./date.js";
+export { formatDate, formatDateTime } from "./date.js";
+export {
+  parseIssueListQuery,
+  unassignedAssigneeId,
+  type IssueListFilters,
+} from "./issue-list-query.js";
 export {
   ISSUE_BOARD_MAX,
   ISSUE_POSITION_GAP,

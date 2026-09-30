@@ -3,6 +3,8 @@ import { describe, expect, test } from "bun:test";
 import {
   createIssueRequestSchema,
   createProjectStatusRequestSchema,
+  createIssuesRequestSchema,
+  deleteIssuesRequestSchema,
   updateIssueRequestSchema,
   updateProjectStatusRequestSchema,
 } from "./issue.js";
@@ -37,6 +39,23 @@ describe("updateIssueRequestSchema", () => {
 
   test("rejects an index past the board cap", () => {
     expect(updateIssueRequestSchema.safeParse({ index: 201 }).success).toBe(false);
+  });
+});
+
+describe("createIssuesRequestSchema", () => {
+  test("accepts a batch and rejects an empty one", () => {
+    expect(createIssuesRequestSchema.parse({ issues: [{ title: "Gate" }] }).issues).toHaveLength(1);
+    expect(createIssuesRequestSchema.safeParse({ issues: [] }).success).toBe(false);
+  });
+});
+
+describe("deleteIssuesRequestSchema", () => {
+  test("dedupes ids and rejects an empty list", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+
+    expect(deleteIssuesRequestSchema.parse({ issueIds: [id, id] }).issueIds).toEqual([id]);
+    expect(deleteIssuesRequestSchema.safeParse({ issueIds: [] }).success).toBe(false);
+    expect(deleteIssuesRequestSchema.safeParse({ issueIds: ["not-a-uuid"] }).success).toBe(false);
   });
 });
 
