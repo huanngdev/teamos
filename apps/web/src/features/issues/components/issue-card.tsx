@@ -29,7 +29,7 @@ function IssueCard({ canDrag, issue, index, member, onEdit, statusId }: IssueCar
   return (
     <div className="relative" ref={sortable.ref}>
       <button
-        aria-label={issue.title}
+        aria-label={member === undefined ? issue.title : `${issue.title}, ${member.name}`}
         className="w-full text-left"
         onClick={onEdit}
         ref={sortable.handleRef}
@@ -44,17 +44,22 @@ function IssueCard({ canDrag, issue, index, member, onEdit, statusId }: IssueCar
 function IssueAssignee({ member }: { member: ProjectMember | undefined }) {
   if (member === undefined) {
     return (
-      <span aria-label="Unassigned" className="text-muted-foreground" role="img">
+      <span aria-label="Unassigned" className="shrink-0 text-muted-foreground" role="img">
         <UserCircleIcon className="size-4" />
       </span>
     );
   }
 
   return (
-    <Avatar className="size-4">
-      <AvatarImage alt="" src={member.image ?? undefined} />
-      <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-    </Avatar>
+    <span className="flex min-w-0 items-center gap-1">
+      <Avatar className="size-4">
+        <AvatarImage alt="" src={member.image ?? undefined} />
+        <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+      </Avatar>
+      <span className="line-clamp-1 min-w-0 text-xs text-muted-foreground" title={member.name}>
+        {member.name}
+      </span>
+    </span>
   );
 }
 
@@ -72,7 +77,9 @@ function IssueCardBody({
           <div className="flex flex-col gap-2">
             <span className="line-clamp-2 h-10 font-medium leading-5">{issue.title}</span>
             <div className="flex items-center justify-between gap-2">
-              <IssuePriorityIcon priority={issue.priority} />
+              <div className="shrink-0">
+                <IssuePriorityIcon priority={issue.priority} />
+              </div>
               <IssueAssignee member={member} />
             </div>
           </div>
