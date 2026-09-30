@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-09-26
+Last updated: 2026-09-30
 
 ## Current Milestone
 
@@ -41,6 +41,7 @@ TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentica
 - React Router, frontend provider composition, and a backend readiness gate with bounded retries.
 - Frontend test foundation with Vitest, Testing Library, and MSW.
 - `@shadcn/lint` and TanStack Query ESLint rules for frontend design-system usage.
+- Shared OpenCode and Grok Build skill stack in `.agents/skills`, with `.grok/skills` symlinks, plus the repo-owned `teamos-engineering` loop in `docs/agent-system.md`.
 
 ### Authentication and authorization
 
