@@ -1,20 +1,47 @@
 import type { Database } from "@teamos/db";
-import { issue, projectStatus } from "@teamos/db/schema";
+import { issue, member, projectStatus, user } from "@teamos/db/schema";
 import {
   ISSUE_BOARD_MAX,
   canPerformProjectAction,
+  getIssuePriorityLabel,
+  getIssueStatusCategoryLabel,
+  issuePriorities,
   issuePrioritySchema,
+  issueStatusCategories,
+  parseIssueListQuery,
+  unassignedAssigneeId,
   type CreateIssueRequest,
+  type CreateIssuesRequest,
+  type DeleteIssuesRequest,
+  type IssueListFacets,
+  type IssueListFilters,
+  type IssueListResponse,
   type IssueSummary,
   type OrganizationMember,
   type ProjectVisibility,
   type UpdateIssueRequest,
 } from "@teamos/shared";
-import { and, asc, count, eq, max, ne } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  max,
+  ne,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 
 import type { OrganizationAccess } from "@/auth/index.js";
 import { AppError } from "@/errors/index.js";
 import { placeAtIndex } from "@/services/issue-position.js";
+import { buildLiteralSearchCondition } from "@/services/search.js";
 import {
   assertActorAccessAfterLock,
   assertProjectAction,
@@ -38,14 +65,25 @@ interface IssueService {
     projectId: string;
     request: CreateIssueRequest;
   }) => Promise<IssueSummary>;
-  list: (input: {
+  createMany: (input: {
     organization: OrganizationAccess;
     projectId: string;
-  }) => Promise<{ issues: IssueSummary[]; total: number }>;
+    request: CreateIssuesRequest;
+  }) => Promise<IssueSummary[]>;
+  list: (input: {
+    filters?: IssueListFilters;
+    organization: OrganizationAccess;
+    projectId: string;
+  }) => Promise<IssueListResponse>;
   remove: (input: {
     organization: OrganizationAccess;
     projectId: string;
     issueId: string;
+  }) => Promise<void>;
+  removeMany: (input: {
+    organization: OrganizationAccess;
+    projectId: string;
+    request: DeleteIssuesRequest;
   }) => Promise<void>;
   update: (input: {
     issueId: string;
@@ -80,6 +118,165 @@ const issueSelection = {
   title: issue.title,
   updatedAt: issue.updatedAt,
 };
+
+function issueStatusJoin(): SQL | undefined {
+  return and(
+    eq(issue.statusId, projectStatus.id),
+    eq(issue.projectId, projectStatus.projectId),
+    eq(issue.organizationId, projectStatus.organizationId),
+  );
+}
+
+function dateBounds(
+  column: PgColumn,
+  timeZone: string,
+  from: string | undefined,
+  to: string | undefined,
+): SQL | undefined {
+  const bounds: SQL[] = [];
+
+  if (from !== undefined) {
+    bounds.push(sql`(${column} at time zone ${timeZone})::date >= ${from}::date`);
+  }
+
+  if (to !== undefined) {
+    bounds.push(sql`(${column} at time zone ${timeZone})::date <= ${to}::date`);
+  }
+
+  if (bounds.length === 0) {
+    return undefined;
+  }
+
+  return bounds.length === 1 ? bounds[0] : and(...bounds);
+}
+
+function buildIssueSearch(needle: string | undefined): SQL | undefined {
+  if (needle === undefined) {
+    return undefined;
+  }
+
+  const lowered = needle.toLowerCase();
+  const matches: SQL[] = [
+    sql`position(${lowered} in lower(${issue.title})) > 0`,
+    sql`position(${lowered} in lower(coalesce(${issue.description}, ''))) > 0`,
+    sql`position(${lowered} in ('#' || ${issue.number}::text)) > 0`,
+    sql`position(${lowered} in lower(${projectStatus.name})) > 0`,
+    sql`position(${lowered} in lower(${projectStatus.category})) > 0`,
+    sql`position(${lowered} in lower(${issue.priority})) > 0`,
+    sql`position(${lowered} in lower(coalesce(${user.name}, ''))) > 0`,
+    sql`position(${lowered} in lower(coalesce(${user.email}, ''))) > 0`,
+  ];
+  const priorityLabels = issuePriorities.filter((priority) =>
+    getIssuePriorityLabel(priority).toLowerCase().includes(lowered),
+  );
+  const categoryLabels = issueStatusCategories.filter((category) =>
+    getIssueStatusCategoryLabel(category).toLowerCase().includes(lowered),
+  );
+
+  if (priorityLabels.length > 0) {
+    matches.push(inArray(issue.priority, priorityLabels));
+  }
+
+  if (categoryLabels.length > 0) {
+    matches.push(inArray(projectStatus.category, categoryLabels));
+  }
+
+  return sql`(${sql.join(matches, sql` or `)})`;
+}
+
+function buildIssueListWhere(
+  organizationId: string,
+  projectId: string,
+  filters: IssueListFilters,
+): SQL | undefined {
+  const scope = and(eq(issue.organizationId, organizationId), eq(issue.projectId, projectId));
+
+  if (filters.unsatisfiable) {
+    return and(scope, sql`false`);
+  }
+
+  const assigneeMatch =
+    filters.includeUnassigned || filters.assignees.length > 0
+      ? or(
+          filters.includeUnassigned ? isNull(issue.assigneeMemberId) : undefined,
+          filters.assignees.length > 0
+            ? inArray(issue.assigneeMemberId, filters.assignees)
+            : undefined,
+        )
+      : undefined;
+
+  return and(
+    scope,
+    filters.statusIds.length > 0 ? inArray(issue.statusId, filters.statusIds) : undefined,
+    filters.priorities.length > 0 ? inArray(issue.priority, filters.priorities) : undefined,
+    filters.categories.length > 0 ? inArray(projectStatus.category, filters.categories) : undefined,
+    assigneeMatch,
+    filters.numberMin === undefined ? undefined : gte(issue.number, filters.numberMin),
+    filters.numberMax === undefined ? undefined : lte(issue.number, filters.numberMax),
+    buildLiteralSearchCondition([issue.title], filters.title),
+    buildLiteralSearchCondition([issue.description], filters.description),
+    dateBounds(issue.createdAt, filters.timeZone, filters.createdFrom, filters.createdTo),
+    dateBounds(issue.updatedAt, filters.timeZone, filters.updatedFrom, filters.updatedTo),
+    buildIssueSearch(filters.q),
+  );
+}
+
+function toFacetCounts(
+  rows: readonly { id: string | null; value: number | string }[],
+  nullKey?: string,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+
+  for (const row of rows) {
+    const key = row.id ?? nullKey;
+
+    if (key === undefined || key === null) {
+      continue;
+    }
+
+    counts[key] = Number(row.value);
+  }
+
+  return counts;
+}
+
+async function loadIssueFacets(
+  db: Database,
+  organizationId: string,
+  projectId: string,
+): Promise<IssueListFacets> {
+  const scope = and(eq(issue.organizationId, organizationId), eq(issue.projectId, projectId));
+  const [statuses, priorities, assignees, categories] = await Promise.all([
+    db
+      .select({ id: issue.statusId, value: count() })
+      .from(issue)
+      .where(scope)
+      .groupBy(issue.statusId),
+    db
+      .select({ id: issue.priority, value: count() })
+      .from(issue)
+      .where(scope)
+      .groupBy(issue.priority),
+    db
+      .select({ id: issue.assigneeMemberId, value: count() })
+      .from(issue)
+      .where(scope)
+      .groupBy(issue.assigneeMemberId),
+    db
+      .select({ id: projectStatus.category, value: count() })
+      .from(issue)
+      .innerJoin(projectStatus, issueStatusJoin())
+      .where(scope)
+      .groupBy(projectStatus.category),
+  ]);
+
+  return {
+    assignee: toFacetCounts(assignees, unassignedAssigneeId),
+    category: toFacetCounts(categories),
+    priority: toFacetCounts(priorities),
+    status: toFacetCounts(statuses),
+  };
+}
 
 function createIssueService(dependencies: {
   db: Database;
@@ -247,7 +444,107 @@ function createIssueService(dependencies: {
         throw mapIssueWriteError(error);
       }
     },
-    list: async ({ organization, projectId }) => {
+    createMany: async ({ organization, projectId, request }) => {
+      const resolved = await access.resolveProject({
+        actorMemberId: organization.memberId,
+        organizationId: organization.organizationId,
+        organizationRole: organization.role,
+        projectId,
+      });
+      assertProjectAction(resolved.access, "create-issue");
+
+      try {
+        const created = await db.transaction(async (transaction) => {
+          const locked = await lockProject(transaction, organization.organizationId, projectId);
+          await assertActorAccessAfterLock(
+            transaction,
+            organization,
+            projectId,
+            locked.visibility,
+            "create-issue",
+          );
+          const [issueCount] = await transaction
+            .select({ value: count() })
+            .from(issue)
+            .where(
+              and(
+                eq(issue.organizationId, organization.organizationId),
+                eq(issue.projectId, projectId),
+              ),
+            );
+
+          if ((issueCount?.value ?? 0) + request.issues.length > ISSUE_BOARD_MAX) {
+            throw new AppError(409, "CONFLICT", "A project can have at most 200 issues.");
+          }
+
+          const [maxNumber] = await transaction
+            .select({ value: max(issue.number) })
+            .from(issue)
+            .where(
+              and(
+                eq(issue.organizationId, organization.organizationId),
+                eq(issue.projectId, projectId),
+              ),
+            );
+          let nextNumber = maxNumber?.value ?? 0;
+          const records = [];
+
+          for (const item of request.issues) {
+            const statusId = await resolveCreateStatusId(transaction, {
+              organizationId: organization.organizationId,
+              projectId,
+              statusId: item.statusId,
+            });
+
+            if (item.assigneeMemberId != null) {
+              await requireAssignee(transaction, {
+                assigneeMemberId: item.assigneeMemberId,
+                organizationId: organization.organizationId,
+                projectId,
+                visibility: resolved.access.visibility,
+              });
+            }
+
+            const position = await placeIssue(transaction, {
+              index: 0,
+              organizationId: organization.organizationId,
+              projectId,
+              statusId,
+            });
+            nextNumber += 1;
+            const [record] = await transaction
+              .insert(issue)
+              .values({
+                assigneeMemberId: item.assigneeMemberId ?? null,
+                createdByMemberId: organization.memberId,
+                description: item.description ?? null,
+                number: nextNumber,
+                organizationId: organization.organizationId,
+                position,
+                priority: item.priority ?? "none",
+                projectId,
+                statusId,
+                title: item.title,
+                updatedByMemberId: organization.memberId,
+              })
+              .returning(issueSelection);
+
+            if (record === undefined) {
+              throw new AppError(500, "INTERNAL_SERVER_ERROR", "The issue could not be created.");
+            }
+
+            records.push(record);
+          }
+
+          return records;
+        });
+
+        return created.map(toIssueSummary);
+      } catch (error) {
+        throw mapIssueWriteError(error);
+      }
+    },
+    list: async ({ filters: rawFilters, organization, projectId }) => {
       const resolved = await access.resolveProject({
         actorMemberId: organization.memberId,
         organizationId: organization.organizationId,
@@ -255,40 +552,86 @@ function createIssueService(dependencies: {
         projectId,
       });
       assertProjectAction(resolved.access, "view");
-
-      const records = await db
-        .select(issueSelection)
-        .from(issue)
-        .innerJoin(
-          projectStatus,
-          and(
-            eq(issue.statusId, projectStatus.id),
-            eq(issue.projectId, projectStatus.projectId),
-            eq(issue.organizationId, projectStatus.organizationId),
-          ),
-        )
-        .where(
-          and(
-            eq(issue.organizationId, organization.organizationId),
-            eq(issue.projectId, projectId),
-          ),
-        )
-        .orderBy(asc(projectStatus.position), asc(issue.position), asc(issue.id))
-        .limit(ISSUE_BOARD_MAX);
-      const [total] = await db
-        .select({ value: count() })
-        .from(issue)
-        .where(
-          and(
-            eq(issue.organizationId, organization.organizationId),
-            eq(issue.projectId, projectId),
-          ),
-        );
+      const filters = rawFilters ?? parseIssueListQuery({});
+      const where = buildIssueListWhere(organization.organizationId, projectId, filters);
+      const assigneeJoin = and(
+        eq(issue.assigneeMemberId, member.id),
+        eq(issue.organizationId, member.organizationId),
+      );
+      const [records, [total], facets] = await Promise.all([
+        db
+          .select(issueSelection)
+          .from(issue)
+          .innerJoin(projectStatus, issueStatusJoin())
+          .leftJoin(member, assigneeJoin)
+          .leftJoin(user, eq(member.userId, user.id))
+          .where(where)
+          .orderBy(asc(projectStatus.position), asc(issue.position), asc(issue.id))
+          .limit(ISSUE_BOARD_MAX),
+        db
+          .select({ value: count() })
+          .from(issue)
+          .innerJoin(projectStatus, issueStatusJoin())
+          .leftJoin(member, assigneeJoin)
+          .leftJoin(user, eq(member.userId, user.id))
+          .where(where),
+        filters.includeFacets
+          ? loadIssueFacets(db, organization.organizationId, projectId)
+          : Promise.resolve(undefined),
+      ]);
 
       return {
+        ...(facets === undefined ? {} : { facets }),
         issues: records.map(toIssueSummary),
         total: total?.value ?? 0,
       };
+    },
+    removeMany: async ({ organization, projectId, request }) => {
+      const issueIds = request.issueIds;
+      const resolved = await access.resolveProject({
+        actorMemberId: organization.memberId,
+        organizationId: organization.organizationId,
+        organizationRole: organization.role,
+        projectId,
+      });
+      assertProjectAction(resolved.access, "delete-issue");
+
+      await db.transaction(async (transaction) => {
+        const locked = await lockProject(transaction, organization.organizationId, projectId);
+        await assertActorAccessAfterLock(
+          transaction,
+          organization,
+          projectId,
+          locked.visibility,
+          "delete-issue",
+        );
+
+        const existing = await transaction
+          .select({ id: issue.id })
+          .from(issue)
+          .where(
+            and(
+              eq(issue.organizationId, organization.organizationId),
+              eq(issue.projectId, projectId),
+              inArray(issue.id, issueIds),
+            ),
+          )
+          .for("update");
+
+        if (existing.length !== issueIds.length) {
+          throw new AppError(404, "ISSUE_NOT_FOUND", "The issue was not found.");
+        }
+
+        await transaction
+          .delete(issue)
+          .where(
+            and(
+              eq(issue.organizationId, organization.organizationId),
+              eq(issue.projectId, projectId),
+              inArray(issue.id, issueIds),
+            ),
+          );
+      });
     },
     remove: async ({ issueId, organization, projectId }) => {
       const resolved = await access.resolveProject({

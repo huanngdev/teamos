@@ -1,9 +1,14 @@
 import { createRoute } from "@hono/zod-openapi";
 import {
   createIssueRequestSchema,
+  createIssuesRequestSchema,
+  createIssuesResponseSchema,
+  deleteIssuesRequestSchema,
+  issueListQuerySchema,
   issueListResponseSchema,
   issueResponseSchema,
   organizationSlugSchema,
+  parseIssueListQuery,
   updateIssueRequestSchema,
 } from "@teamos/shared";
 import { z } from "zod";
@@ -33,11 +38,11 @@ const listIssuesRoute = createRoute({
   method: "get",
   operationId: "listIssues",
   path: "/{organizationSlug}/projects/{projectId}/issues",
-  request: { params: projectParamsSchema },
+  request: { params: projectParamsSchema, query: issueListQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: issueListResponseSchema } },
-      description: "Returns up to 200 issues for the project board.",
+      description: "Returns up to 200 issues matching the optional filters, plus the match total.",
       headers: requestIdHeaders,
     },
     ...protectedRouteErrorResponses,
@@ -98,6 +103,55 @@ const updateIssueRoute = createRoute({
   tags: ["Issues"],
 });
 
+const createIssuesRoute = createRoute({
+  method: "post",
+  operationId: "createIssues",
+  path: "/{organizationSlug}/projects/{projectId}/issues/bulk",
+  request: {
+    body: {
+      content: { "application/json": { schema: createIssuesRequestSchema } },
+      required: true,
+    },
+    params: projectParamsSchema,
+  },
+  responses: {
+    201: {
+      content: { "application/json": { schema: createIssuesResponseSchema } },
+      description: "The issues were created in one request.",
+      headers: requestIdHeaders,
+    },
+    ...protectedRouteErrorResponses,
+    ...apiErrorResponses,
+  },
+  security: [{ sessionCookie: [] }],
+  summary: "Create issues",
+  tags: ["Issues"],
+});
+
+const deleteIssuesRoute = createRoute({
+  method: "post",
+  operationId: "deleteIssues",
+  path: "/{organizationSlug}/projects/{projectId}/issues/bulk-delete",
+  request: {
+    body: {
+      content: { "application/json": { schema: deleteIssuesRequestSchema } },
+      required: true,
+    },
+    params: projectParamsSchema,
+  },
+  responses: {
+    204: {
+      description: "The selected issues were deleted.",
+      headers: requestIdHeaders,
+    },
+    ...protectedRouteErrorResponses,
+    ...apiErrorResponses,
+  },
+  security: [{ sessionCookie: [] }],
+  summary: "Delete issues",
+  tags: ["Issues"],
+});
+
 const deleteIssueRoute = createRoute({
   method: "delete",
   operationId: "deleteIssue",
@@ -125,12 +179,13 @@ function registerIssueRoutes(
   routes.openapi(listIssuesRoute, async (context) => {
     const session = getAuthenticatedSession(context);
     const { organizationSlug, projectId } = context.req.valid("param");
+    const filters = parseIssueListQuery(context.req.valid("query"));
     const organization = await requireOrganizationAccess(
       organizationAccess,
       organizationSlug,
       session.user.id,
     );
-    const result = await issues.list({ organization, projectId });
+    const result = await issues.list({ filters, organization, projectId });
 
     return context.json(issueListResponseSchema.parse(result), 200);
   });
@@ -161,6 +216,35 @@ function registerIssueRoutes(
     const updated = await issues.update({ issueId, organization, projectId, request });
 
     return context.json(issueResponseSchema.parse({ issue: updated }), 200);
+  });
+
+  routes.openapi(createIssuesRoute, async (context) => {
+    const session = getAuthenticatedSession(context);
+    const { organizationSlug, projectId } = context.req.valid("param");
+    const request = context.req.valid("json");
+    const organization = await requireOrganizationAccess(
+      organizationAccess,
+      organizationSlug,
+      session.user.id,
+    );
+    const created = await issues.createMany({ organization, projectId, request });
+
+    return context.json(createIssuesResponseSchema.parse({ issues: created }), 201);
+  });
+
+  routes.openapi(deleteIssuesRoute, async (context) => {
+    const session = getAuthenticatedSession(context);
+    const { organizationSlug, projectId } = context.req.valid("param");
+    const request = context.req.valid("json");
+    const organization = await requireOrganizationAccess(
+      organizationAccess,
+      organizationSlug,
+      session.user.id,
+    );
+
+    await issues.removeMany({ organization, projectId, request });
+
+    return context.body(null, 204);
   });
 
   routes.openapi(deleteIssueRoute, async (context) => {
