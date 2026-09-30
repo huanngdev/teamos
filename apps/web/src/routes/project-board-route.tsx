@@ -1,13 +1,13 @@
 import { useParams } from "react-router";
 
-import { IssueTablePanel } from "@/features/issues/components/issue-table-panel";
-import { useIssueTable } from "@/features/issues/hooks/use-issue-table";
+import { IssueBoard } from "@/features/issues/components/issue-board";
+import { useIssueBoard } from "@/features/issues/hooks/use-issue-board";
 import { useWorkspace } from "@/features/workspaces";
 
-function ProjectIssuesRoute() {
+function ProjectBoardRoute() {
   const { organizationSlug = "", projectSlug = "" } = useParams();
   const workspace = useWorkspace(organizationSlug);
-  const table = useIssueTable({
+  const board = useIssueBoard({
     enabled: workspace.status === "ready",
     organizationRole: workspace.status === "ready" ? workspace.organization.role : "member",
     organizationSlug,
@@ -18,7 +18,7 @@ function ProjectIssuesRoute() {
     return null;
   }
 
-  return <IssueTablePanel state={table} />;
+  return <IssueBoard state={board} />;
 }
 
-export { ProjectIssuesRoute };
+export { ProjectBoardRoute };

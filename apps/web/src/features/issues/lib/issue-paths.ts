@@ -2,4 +2,8 @@ function projectIssuesPath(organizationSlug: string, projectSlug: string): strin
   return `/workspaces/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectSlug)}/issues`;
 }
 
-export { projectIssuesPath };
+function projectBoardPath(organizationSlug: string, projectSlug: string): string {
+  return `${projectIssuesPath(organizationSlug, projectSlug)}/board`;
+}
+
+export { projectBoardPath, projectIssuesPath };

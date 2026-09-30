@@ -13,6 +13,7 @@ import {
   ProfileRoute,
   VerifyEmailRoute,
   WorkspaceIndexRoute,
+  ProjectBoardRoute,
   ProjectIssuesRoute,
   ProjectOverviewRoute,
   ProjectSettingsRoute,
@@ -43,6 +44,7 @@ function AppRoutes() {
           path="/workspaces/:organizationSlug/projects/:projectSlug"
         >
           <Route element={<ProjectOverviewRoute />} index />
+          <Route element={<ProjectBoardRoute />} path="issues/board" />
           <Route element={<ProjectIssuesRoute />} path="issues" />
           <Route element={<ProjectSettingsRoute />} path="settings" />
         </Route>

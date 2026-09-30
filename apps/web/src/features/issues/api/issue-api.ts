@@ -1,10 +1,14 @@
 import {
+  createIssuesResponseSchema,
   issueListResponseSchema,
   issueResponseSchema,
   projectStatusListResponseSchema,
   projectStatusResponseSchema,
   type CreateIssueRequest,
+  type CreateIssuesRequest,
+  type DeleteIssuesRequest,
   type CreateProjectStatusRequest,
+  type IssueListResponse,
   type IssueSummary,
   type ProjectStatusSummary,
   type UpdateIssueRequest,
@@ -72,11 +76,27 @@ async function deleteProjectStatus(
 async function listIssues(
   slug: string,
   projectId: string,
-): Promise<{ issues: IssueSummary[]; total: number }> {
+  params?: Record<string, string>,
+): Promise<IssueListResponse> {
   return requestParsed(issueListResponseSchema, {
     method: "GET",
+    params,
     url: issuePath(slug, projectId, "/issues"),
   });
+}
+
+async function createIssues(
+  slug: string,
+  projectId: string,
+  request: CreateIssuesRequest,
+): Promise<IssueSummary[]> {
+  const response = await requestParsed(createIssuesResponseSchema, {
+    data: request,
+    method: "POST",
+    url: issuePath(slug, projectId, "/issues/bulk"),
+  });
+
+  return response.issues;
 }
 
 async function createIssue(
@@ -108,6 +128,18 @@ async function updateIssue(
   return response.issue;
 }
 
+async function deleteIssues(
+  slug: string,
+  projectId: string,
+  request: DeleteIssuesRequest,
+): Promise<void> {
+  await requestVoid({
+    data: request,
+    method: "POST",
+    url: issuePath(slug, projectId, "/issues/bulk-delete"),
+  });
+}
+
 async function deleteIssue(slug: string, projectId: string, issueId: string): Promise<void> {
   await requestVoid({
     method: "DELETE",
@@ -117,8 +149,10 @@ async function deleteIssue(slug: string, projectId: string, issueId: string): Pr
 
 export {
   createIssue,
+  createIssues,
   createProjectStatus,
   deleteIssue,
+  deleteIssues,
   deleteProjectStatus,
   listIssues,
   listProjectStatuses,

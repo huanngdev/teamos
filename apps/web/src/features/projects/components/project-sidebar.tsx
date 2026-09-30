@@ -1,4 +1,4 @@
-import { GearIcon, ListChecksIcon, SquaresFourIcon } from "@phosphor-icons/react";
+import { GearIcon, KanbanIcon, ListChecksIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import { Link, NavLink } from "react-router";
 
 import { AccountMenu, type AccountMenuUser } from "@/features/auth";
@@ -18,6 +18,8 @@ import {
 import { Logo } from "@/shared";
 
 interface ProjectSidebarView {
+  boardActive: boolean;
+  boardPath: string;
   isSigningOut: boolean;
   issuesActive: boolean;
   issuesPath: string;
@@ -78,6 +80,16 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
                 >
                   <ListChecksIcon className="text-muted-foreground" />
                   <span>Issues</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem className="not-first:mt-1">
+                <SidebarMenuButton
+                  isActive={view.boardActive}
+                  render={<NavLink end to={view.boardPath} />}
+                  tooltip="Board"
+                >
+                  <KanbanIcon className="text-muted-foreground" />
+                  <span>Board</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {view.showSettings ? (

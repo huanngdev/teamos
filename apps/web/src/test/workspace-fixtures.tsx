@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router";
 import { ProjectLayout } from "@/layouts/project-layout";
 import { WorkspaceLayout } from "@/layouts/workspace-layout";
 import { WorkspaceMembersRoute } from "@/routes/workspace-members-route";
+import { ProjectBoardRoute } from "@/routes/project-board-route";
 import { ProjectIssuesRoute } from "@/routes/project-issues-route";
 import { ProjectOverviewRoute } from "@/routes/project-overview-route";
 import { ProjectSettingsRoute } from "@/routes/project-settings-route";
@@ -215,6 +216,7 @@ function renderWorkspace(route = "/workspaces/acme/projects") {
     <Routes>
       <Route element={<ProjectLayout />} path="/workspaces/:organizationSlug/projects/:projectSlug">
         <Route element={<ProjectOverviewRoute />} index />
+        <Route element={<ProjectBoardRoute />} path="issues/board" />
         <Route element={<ProjectIssuesRoute />} path="issues" />
         <Route element={<ProjectSettingsRoute />} path="settings" />
       </Route>

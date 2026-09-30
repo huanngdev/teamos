@@ -6,7 +6,7 @@ import { useParams } from "react-router";
 import { listProjectMembers, useProjectList } from "@/features/projects";
 import { useWorkspace } from "@/features/workspaces";
 import { notify } from "@/shared";
-import { createIssue, listIssues, listProjectStatuses } from "../api/issue-api";
+import { createIssues, listIssues, listProjectStatuses } from "../api/issue-api";
 import { readIssueError } from "../lib/issue-errors";
 import { planSeedIssues } from "../lib/seed-issues";
 import { issueKeys } from "../query-keys";
@@ -108,7 +108,7 @@ async function seedProjectIssues(
     return plan;
   }
 
-  for (const statusId of plan.slots) {
+  const issues = plan.slots.map((statusId) => {
     const description = faker.datatype.boolean()
       ? faker.lorem.paragraph().trim().slice(0, DESCRIPTION_MAX)
       : "";
@@ -122,16 +122,18 @@ async function seedProjectIssues(
       .trim()
       .slice(0, TITLE_MAX);
 
-    await createIssue(organizationSlug, projectId, {
+    return {
       assigneeMemberId: assignee,
       priority: faker.helpers.arrayElement([...issuePriorities]),
       statusId,
       title: title.length > 0 ? title : "Seeded issue",
       ...(description.length > 0 ? { description } : {}),
-    });
-  }
+    };
+  });
 
-  return { count: plan.slots.length, status: "seeded" };
+  await createIssues(organizationSlug, projectId, { issues });
+
+  return { count: issues.length, status: "seeded" };
 }
 
 export { useSeedIssues };

@@ -79,7 +79,9 @@ function ProjectLayout() {
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ml-auto flex items-center gap-2">
-            {import.meta.env.DEV && view.issuesActive ? <SeedIssuesButton /> : null}
+            {import.meta.env.DEV && (view.issuesActive || view.boardActive) ? (
+              <SeedIssuesButton />
+            ) : null}
             <ModeToggle />
           </div>
         </header>
@@ -91,7 +93,7 @@ function ProjectLayout() {
             </Alert>
           )}
           <div
-            className={`min-h-0 min-w-0 flex-1 ${view.issuesActive ? "overflow-hidden" : "overflow-x-hidden overflow-y-auto"}`}
+            className={`min-h-0 min-w-0 flex-1 ${view.issuesActive || view.boardActive ? "overflow-hidden" : "overflow-x-hidden overflow-y-auto"}`}
           >
             <Outlet />
           </div>

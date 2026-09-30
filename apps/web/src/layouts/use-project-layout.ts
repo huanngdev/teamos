@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useMatch, useNavigate, useParams } from "react-router";
 
 import { useAuthSession, useSignOut } from "@/features/auth";
-import { projectIssuesPath } from "@/features/issues";
+import { projectBoardPath, projectIssuesPath } from "@/features/issues";
 import {
   projectOverviewPath,
   projectSettingsPath,
@@ -59,6 +59,10 @@ function useProjectLayout(): ProjectLayoutState {
   const issuesMatch = useMatch({
     end: true,
     path: "/workspaces/:organizationSlug/projects/:projectSlug/issues",
+  });
+  const boardMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug/issues/board",
   });
   const settingsMatch = useMatch({
     end: true,
@@ -140,8 +144,11 @@ function useProjectLayout(): ProjectLayoutState {
       pageLabel: projectPageLabel(
         overviewMatch !== null,
         issuesMatch !== null,
+        boardMatch !== null,
         settingsMatch !== null,
       ),
+      boardActive: boardMatch !== null,
+      boardPath: projectBoardPath(organizationSlug, projectSlug),
       issuesActive: issuesMatch !== null,
       issuesPath: projectIssuesPath(organizationSlug, projectSlug),
       overviewActive: overviewMatch !== null,
@@ -166,11 +173,13 @@ function useProjectLayout(): ProjectLayoutState {
 function projectPageLabel(
   isOverview: boolean,
   isIssues: boolean,
+  isBoard: boolean,
   isSettings: boolean,
 ): string | null {
   const pages = [
     { active: isOverview, label: "Overview" },
     { active: isIssues, label: "Issues" },
+    { active: isBoard, label: "Board" },
     { active: isSettings, label: "Settings" },
   ];
 

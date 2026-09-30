@@ -1,17 +1,11 @@
 /* eslint-disable shadcn/no-arbitrary-values -- the issue viewport fills the column below its fixed 3rem header */
-import type { IssueStatusCategory, ProjectMember } from "@teamos/shared";
+import type { ProjectMember } from "@teamos/shared";
 import {
-  CheckCircleIcon,
-  CircleDashedIcon,
-  CircleIcon,
   DotsSixVerticalIcon,
   DotsThreeIcon,
   PencilIcon,
   PlusIcon,
-  RadioButtonIcon,
   TrashIcon,
-  XCircleIcon,
-  type Icon,
 } from "@phosphor-icons/react";
 
 import { KanbanColumn, KanbanColumnContent, KanbanColumnHandle } from "@/components/reui/kanban";
@@ -25,15 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { BoardColumn } from "../lib/board-columns";
+import { issueStatusCategoryAppearance } from "../lib/issue-status-appearance";
 import { IssueCard } from "./issue-card";
-
-const categoryIcons: Record<IssueStatusCategory, { className: string; icon: Icon }> = {
-  backlog: { className: "text-muted-foreground", icon: CircleDashedIcon },
-  canceled: { className: "text-red-600", icon: XCircleIcon },
-  completed: { className: "text-green-600", icon: CheckCircleIcon },
-  started: { className: "text-amber-500", icon: RadioButtonIcon },
-  unstarted: { className: "text-sky-600", icon: CircleIcon },
-};
 
 interface IssueColumnProps {
   canCreateIssue: boolean;
@@ -58,7 +45,7 @@ function IssueColumn({
   onEditIssue,
   onRename,
 }: IssueColumnProps) {
-  const categoryIcon = categoryIcons[column.status.category];
+  const categoryIcon = issueStatusCategoryAppearance[column.status.category];
   const CategoryIcon = categoryIcon.icon;
 
   return (
