@@ -1,104 +1,73 @@
-import { move } from "@dnd-kit/helpers";
-import type { DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { IssueSummary } from "@teamos/shared";
 
+import type { KanbanCommitMeta } from "@/components/reui/kanban";
 import type { BoardColumn, IssueDropTarget } from "../lib/board-columns";
-import { columnDragId, issueDragId, parseDragId } from "../query-keys";
+import { columnDragId, issueDragId } from "../query-keys";
 
-type IssueOrder = Record<string, string[]>;
+type BoardValue = Record<string, IssueSummary[]>;
 
-function issueOrderFor(columns: readonly BoardColumn[]): IssueOrder {
-  return Object.fromEntries(
-    columns.map((column) => [
-      column.status.id,
-      column.issues.map((issue) => issueDragId(issue.id)),
-    ]),
-  );
+function getIssueItemId(issue: IssueSummary): string {
+  return issue.id;
+}
+
+function boardValue(columns: readonly BoardColumn[]): BoardValue {
+  return Object.fromEntries(columns.map((column) => [column.status.id, [...column.issues]]));
+}
+
+function columnsFromValue(source: readonly BoardColumn[], value: BoardValue): BoardColumn[] {
+  const statuses = new Map(source.map((column) => [column.status.id, column.status]));
+
+  return Object.entries(value).flatMap(([statusId, issues]) => {
+    const status = statuses.get(statusId);
+
+    return status === undefined ? [] : [{ issues, status }];
+  });
 }
 
 function useIssueBoardDrag(options: {
   columns: readonly BoardColumn[];
   onDrop: (activeId: string, issueSlot: IssueDropTarget | null, columnIndex: number | null) => void;
 }) {
-  const [previewOrder, setPreviewOrder] = useState<IssueOrder | null>(null);
-  const orderRef = useRef<IssueOrder | null>(null);
-  const activeColumnIndex = useRef<number | null>(null);
-  const sourceIssues = new Map<string, IssueSummary>(
-    options.columns.flatMap((column) =>
-      column.issues.map((issue) => [issueDragId(issue.id), issue] as const),
-    ),
-  );
-  const issueOrder = previewOrder ?? issueOrderFor(options.columns);
-  const columns = options.columns.map((column) => ({
-    ...column,
-    issues: (issueOrder[column.status.id] ?? [])
-      .map((id) => sourceIssues.get(id))
-      .filter((issue): issue is IssueSummary => issue !== undefined),
-  }));
+  const [preview, setPreview] = useState<BoardValue | null>(null);
+  const value = preview ?? boardValue(options.columns);
 
-  function clearDrag() {
-    orderRef.current = null;
-    activeColumnIndex.current = null;
-    setPreviewOrder(null);
+  function clearPreview() {
+    /*
+     * The kanban calls onValueChange again after drag end while it commits a
+     * column reorder. Clear on the next turn so that write cannot stick.
+     */
+    queueMicrotask(() => {
+      setPreview(null);
+    });
   }
 
-  function onDragStart(event: DragStartEvent) {
-    const active = parseDragId(String(event.operation.source?.id));
+  function onValueChange(next: BoardValue) {
+    setPreview(next);
+  }
 
-    if (active?.kind === "issue") {
-      orderRef.current = issueOrderFor(options.columns);
-    } else if (active?.kind === "column") {
-      activeColumnIndex.current = options.columns.findIndex(
-        (column) => column.status.id === active.id,
+  function onValueCommit(_next: BoardValue, meta: KanbanCommitMeta<IssueSummary>) {
+    if (meta.kind === "item") {
+      options.onDrop(
+        issueDragId(String(meta.event.active.id)),
+        { index: meta.overIndex, statusId: meta.overContainer },
+        null,
       );
-    }
-  }
-
-  function onDragOver(event: DragOverEvent) {
-    const active = parseDragId(String(event.operation.source?.id));
-
-    if (active?.kind === "issue") {
-      const next = move(orderRef.current ?? issueOrderFor(options.columns), event);
-      orderRef.current = next;
-      setPreviewOrder(next);
-    }
-  }
-
-  function onDragEnd(event: DragEndEvent) {
-    const active = parseDragId(String(event.operation.source?.id));
-    const currentOrder = orderRef.current ?? issueOrderFor(options.columns);
-    const initialColumnIndex = activeColumnIndex.current;
-    clearDrag();
-
-    if (event.canceled || active === null || event.operation.target === null) {
       return;
     }
 
-    if (active.kind === "issue") {
-      const next = move(currentOrder, event);
-      const id = issueDragId(active.id);
-      const target = Object.entries(next).find(([, ids]) => ids.includes(id));
-
-      if (target !== undefined) {
-        options.onDrop(id, { statusId: target[0], index: target[1].indexOf(id) }, null);
-      }
-      return;
-    }
-
-    const id = columnDragId(active.id);
-    const next = move(
-      options.columns.map((column) => columnDragId(column.status.id)),
-      event,
-    );
-    const index = next.indexOf(id);
-
-    if (index >= 0 && index !== initialColumnIndex) {
-      options.onDrop(id, null, index);
-    }
+    options.onDrop(columnDragId(meta.activeContainer), null, meta.overIndex);
   }
 
-  return { columns, onDragEnd, onDragOver, onDragStart };
+  return {
+    columns: columnsFromValue(options.columns, value),
+    getItemValue: getIssueItemId,
+    onDragCancel: clearPreview,
+    onDragEnd: clearPreview,
+    onValueChange,
+    onValueCommit,
+    value,
+  };
 }
 
 export { useIssueBoardDrag };

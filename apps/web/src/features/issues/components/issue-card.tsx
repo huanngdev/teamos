@@ -1,43 +1,38 @@
-import { useSortable } from "@dnd-kit/react/sortable";
 import { getInitials, type IssueSummary, type ProjectMember } from "@teamos/shared";
 import { UserCircleIcon } from "@phosphor-icons/react";
 
+import { KanbanItem, KanbanItemHandle } from "@/components/reui/kanban";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { issueDragId } from "../query-keys";
 import { IssuePriorityIcon } from "./issue-priority-icon";
 
 interface IssueCardProps {
   canDrag: boolean;
   issue: IssueSummary;
-  index: number;
   member: ProjectMember | undefined;
   onEdit: () => void;
-  statusId: string;
 }
 
-function IssueCard({ canDrag, issue, index, member, onEdit, statusId }: IssueCardProps) {
-  const sortable = useSortable({
-    accept: "issue",
-    disabled: !canDrag,
-    group: statusId,
-    id: issueDragId(issue.id),
-    index,
-    type: "issue",
-  });
+function IssueCard({ canDrag, issue, member, onEdit }: IssueCardProps) {
+  const body = (
+    <button
+      aria-label={member === undefined ? issue.title : `${issue.title}, ${member.name}`}
+      className="w-full text-left"
+      onClick={onEdit}
+      type="button"
+    >
+      <IssueCardBody issue={issue} member={member} />
+    </button>
+  );
 
   return (
-    <div className="relative" ref={sortable.ref}>
-      <button
-        aria-label={member === undefined ? issue.title : `${issue.title}, ${member.name}`}
-        className="w-full text-left"
-        onClick={onEdit}
-        ref={sortable.handleRef}
-        type="button"
-      >
-        <IssueCardBody issue={issue} member={member} />
-      </button>
-    </div>
+    <KanbanItem
+      className={canDrag ? undefined : "!opacity-100"}
+      disabled={!canDrag}
+      value={issue.id}
+    >
+      {canDrag ? <KanbanItemHandle>{body}</KanbanItemHandle> : body}
+    </KanbanItem>
   );
 }
 

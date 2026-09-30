@@ -15,8 +15,10 @@ function AppProviders({ children }: PropsWithChildren) {
       <MotionConfig reducedMotion="user">
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
-            <IconContext value={{ weight: "regular" }}>{children}</IconContext>
-            <Toaster position="top-right" richColors />
+            <IconContext value={{ weight: "bold" }}>
+              {children}
+              <Toaster position="top-right" richColors />
+            </IconContext>
             {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
           </TooltipProvider>
         </QueryClientProvider>

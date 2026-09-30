@@ -1,5 +1,5 @@
-import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
-import { cn } from "cn"
+import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
+import { cn } from "cn";
 
 function ScrollArea({
   className,
@@ -7,7 +7,7 @@ function ScrollArea({
   fade,
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
-  fade?: "x" | "y"
+  fade?: "x" | "y";
 }) {
   return (
     <ScrollAreaPrimitive.Root
@@ -20,7 +20,7 @@ function ScrollArea({
         className={cn(
           "size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1",
           fade === "x" && "scroll-fade-x",
-          fade === "y" && "scroll-fade"
+          fade === "y" && "scroll-fade",
         )}
       >
         {children}
@@ -28,7 +28,7 @@ function ScrollArea({
       <ScrollBar />
       <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
-  )
+  );
 }
 
 function ScrollBar({
@@ -43,7 +43,7 @@ function ScrollBar({
       orientation={orientation}
       className={cn(
         "flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent",
-        className
+        className,
       )}
       {...props}
     >
@@ -52,7 +52,7 @@ function ScrollBar({
         className="relative flex-1 rounded-full bg-border"
       />
     </ScrollAreaPrimitive.Scrollbar>
-  )
+  );
 }
 
-export { ScrollArea, ScrollBar }
+export { ScrollArea, ScrollBar };

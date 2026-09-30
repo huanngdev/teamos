@@ -1,4 +1,6 @@
-import { DragDropProvider } from "@dnd-kit/react";
+import { PlusIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
+
+import { Kanban, KanbanBoard, KanbanOverlay } from "@/components/reui/kanban";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,7 +11,6 @@ import { ColumnFormDialog } from "./column-form-dialog";
 import { DeleteColumnDialog } from "./delete-column-dialog";
 import { IssueColumn } from "./issue-column";
 import { IssueFormDialog } from "./issue-form-dialog";
-import { PlusIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
 
 interface IssueBoardProps {
   state: IssueBoardState;
@@ -56,39 +57,6 @@ function IssueBoardReady({
     columns: view.columns,
     onDrop: view.onDrop,
   });
-  const board = (
-    <div className="flex h-full w-max gap-2 p-2">
-      {drag.columns.map((column, index) => (
-        <IssueColumn
-          canCreateIssue={view.canCreateIssue}
-          canDragCards={view.canUpdateIssue}
-          canUpdateProject={view.canUpdateProject}
-          column={column}
-          columnIndex={index}
-          key={column.status.id}
-          members={view.members}
-          onCreateIssue={() => {
-            view.onCreateIssue(column.status.id);
-          }}
-          onDelete={() => {
-            view.onDeleteColumn(column.status.id);
-          }}
-          onEditIssue={view.onEditIssue}
-          onRename={() => {
-            view.onRenameColumn(column.status.id);
-          }}
-        />
-      ))}
-      {view.canUpdateProject ? (
-        <div className="flex shrink-0 items-start p-3">
-          <Button onClick={view.onCreateColumn} variant="outline">
-            <PlusIcon data-icon="inline-start" />
-            Add column
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -101,13 +69,55 @@ function IssueBoardReady({
         </Alert>
       )}
       <ScrollArea className="min-h-0 min-w-0 flex-1" fade="x">
-        <DragDropProvider
+        <Kanban
+          className="h-full"
+          getItemValue={drag.getItemValue}
+          onDragCancel={drag.onDragCancel}
           onDragEnd={drag.onDragEnd}
-          onDragOver={drag.onDragOver}
-          onDragStart={drag.onDragStart}
+          onValueChange={drag.onValueChange}
+          onValueCommit={drag.onValueCommit}
+          value={drag.value}
         >
-          {board}
-        </DragDropProvider>
+          <KanbanBoard className="h-full">
+            <div className="flex h-full w-max gap-2 p-2">
+              {drag.columns.map((column) => (
+                <IssueColumn
+                  canCreateIssue={view.canCreateIssue}
+                  canDragCards={view.canUpdateIssue}
+                  canUpdateProject={view.canUpdateProject}
+                  column={column}
+                  key={column.status.id}
+                  members={view.members}
+                  onCreateIssue={() => {
+                    view.onCreateIssue(column.status.id);
+                  }}
+                  onDelete={() => {
+                    view.onDeleteColumn(column.status.id);
+                  }}
+                  onEditIssue={view.onEditIssue}
+                  onRename={() => {
+                    view.onRenameColumn(column.status.id);
+                  }}
+                />
+              ))}
+              {view.canUpdateProject ? (
+                <div className="flex shrink-0 items-start p-3">
+                  <Button onClick={view.onCreateColumn} variant="outline">
+                    <PlusIcon data-icon="inline-start" />
+                    Add column
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </KanbanBoard>
+          <KanbanOverlay>
+            {({ variant }) => (
+              <div
+                className={`size-full border-2 border-dashed bg-muted/10 ${variant === "column" ? "rounded-lg" : "rounded-xl"}`}
+              />
+            )}
+          </KanbanOverlay>
+        </Kanban>
       </ScrollArea>
       <IssueFormDialog
         form={view.issueForm}

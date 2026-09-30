@@ -6,7 +6,7 @@ This file is the product snapshot: what is coded, what is finished, which HTTP A
 
 ## Current Milestone
 
-The issue board in `docs/plans/issue-list.md` is implemented. Project settings in `docs/plans/project-settings.md` are implemented too. A project opens onto seeded workflow columns. Members create, edit, assign, and drag issues. Leads manage columns. A lead, owner, or admin can change the project name, description, and visibility from `/workspaces/:organizationSlug/projects/:projectSlug/settings`.
+The issue board in `docs/plans/issue-list.md` is implemented, except the stored `#number` is not rendered. Project settings in `docs/plans/project-settings.md` are implemented too. A project opens onto seeded workflow columns. Members create, edit, assign, and drag issues. Leads manage columns. A lead, owner, or admin can change the project name, description, and visibility from `/workspaces/:organizationSlug/projects/:projectSlug/settings`.
 
 Labels, a list view, comments, search, and realtime are still out of that slice. The next product step is not agreed yet. The recommendation at the bottom is a suggestion, not an accepted plan.
 
@@ -14,20 +14,21 @@ Labels, a list view, comments, search, and realtime are still out of that slice.
 
 A row is finished only when the database, the server check, the tests, and the screen all exist.
 
-| Area             | Finished behavior                                                                                                                                                                                              |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workspace        | Create a workspace, remember the last one per user, switch workspaces, rename, and delete with a typed name. Owners and admins rename. Only owners delete.                                                     |
-| Members          | Search and page members, change `admin` or `member`, invite, resend, cancel, and remove. The owner role is never granted here.                                                                                 |
-| Projects         | List and search projects, create one, and show visibility plus member count. Private projects stay hidden from members without a project role.                                                                 |
-| Project access   | Grant, change, and revoke `lead`, `member`, and `viewer`. The last lead cannot be removed. Organization owners and admins keep full project control.                                                           |
-| Profile          | Read the session from `/api/me`. Edit a display name of 1–80 characters. Email stays read-only.                                                                                                                |
-| Issue board      | Five seeded columns, create and edit issues, drag cards and columns, add, rename, and delete empty columns, assignee name on the card, and scroll fades on the column and the board.                           |
-| Project settings | Change the name, description, and visibility. The slug stays fixed. An organization owner or admin deletes the project by typing its exact name. A member or viewer who opens the URL is sent to the overview. |
-| Auth             | Google and GitHub sign-in, email verification, invitation acceptance, session cookie, and blocked native management endpoints.                                                                                 |
+| Area             | Finished behavior                                                                                                                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace        | Create a workspace, remember the last one per user, switch workspaces, rename, and delete with a typed name. Owners and admins rename. Only owners delete.                                                                                |
+| Members          | Search and page members, change `admin` or `member`, invite, resend, cancel, and remove. The owner role is never granted here.                                                                                                            |
+| Projects         | List and search projects, create one, and show visibility plus member count. Private projects stay hidden from members without a project role.                                                                                            |
+| Project access   | Grant, change, and revoke `lead`, `member`, and `viewer`. The last lead cannot be removed. Organization owners and admins keep full project control.                                                                                      |
+| Profile          | Read the session from `/api/me`. Edit a display name of 1–80 characters. Email stays read-only.                                                                                                                                           |
+| Issue board      | Five seeded columns, create and edit issues, drag cards and columns, add, rename, and delete empty columns. A card shows the title, a priority icon, and the assignee name or an unassigned icon. Columns and the board use scroll fades. |
+| Project settings | Change the name, description, and visibility. The slug stays fixed. An organization owner or admin deletes the project by typing its exact name. A member or viewer who opens the URL is sent to the overview.                            |
+| Auth             | Google and GitHub sign-in, email verification, invitation acceptance, session cookie, and blocked native management endpoints.                                                                                                            |
 
 ## What is coded but has no screen
 
 - A development-only **Seed issues** button on the issues route fills the board. It is hidden outside `import.meta.env.DEV`.
+- Issue `number` is stored and returned by the issue API. No card, dialog, or route renders it.
 
 ## UI routes
 
@@ -44,6 +45,8 @@ Routes are registered in `apps/web/src/app/routes.tsx`. Anything under `Protecte
 
 ### Signed in, no project
 
+`WorkspaceLayout` puts the logo, workspace switcher, theme toggle, and account menu in the header. The Projects and Members tabs show counts. Settings appears only for an owner or admin.
+
 | Route                                    | Screen             | What it does                                                                                                                            |
 | ---------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `/`                                      | Workspace picker   | Opens the last workspace this user used, otherwise the newest one. With no workspace, it offers creation.                               |
@@ -57,23 +60,23 @@ Routes are registered in `apps/web/src/app/routes.tsx`. Anything under `Protecte
 
 ### Inside a project
 
-`ProjectLayout` is the inset sidebar. The header has the project breadcrumb and the theme toggle. On the issues route, development builds also show a **Seed issues** button. The footer has the account menu.
+`ProjectLayout` is the inset sidebar. The sidebar header links back to the project list. The breadcrumb is the workspace switcher, the project switcher, and the page name. The project switcher can create a project. The header also has the theme toggle, and development builds show **Seed issues** on the issues route. The sidebar footer has the account menu.
 
-| Route                                                          | Screen           | What it does                                                                                                                                                                                   |
-| -------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/workspaces/:organizationSlug/projects/:projectSlug`          | Overview         | Name, description, visibility, role, member count, dates, and a members dialog for role changes and revocation.                                                                                |
-| `/workspaces/:organizationSlug/projects/:projectSlug/issues`   | Issue board      | Columns in position order. Cards show title, priority, number, and assignee. Click opens the edit dialog. `+` creates in that column. Dragging reorders cards and, for leads, columns.         |
-| `/workspaces/:organizationSlug/projects/:projectSlug/settings` | Project settings | Edit name, description, and visibility. The slug is shown and cannot be changed. Owners and admins can delete the project after typing its name. Members and viewers are sent to the overview. |
-| `*`                                                            | Not found        | Says the path does not exist and links back to `/`.                                                                                                                                            |
+| Route                                                          | Screen           | What it does                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/workspaces/:organizationSlug/projects/:projectSlug`          | Overview         | Name, description, visibility, role, member count, dates, and a members dialog for role changes and revocation.                                                                                                                                                                                                                                             |
+| `/workspaces/:organizationSlug/projects/:projectSlug/issues`   | Issue board      | Columns show a category icon, name, and count. Cards show title, a priority icon, and the assignee. They do not show `#number`. Click opens a dialog for title, description, column, priority, and assignee. A viewer can open it read-only. `+` creates in that column. A lead reorders columns from the grip and renames or deletes from the column menu. |
+| `/workspaces/:organizationSlug/projects/:projectSlug/settings` | Project settings | Edit name, description, and visibility. Save sends one patch of the fields that changed. The slug is shown and cannot be changed. Owners and admins can delete the project after typing its name, then return to the project list. Members and viewers are sent to the overview.                                                                            |
+| `*`                                                            | Not found        | Says the path does not exist and links back to `/`.                                                                                                                                                                                                                                                                                                         |
 
 Sidebar items are **Overview**, **Issues**, and **Settings**. Settings is shown to a lead and to an organization owner or admin.
 
 ### Board rules the screen already enforces
 
 - A new project gets Backlog, Todo, In Progress, Done, and Canceled. Backlog is the default inbox.
-- A card shows `#number`, title, priority, and the assignee's name. The description stays in the dialog.
+- A card shows the title, a priority icon, and the assignee's name or an unassigned icon. The dialog holds the description, column, priority, and assignee. `#number` is not shown.
 - A member can create and move issues. A viewer can only look. A lead, or an organization owner or admin, can delete an issue and manage columns.
-- The board loads at most 200 issues. A larger project shows a truncation alert and still shows every column.
+- Creating a 201st issue is rejected. The board also loads at most 200 issues. If `total` is higher, it shows a truncation alert and still shows every column.
 - A project accepts at most 20 columns. The default column cannot be deleted. A column with issues cannot be deleted.
 - Scroll fade uses the shadcn `scroll-fade` utilities: vertical inside a column, horizontal across the columns.
 - There is no list view, filter, search, label, comment, or live update. Refresh loads the board again.
@@ -151,7 +154,7 @@ An inaccessible organization or private project is `404`. A visible resource wit
 | `PATCH`  | `.../projects/{projectId}/issues/{issueId}`    | Member, lead, owner, admin      | Title, description, priority, assignee, column, and `index`              |
 | `DELETE` | `.../projects/{projectId}/issues/{issueId}`    | Lead, owner, admin              | Delete one issue                                                         |
 
-Priorities are `none`, `low`, `medium`, `high`, and `urgent`. Column categories are `backlog`, `unstarted`, `started`, `completed`, and `canceled`. A column name is free text. The card identifier is `#number` inside the project, not a project key.
+Priorities are `none`, `low`, `medium`, `high`, and `urgent`. Column categories are `backlog`, `unstarted`, `started`, `completed`, and `canceled`. A column name is free text. The stored identifier is `#number` inside the project, not a project key. The screen does not render it yet.
 
 ## Database
 
@@ -171,7 +174,7 @@ Project membership and issues use composite foreign keys that include `organizat
 
 - Issue labels, comments, subscribers, and notifications.
 - A list view, filters, and issue search.
-- A stable issue URL. Editing is a dialog on the board.
+- A stable issue URL, and showing the stored `#number`. Editing is a dialog on the board.
 - Ownership transfer and leaving a workspace.
 - Email change, avatar upload, and password change.
 - Durable email outbox. A failed invitation send leaves a pending invitation that must be resent by hand.
@@ -216,7 +219,7 @@ Covered areas include HTTP hardening, session and profile contracts, workspace m
 - Avatars are display-only. Remote image URLs are not accepted, and MinIO has no upload or signed-URL flow.
 - Invitation email is not durable.
 - The board does not update live. Two people editing the same project see each other's changes after a refresh.
-- A board over 200 issues is truncated in the response.
+- A project cannot grow past 200 issues. The list also returns at most 200, and the board shows a truncation alert if `total` is higher.
 - Local Compose credentials are development defaults.
 - Redis rate limiting fails closed when Redis is not ready on the real server path.
 - There is no production deployment or migration runbook.
@@ -227,7 +230,7 @@ This is a suggestion. It is not an accepted plan, so implementation should wait 
 
 The board is enough to move work, and a lead can change a project's name, description, and visibility. The gap that remains is opening one issue without hunting the card. Linear solves that with a dense filter builder, command palette, and a large issue page. A smaller version is easier:
 
-1. **One issue URL plus "Assigned to me".** Give each issue a link such as `/issues/12`, and a single board toggle for issues assigned to the current member. That covers the two questions a board does not answer: where is this issue, and what is mine. Project settings, the previous suggestion, are implemented in `docs/plans/project-settings.md`.
+1. **One issue URL plus "Assigned to me".** The issue `number` is already stored and returned. Show it, and give each issue a link such as `/issues/12`. Add a single board toggle for issues assigned to the current member. That covers the two questions a board does not answer: where is this issue, and what is mine. Project settings, the previous suggestion, are implemented in `docs/plans/project-settings.md`.
 2. Leave labels, cycles, estimates, comments, and realtime until that is in use. They add surface area before the current board is easy to live in.
 
 Ownership transfer and a durable invitation outbox stay on the engineering list. They are security and delivery work, separate from the Linear-style workflow.
