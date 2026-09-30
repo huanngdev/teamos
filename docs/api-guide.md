@@ -221,10 +221,18 @@ Issue columns and cards are TeamOS data on top of the project authorization abov
 - `POST /api/organizations/{slug}/projects/{projectId}/statuses` adds a column. This requires project `update`, so a lead or an organization administrator can do it and a member cannot.
 - `PATCH /api/organizations/{slug}/projects/{projectId}/statuses/{statusId}` renames or reorders a column. Category cannot change.
 - `DELETE /api/organizations/{slug}/projects/{projectId}/statuses/{statusId}` deletes an empty non-default column. The default column and a column that still has issues return `409 CONFLICT`.
-- `GET /api/organizations/{slug}/projects/{projectId}/issues` returns at most 200 issues plus the unfiltered `total`.
-- `POST /api/organizations/{slug}/projects/{projectId}/issues` creates an issue. A project member can create and update. A viewer cannot.
+- `GET /api/organizations/{slug}/projects/{projectId}/issues` returns at most 200 issues plus `total`. Optional query filters narrow that set. `total` is the match count, not the unfiltered project count. `facets=1` adds project-wide counts for status, priority, assignee, and category. The board calls it with no filters. The issue table sends the filters from the page URL.
+  - `q` is a case-insensitive substring over title, description, `#number`, status name, priority, assignee name and email, and category.
+  - `status` is a comma-separated list of status ids. A non-uuid token makes the filter match nothing.
+  - `priority` and `category` are comma-separated codes. Invalid tokens are dropped. If every token is invalid, the filter matches nothing.
+  - `assignee` is a comma-separated list of member ids. `unassigned` matches a null assignee.
+  - `title` and `description` are substring filters.
+  - `number` is `min..max`. `created` and `updated` are `YYYY-MM-DD..YYYY-MM-DD`. Either side may be empty. Date bounds use `timeZone`, or UTC when that zone is missing or invalid.
+- `POST /api/organizations/{slug}/projects/{projectId}/issues` creates one issue. A project member can create and update. A viewer cannot.
+- `POST /api/organizations/{slug}/projects/{projectId}/issues/bulk` creates `{ issues: CreateIssueRequest[] }` in one transaction and returns `{ issues }`. The development seed uses this so one click is one management-rate-limit point. The batch plus the issues already in the project cannot pass 200. That case is `409 CONFLICT`.
 - `PATCH /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` updates fields and, when `statusId` or `index` is present, places the card.
-- `DELETE /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` deletes an issue. A project member cannot delete an issue. A lead, owner, or admin can.
+- `POST /api/organizations/{slug}/projects/{projectId}/issues/bulk-delete` deletes `{ issueIds }` in one transaction. Duplicate ids are removed. If any id is missing from that project, the request is `404 ISSUE_NOT_FOUND` and nothing is deleted. A project member cannot delete issues. A lead, owner, or admin can.
+- `DELETE /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` deletes one issue. A project member cannot delete an issue. A lead, owner, or admin can.
 
 A missing issue in a visible project is `404 ISSUE_NOT_FOUND`. A missing column is `404 PROJECT_STATUS_NOT_FOUND`. A duplicate column name is `409 PROJECT_STATUS_NAME_TAKEN`. A project accepts at most 200 issues and 20 columns.
 
