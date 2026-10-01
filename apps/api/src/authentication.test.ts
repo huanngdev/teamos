@@ -17,6 +17,7 @@ import {
   createFakeOrganizationManagementService,
   createFakeOrganizationMemberService,
   createFakeIssueService,
+  createFakeIssueViewService,
   createFakeProjectService,
   createFakeProjectStatusService,
   createFakeUserProfileService,
@@ -63,6 +64,7 @@ function createOrganizationServices(
   ]);
 
   return {
+    issueViews: createFakeIssueViewService(),
     issues: createFakeIssueService(),
     management: createFakeOrganizationManagementService(),
     members,

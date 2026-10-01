@@ -3,6 +3,8 @@ import {
   createProjectRequestSchema,
   deleteProjectRequestSchema,
   organizationSlugSchema,
+  eligibleAssigneeListQuerySchema,
+  eligibleAssigneeListResponseSchema,
   projectDetailResponseSchema,
   projectListQuerySchema,
   projectListResponseSchema,
@@ -132,6 +134,26 @@ const deleteProjectRoute = createRoute({
   },
   security: [{ sessionCookie: [] }],
   summary: "Delete a project",
+  tags: ["Projects"],
+});
+
+const listEligibleAssigneesRoute = createRoute({
+  method: "get",
+  operationId: "listEligibleAssignees",
+  path: "/{organizationSlug}/projects/{projectId}/assignees",
+  request: { params: projectParamsSchema, query: eligibleAssigneeListQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: eligibleAssigneeListResponseSchema } },
+      description:
+        "Returns members who can view the project and can be assigned an issue. This is not the project-role roster.",
+      headers: requestIdHeaders,
+    },
+    ...protectedRouteErrorResponses,
+    ...apiErrorResponses,
+  },
+  security: [{ sessionCookie: [] }],
+  summary: "List eligible issue assignees",
   tags: ["Projects"],
 });
 
@@ -265,6 +287,27 @@ function registerProjectRoutes(
     await projects.remove({ organization, projectId, request });
 
     return context.body(null, 204);
+  });
+
+  routes.openapi(listEligibleAssigneesRoute, async (context) => {
+    const session = getAuthenticatedSession(context);
+    const { organizationSlug, projectId } = context.req.valid("param");
+    const query = context.req.valid("query");
+    const organization = await requireOrganizationAccess(
+      organizationAccess,
+      organizationSlug,
+      session.user.id,
+    );
+    const result = await projects.listEligibleAssignees({
+      ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+      ...(query.ids === undefined ? {} : { ids: query.ids }),
+      limit: query.limit,
+      organization,
+      projectId,
+      ...(query.q === undefined ? {} : { q: query.q }),
+    });
+
+    return context.json(eligibleAssigneeListResponseSchema.parse(result), 200);
   });
 
   routes.openapi(listProjectMembersRoute, async (context) => {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ISSUE_POSITION_GAP } from "@teamos/shared";
 
-import { placeAtIndex, reorderByIndex } from "./issue-position.js";
+import { placeAtIndex, placeBetween, reorderByIndex, spreadWindow } from "./issue-position.js";
 
 describe("placeAtIndex", () => {
   test("starts an empty column at zero", () => {
@@ -40,6 +40,51 @@ describe("placeAtIndex", () => {
         { id: "b", position: ISSUE_POSITION_GAP * 2 },
       ],
     });
+  });
+});
+
+describe("placeBetween", () => {
+  test("uses the midpoint when the neighbors have room", () => {
+    expect(placeBetween(0, 1000)).toEqual({ kind: "position", position: 500 });
+  });
+
+  test("asks for a rebalance when the gap is exhausted or the integer would overflow", () => {
+    expect(placeBetween(5, 6)).toEqual({ kind: "rebalance" });
+    expect(placeBetween(2_147_483_647, null)).toEqual({ kind: "rebalance" });
+  });
+});
+
+describe("spreadWindow", () => {
+  test("rewrites only the window and leaves a position for the moving issue", () => {
+    const spread = spreadWindow({
+      high: 5_000,
+      insertAt: 1,
+      low: 0,
+      movingId: "moving",
+      orderedIds: ["a", "b"],
+    });
+
+    expect(spread.kind).toBe("spread");
+
+    if (spread.kind !== "spread") {
+      return;
+    }
+
+    expect(spread.positions.map((item) => item.id)).toEqual(["a", "b"]);
+    expect(spread.movingPosition).toBeGreaterThan(spread.positions[0]?.position ?? 0);
+    expect(spread.movingPosition).toBeLessThan(spread.positions[1]?.position ?? 0);
+  });
+
+  test("refuses a packed window instead of moving rows outside it", () => {
+    expect(
+      spreadWindow({
+        high: 3,
+        insertAt: 1,
+        low: 0,
+        movingId: "moving",
+        orderedIds: ["a", "b"],
+      }).kind,
+    ).toBe("full");
   });
 });
 

@@ -5,6 +5,7 @@ import type { OrganizationAccessService } from "@/auth/index.js";
 import type { AppEnv } from "@/types.js";
 import type {
   IssueService,
+  IssueViewService,
   OrganizationManagementService,
   OrganizationMemberService,
   ProjectService,
@@ -14,6 +15,7 @@ import type {
 type OrganizationRoutes = OpenAPIHono<AppEnv>;
 
 interface OrganizationRouteDependencies {
+  issueViews: IssueViewService;
   issues: IssueService;
   logger: ILogLayer;
   management: OrganizationManagementService;

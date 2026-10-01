@@ -1,21 +1,31 @@
 import type { Database } from "@teamos/db";
 import { issue, member, projectStatus, user } from "@teamos/db/schema";
 import {
-  ISSUE_BOARD_MAX,
+  ISSUE_COLUMN_PAGE_SIZE,
+  ISSUE_TABLE_PAGE_SIZE_DEFAULT,
   canPerformProjectAction,
+  canonicalIssueColumnScope,
+  encodeIssueColumnCursor,
   getIssuePriorityLabel,
   getIssueStatusCategoryLabel,
   issuePriorities,
+  issuePriorityRank,
   issuePrioritySchema,
   issueStatusCategories,
   parseIssueListQuery,
+  resolveCurrentUserAssignee,
   unassignedAssigneeId,
   type CreateIssueRequest,
   type DeleteIssuesRequest,
+  type IssueBoardResponse,
+  type IssueCardSummary,
+  type IssueColumnPageResponse,
   type IssueListFacets,
   type IssueListFilters,
   type IssueListResponse,
+  type IssueSortDirection,
   type IssueSummary,
+  type IssueTableSort,
   type OrganizationMember,
   type ProjectVisibility,
   type UpdateIssueRequest,
@@ -24,13 +34,13 @@ import {
   and,
   asc,
   count,
+  desc,
   eq,
   gte,
   inArray,
   isNull,
   lte,
   max,
-  ne,
   or,
   sql,
   type SQL,
@@ -39,14 +49,14 @@ import type { PgColumn } from "drizzle-orm/pg-core";
 
 import type { OrganizationAccess } from "@/auth/index.js";
 import { AppError } from "@/errors/index.js";
-import { placeAtIndex } from "@/services/issue-position.js";
+import { lockIssueColumns, lockIssueNumbers, placeRelative } from "@/services/issue-placement.js";
 import { buildLiteralSearchCondition } from "@/services/search.js";
 import {
   assertActorAccessAfterLock,
   assertProjectAction,
   createProjectAccess,
   findProjectRole,
-  lockProject,
+  lockProjectShare,
   type ProjectTransaction,
 } from "@/services/project-access.js";
 
@@ -64,11 +74,34 @@ interface IssueService {
     projectId: string;
     request: CreateIssueRequest;
   }) => Promise<IssueSummary>;
+  get: (input: {
+    issueId: string;
+    organization: OrganizationAccess;
+    projectId: string;
+  }) => Promise<IssueSummary>;
   list: (input: {
+    direction?: IssueSortDirection;
+    filters?: IssueListFilters;
+    organization: OrganizationAccess;
+    page?: number;
+    pageSize?: number;
+    projectId: string;
+    sort?: IssueTableSort;
+  }) => Promise<IssueListResponse>;
+  listBoard: (input: {
     filters?: IssueListFilters;
     organization: OrganizationAccess;
     projectId: string;
-  }) => Promise<IssueListResponse>;
+  }) => Promise<IssueBoardResponse>;
+  listColumn: (input: {
+    before: boolean;
+    cursor: { id: string; position: number; scope: string; statusId: string } | undefined;
+    filters?: IssueListFilters;
+    limit: number;
+    organization: OrganizationAccess;
+    projectId: string;
+    statusId: string;
+  }) => Promise<IssueColumnPageResponse>;
   remove: (input: {
     organization: OrganizationAccess;
     projectId: string;
@@ -88,9 +121,12 @@ interface IssueService {
 }
 
 interface IssueRecord {
+  assigneeEmail: string | null;
+  assigneeImage: string | null;
   assigneeMemberId: string | null;
+  assigneeName: string | null;
   createdAt: Date;
-  description: string | null;
+  description?: string | null;
   id: string;
   number: number;
   position: number;
@@ -100,10 +136,12 @@ interface IssueRecord {
   updatedAt: Date;
 }
 
-const issueSelection = {
+const issueCardSelection = {
+  assigneeEmail: user.email,
+  assigneeImage: user.image,
   assigneeMemberId: issue.assigneeMemberId,
+  assigneeName: user.name,
   createdAt: issue.createdAt,
-  description: issue.description,
   id: issue.id,
   number: issue.number,
   position: issue.position,
@@ -112,6 +150,20 @@ const issueSelection = {
   title: issue.title,
   updatedAt: issue.updatedAt,
 };
+
+const issueSelection = {
+  ...issueCardSelection,
+  description: issue.description,
+};
+
+type IssueReader = Pick<Database, "select">;
+
+function assigneeJoin(): SQL | undefined {
+  return and(
+    eq(issue.assigneeMemberId, member.id),
+    eq(issue.organizationId, member.organizationId),
+  );
+}
 
 function issueStatusJoin(): SQL | undefined {
   return and(
@@ -185,7 +237,11 @@ function buildIssueListWhere(
 ): SQL | undefined {
   const scope = and(eq(issue.organizationId, organizationId), eq(issue.projectId, projectId));
 
-  if (filters.unsatisfiable) {
+  /*
+   * An unresolved `me` token is not "no assignee filter". Closing it avoids
+   * showing every issue when a caller forgets to resolve the current member.
+   */
+  if (filters.unsatisfiable || filters.includeCurrentUser) {
     return and(scope, sql`false`);
   }
 
@@ -213,6 +269,104 @@ function buildIssueListWhere(
     dateBounds(issue.updatedAt, filters.timeZone, filters.updatedFrom, filters.updatedTo),
     buildIssueSearch(filters.q),
   );
+}
+
+function issueCardQuery(executor: IssueReader) {
+  return executor
+    .select(issueCardSelection)
+    .from(issue)
+    .innerJoin(projectStatus, issueStatusJoin())
+    .leftJoin(member, assigneeJoin())
+    .leftJoin(user, eq(member.userId, user.id));
+}
+
+function issueQuery(executor: IssueReader) {
+  return executor
+    .select(issueSelection)
+    .from(issue)
+    .innerJoin(projectStatus, issueStatusJoin())
+    .leftJoin(member, assigneeJoin())
+    .leftJoin(user, eq(member.userId, user.id));
+}
+
+async function countIssues(
+  executor: IssueReader,
+  where: SQL | undefined,
+): Promise<Array<{ value: number }>> {
+  const [row] = await executor
+    .select({ value: count(issue.id) })
+    .from(issue)
+    .innerJoin(projectStatus, issueStatusJoin())
+    .leftJoin(member, assigneeJoin())
+    .leftJoin(user, eq(member.userId, user.id))
+    .where(where);
+
+  return [{ value: Number(row?.value ?? 0) }];
+}
+
+async function readIssue(
+  executor: IssueReader,
+  organizationId: string,
+  projectId: string,
+  issueId: string,
+): Promise<IssueRecord | undefined> {
+  const [record] = await issueQuery(executor)
+    .where(
+      and(
+        eq(issue.organizationId, organizationId),
+        eq(issue.projectId, projectId),
+        eq(issue.id, issueId),
+      ),
+    )
+    .limit(1);
+
+  return record;
+}
+
+function directed(expression: SQL | PgColumn, direction: IssueSortDirection): SQL {
+  return direction === "asc" ? asc(expression) : desc(expression);
+}
+
+function issueTableOrder(sort: IssueTableSort, direction: IssueSortDirection): SQL[] {
+  const priorityRank = sql`case ${issue.priority} ${sql.join(
+    issuePriorities.map((priority) => sql`when ${priority} then ${issuePriorityRank[priority]}`),
+    sql` `,
+  )} else 0 end`;
+  const categoryLabel = sql`lower(case ${projectStatus.category} ${sql.join(
+    issueStatusCategories.map(
+      (category) => sql`when ${category} then ${getIssueStatusCategoryLabel(category)}`,
+    ),
+    sql` `,
+  )} else ${projectStatus.category} end)`;
+  const primary = (() => {
+    switch (sort) {
+      case "assignee":
+        return directed(sql`lower(coalesce(${user.name}, ''))`, direction);
+      case "category":
+        return directed(categoryLabel, direction);
+      case "createdAt":
+        return directed(issue.createdAt, direction);
+      case "description":
+        return directed(sql`lower(coalesce(${issue.description}, ''))`, direction);
+      case "number":
+        return directed(issue.number, direction);
+      case "priority":
+        return directed(priorityRank, direction);
+      case "status":
+        return directed(projectStatus.position, direction);
+      case "title":
+        return directed(sql`lower(${issue.title})`, direction);
+      case "updatedAt":
+        return directed(issue.updatedAt, direction);
+      default: {
+        const exhaustive: never = sort;
+
+        return exhaustive;
+      }
+    }
+  })();
+
+  return [primary, asc(issue.id)];
 }
 
 function toFacetCounts(
@@ -279,7 +433,7 @@ function createIssueService(dependencies: {
   const { db, members } = dependencies;
   const access = createProjectAccess(db);
 
-  function toIssueSummary(record: IssueRecord): IssueSummary {
+  function toIssueCard(record: IssueRecord): IssueCardSummary {
     const priority = issuePrioritySchema.safeParse(record.priority);
 
     if (!priority.success) {
@@ -287,9 +441,18 @@ function createIssueService(dependencies: {
     }
 
     return {
+      assignee:
+        record.assigneeMemberId === null ||
+        record.assigneeEmail === null ||
+        record.assigneeName === null
+          ? null
+          : {
+              email: record.assigneeEmail,
+              image: record.assigneeImage,
+              name: record.assigneeName,
+            },
       assigneeMemberId: record.assigneeMemberId,
       createdAt: record.createdAt.toISOString(),
-      description: record.description,
       id: record.id,
       number: record.number,
       position: record.position,
@@ -297,6 +460,60 @@ function createIssueService(dependencies: {
       statusId: record.statusId,
       title: record.title,
       updatedAt: record.updatedAt.toISOString(),
+    };
+  }
+
+  function toIssueSummary(record: IssueRecord): IssueSummary {
+    return {
+      ...toIssueCard(record),
+      description: record.description ?? null,
+    };
+  }
+
+  async function requireIssueFilters(
+    organization: OrganizationAccess,
+    projectId: string,
+    rawFilters: IssueListFilters | undefined,
+  ): Promise<IssueListFilters> {
+    const resolved = await access.resolveProject({
+      actorMemberId: organization.memberId,
+      organizationId: organization.organizationId,
+      organizationRole: organization.role,
+      projectId,
+    });
+
+    assertProjectAction(resolved.access, "view");
+
+    return resolveCurrentUserAssignee(rawFilters ?? parseIssueListQuery({}), organization.memberId);
+  }
+
+  function columnPage(
+    filters: IssueListFilters,
+    records: readonly IssueRecord[],
+    statusId: string,
+    total: number,
+  ) {
+    const hasMore = records.length > ISSUE_COLUMN_PAGE_SIZE;
+    const pageRecords = hasMore ? records.slice(0, ISSUE_COLUMN_PAGE_SIZE) : [...records];
+    const bound = pageRecords[pageRecords.length - 1];
+    const scope = canonicalIssueColumnScope(statusId, filters);
+
+    return {
+      hasMore,
+      issues: pageRecords.map(toIssueCard),
+      nextCursor:
+        hasMore && bound !== undefined
+          ? encodeIssueColumnCursor({
+              id: bound.id,
+              position: bound.position,
+              scope,
+              statusId,
+              v: 1 as const,
+            })
+          : null,
+      scope,
+      statusId,
+      total,
     };
   }
 
@@ -356,7 +573,11 @@ function createIssueService(dependencies: {
 
       try {
         const created = await db.transaction(async (transaction) => {
-          const locked = await lockProject(transaction, organization.organizationId, projectId);
+          const locked = await lockProjectShare(
+            transaction,
+            organization.organizationId,
+            projectId,
+          );
           await assertActorAccessAfterLock(
             transaction,
             organization,
@@ -364,26 +585,14 @@ function createIssueService(dependencies: {
             locked.visibility,
             "create-issue",
           );
-
-          const [issueCount] = await transaction
-            .select({ value: count() })
-            .from(issue)
-            .where(
-              and(
-                eq(issue.organizationId, organization.organizationId),
-                eq(issue.projectId, projectId),
-              ),
-            );
-
-          if ((issueCount?.value ?? 0) >= ISSUE_BOARD_MAX) {
-            throw new AppError(409, "CONFLICT", "A project can have at most 200 issues.");
-          }
+          await lockIssueNumbers(transaction, projectId);
 
           const statusId = await resolveCreateStatusId(transaction, {
             organizationId: organization.organizationId,
             projectId,
             statusId: request.statusId,
           });
+          await lockIssueColumns(transaction, projectId, [statusId]);
 
           if (request.assigneeMemberId != null) {
             await requireAssignee(transaction, {
@@ -403,13 +612,13 @@ function createIssueService(dependencies: {
                 eq(issue.projectId, projectId),
               ),
             );
-          const position = await placeIssue(transaction, {
-            index: 0,
+          const position = await placeRelative(transaction, {
             organizationId: organization.organizationId,
+            placement: { type: "start" },
             projectId,
             statusId,
           });
-          const [record] = await transaction
+          const [inserted] = await transaction
             .insert(issue)
             .values({
               assigneeMemberId: request.assigneeMemberId ?? null,
@@ -424,7 +633,18 @@ function createIssueService(dependencies: {
               title: request.title,
               updatedByMemberId: organization.memberId,
             })
-            .returning(issueSelection);
+            .returning({ id: issue.id });
+
+          if (inserted === undefined) {
+            throw new AppError(500, "INTERNAL_SERVER_ERROR", "The issue could not be created.");
+          }
+
+          const record = await readIssue(
+            transaction,
+            organization.organizationId,
+            projectId,
+            inserted.id,
+          );
 
           if (record === undefined) {
             throw new AppError(500, "INTERNAL_SERVER_ERROR", "The issue could not be created.");
@@ -438,7 +658,7 @@ function createIssueService(dependencies: {
         throw mapIssueWriteError(error);
       }
     },
-    list: async ({ filters: rawFilters, organization, projectId }) => {
+    get: async ({ issueId, organization, projectId }) => {
       const resolved = await access.resolveProject({
         actorMemberId: organization.memberId,
         organizationId: organization.organizationId,
@@ -446,38 +666,152 @@ function createIssueService(dependencies: {
         projectId,
       });
       assertProjectAction(resolved.access, "view");
-      const filters = rawFilters ?? parseIssueListQuery({});
-      const where = buildIssueListWhere(organization.organizationId, projectId, filters);
-      const assigneeJoin = and(
-        eq(issue.assigneeMemberId, member.id),
-        eq(issue.organizationId, member.organizationId),
+      const record = await readIssue(db, organization.organizationId, projectId, issueId);
+
+      if (record === undefined) {
+        throw new AppError(404, "ISSUE_NOT_FOUND", "The issue was not found.");
+      }
+
+      return toIssueSummary(record);
+    },
+    list: async ({
+      direction = "desc",
+      filters: rawFilters,
+      organization,
+      page = 1,
+      pageSize = ISSUE_TABLE_PAGE_SIZE_DEFAULT,
+      projectId,
+      sort = "createdAt",
+    }) => {
+      const resolved = await access.resolveProject({
+        actorMemberId: organization.memberId,
+        organizationId: organization.organizationId,
+        organizationRole: organization.role,
+        projectId,
+      });
+      assertProjectAction(resolved.access, "view");
+      const filters = resolveCurrentUserAssignee(
+        rawFilters ?? parseIssueListQuery({}),
+        organization.memberId,
       );
+      const where = buildIssueListWhere(organization.organizationId, projectId, filters);
+      /*
+       * Offset paging is intentional for numbered pages. A deep page still
+       * walks the skipped rows, so latency grows with the offset.
+       */
+      const offset = (page - 1) * pageSize;
       const [records, [total], facets] = await Promise.all([
-        db
-          .select(issueSelection)
-          .from(issue)
-          .innerJoin(projectStatus, issueStatusJoin())
-          .leftJoin(member, assigneeJoin)
-          .leftJoin(user, eq(member.userId, user.id))
+        issueQuery(db)
           .where(where)
-          .orderBy(asc(projectStatus.position), asc(issue.position), asc(issue.id))
-          .limit(ISSUE_BOARD_MAX),
-        db
-          .select({ value: count() })
-          .from(issue)
-          .innerJoin(projectStatus, issueStatusJoin())
-          .leftJoin(member, assigneeJoin)
-          .leftJoin(user, eq(member.userId, user.id))
-          .where(where),
+          .orderBy(...issueTableOrder(sort, direction))
+          .limit(pageSize)
+          .offset(offset),
+        countIssues(db, where),
         filters.includeFacets
           ? loadIssueFacets(db, organization.organizationId, projectId)
           : Promise.resolve(undefined),
       ]);
+      const totalValue = total?.value ?? 0;
 
       return {
         ...(facets === undefined ? {} : { facets }),
         issues: records.map(toIssueSummary),
-        total: total?.value ?? 0,
+        page,
+        pageCount: totalValue === 0 ? 0 : Math.ceil(totalValue / pageSize),
+        pageSize,
+        total: totalValue,
+      };
+    },
+    listBoard: async ({ filters: rawFilters, organization, projectId }) => {
+      const filters = await requireIssueFilters(organization, projectId, rawFilters);
+      const where = buildIssueListWhere(organization.organizationId, projectId, filters);
+      const [statuses, counts] = await Promise.all([
+        db
+          .select({ id: projectStatus.id })
+          .from(projectStatus)
+          .where(
+            and(
+              eq(projectStatus.organizationId, organization.organizationId),
+              eq(projectStatus.projectId, projectId),
+            ),
+          )
+          .orderBy(asc(projectStatus.position), asc(projectStatus.id)),
+        db
+          .select({ statusId: issue.statusId, value: count() })
+          .from(issue)
+          .innerJoin(projectStatus, issueStatusJoin())
+          .leftJoin(member, assigneeJoin())
+          .leftJoin(user, eq(member.userId, user.id))
+          .where(where)
+          .groupBy(issue.statusId),
+      ]);
+      const totals = new Map(counts.map((row) => [row.statusId, Number(row.value)]));
+      const pages = await Promise.all(
+        statuses.map(async (status) => {
+          const records = await issueCardQuery(db)
+            .where(and(where, eq(issue.statusId, status.id)))
+            .orderBy(asc(issue.position), asc(issue.id))
+            .limit(ISSUE_COLUMN_PAGE_SIZE + 1);
+
+          return columnPage(filters, records, status.id, totals.get(status.id) ?? 0);
+        }),
+      );
+
+      return { columns: pages };
+    },
+    listColumn: async ({
+      before,
+      cursor,
+      filters: rawFilters,
+      limit,
+      organization,
+      projectId,
+      statusId,
+    }) => {
+      const filters = await requireIssueFilters(organization, projectId, rawFilters);
+      const scope = canonicalIssueColumnScope(statusId, filters);
+
+      if (cursor !== undefined && (cursor.scope !== scope || cursor.statusId !== statusId)) {
+        throw new AppError(400, "VALIDATION_ERROR", "The page cursor does not match this column.");
+      }
+
+      const where = buildIssueListWhere(organization.organizationId, projectId, filters);
+      const comparison =
+        cursor === undefined
+          ? undefined
+          : before
+            ? sql`(${issue.position}, ${issue.id}) < (${cursor.position}::int, ${cursor.id}::uuid)`
+            : sql`(${issue.position}, ${issue.id}) > (${cursor.position}::int, ${cursor.id}::uuid)`;
+      const records = await issueCardQuery(db)
+        .where(and(where, eq(issue.statusId, statusId), comparison))
+        .orderBy(
+          ...(before
+            ? [desc(issue.position), desc(issue.id)]
+            : [asc(issue.position), asc(issue.id)]),
+        )
+        .limit(limit + 1);
+      const hasMore = records.length > limit;
+      const pageRecords = (hasMore ? records.slice(0, limit) : records).slice();
+
+      if (before) {
+        pageRecords.reverse();
+      }
+
+      const bound = before ? pageRecords[0] : pageRecords[pageRecords.length - 1];
+
+      return {
+        hasMore,
+        issues: pageRecords.map(toIssueCard),
+        nextCursor:
+          hasMore && bound !== undefined
+            ? encodeIssueColumnCursor({
+                id: bound.id,
+                position: bound.position,
+                scope,
+                statusId,
+                v: 1,
+              })
+            : null,
       };
     },
     removeMany: async ({ organization, projectId, request }) => {
@@ -491,7 +825,7 @@ function createIssueService(dependencies: {
       assertProjectAction(resolved.access, "delete-issue");
 
       await db.transaction(async (transaction) => {
-        const locked = await lockProject(transaction, organization.organizationId, projectId);
+        const locked = await lockProjectShare(transaction, organization.organizationId, projectId);
         await assertActorAccessAfterLock(
           transaction,
           organization,
@@ -537,7 +871,7 @@ function createIssueService(dependencies: {
       assertProjectAction(resolved.access, "delete-issue");
 
       await db.transaction(async (transaction) => {
-        const locked = await lockProject(transaction, organization.organizationId, projectId);
+        const locked = await lockProjectShare(transaction, organization.organizationId, projectId);
         await assertActorAccessAfterLock(
           transaction,
           organization,
@@ -585,7 +919,11 @@ function createIssueService(dependencies: {
 
       try {
         const updated = await db.transaction(async (transaction) => {
-          const locked = await lockProject(transaction, organization.organizationId, projectId);
+          const locked = await lockProjectShare(
+            transaction,
+            organization.organizationId,
+            projectId,
+          );
           await assertActorAccessAfterLock(
             transaction,
             organization,
@@ -593,9 +931,34 @@ function createIssueService(dependencies: {
             locked.visibility,
             "update-issue",
           );
+          const [preview] = await transaction
+            .select({ statusId: issue.statusId })
+            .from(issue)
+            .where(
+              and(
+                eq(issue.organizationId, organization.organizationId),
+                eq(issue.projectId, projectId),
+                eq(issue.id, issueId),
+              ),
+            )
+            .limit(1);
+
+          if (preview === undefined) {
+            throw new AppError(404, "ISSUE_NOT_FOUND", "The issue was not found.");
+          }
+
+          const requestedStatusId = request.statusId ?? preview.statusId;
+
+          if (request.placement !== undefined || requestedStatusId !== preview.statusId) {
+            await lockIssueColumns(transaction, projectId, [preview.statusId, requestedStatusId]);
+          }
 
           const [existing] = await transaction
-            .select(issueSelection)
+            .select({
+              position: issue.position,
+              statusId: issue.statusId,
+              updatedAt: issue.updatedAt,
+            })
             .from(issue)
             .where(
               and(
@@ -611,13 +974,33 @@ function createIssueService(dependencies: {
             throw new AppError(404, "ISSUE_NOT_FOUND", "The issue was not found.");
           }
 
+          if (
+            request.expectedUpdatedAt !== undefined &&
+            existing.updatedAt.toISOString() !== request.expectedUpdatedAt
+          ) {
+            throw new AppError(
+              409,
+              "ISSUE_REVISION_CONFLICT",
+              "The issue changed. Refresh and try again.",
+            );
+          }
+
           const statusId = request.statusId ?? existing.statusId;
-          const shouldPlace = request.statusId !== undefined || request.index !== undefined;
+          const shouldPlace = request.placement !== undefined || statusId !== existing.statusId;
+
+          if (shouldPlace && existing.statusId !== preview.statusId) {
+            throw new AppError(
+              409,
+              "ISSUE_PLACEMENT_CONFLICT",
+              "The issue moved. Refresh and try again.",
+            );
+          }
+
           const position = shouldPlace
-            ? await placeIssue(transaction, {
-                index: request.index ?? 0,
-                movingId: issueId,
+            ? await placeRelative(transaction, {
+                excludeId: issueId,
                 organizationId: organization.organizationId,
+                placement: request.placement ?? { type: "start" },
                 projectId,
                 statusId,
               })
@@ -632,7 +1015,7 @@ function createIssueService(dependencies: {
             });
           }
 
-          const [record] = await transaction
+          const [saved] = await transaction
             .update(issue)
             .set({
               ...(request.assigneeMemberId === undefined
@@ -652,7 +1035,18 @@ function createIssueService(dependencies: {
                 eq(issue.id, issueId),
               ),
             )
-            .returning(issueSelection);
+            .returning({ id: issue.id });
+
+          if (saved === undefined) {
+            throw new AppError(404, "ISSUE_NOT_FOUND", "The issue was not found.");
+          }
+
+          const record = await readIssue(
+            transaction,
+            organization.organizationId,
+            projectId,
+            saved.id,
+          );
 
           if (record === undefined) {
             throw new AppError(404, "ISSUE_NOT_FOUND", "The issue was not found.");
@@ -716,66 +1110,6 @@ async function resolveCreateStatusId(
   }
 
   throw new AppError(404, "PROJECT_STATUS_NOT_FOUND", "The column was not found.");
-}
-
-async function placeIssue(
-  transaction: ProjectTransaction,
-  input: {
-    index: number;
-    movingId?: string;
-    organizationId: string;
-    projectId: string;
-    statusId: string;
-  },
-): Promise<number> {
-  const [status] = await transaction
-    .select({ id: projectStatus.id })
-    .from(projectStatus)
-    .where(
-      and(
-        eq(projectStatus.organizationId, input.organizationId),
-        eq(projectStatus.projectId, input.projectId),
-        eq(projectStatus.id, input.statusId),
-      ),
-    )
-    .for("update")
-    .limit(1);
-
-  if (status === undefined) {
-    throw new AppError(404, "PROJECT_STATUS_NOT_FOUND", "The column was not found.");
-  }
-
-  const neighbors = await transaction
-    .select({ id: issue.id, position: issue.position })
-    .from(issue)
-    .where(
-      and(
-        eq(issue.organizationId, input.organizationId),
-        eq(issue.projectId, input.projectId),
-        eq(issue.statusId, input.statusId),
-        input.movingId === undefined ? undefined : ne(issue.id, input.movingId),
-      ),
-    )
-    .orderBy(asc(issue.position), asc(issue.id));
-  const movingId = input.movingId ?? "new";
-  const placement = placeAtIndex(neighbors, input.index, movingId);
-
-  if (placement.kind === "position") {
-    return placement.position;
-  }
-
-  let movingPosition = 0;
-
-  for (const item of placement.positions) {
-    if (item.id === movingId) {
-      movingPosition = item.position;
-      continue;
-    }
-
-    await transaction.update(issue).set({ position: item.position }).where(eq(issue.id, item.id));
-  }
-
-  return movingPosition;
 }
 
 function mapIssueWriteError(error: unknown): unknown {

@@ -1,5 +1,6 @@
 export { getHealthStatus } from "@/services/health.js";
 export { createIssueService, type IssueService } from "@/services/issues.js";
+export { createIssueViewService, type IssueViewService } from "@/services/issue-views.js";
 export {
   createOrganizationManagementService,
   type OrganizationManagementService,

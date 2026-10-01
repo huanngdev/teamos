@@ -10,6 +10,7 @@ import {
   type OrganizationMember,
   type ProjectAction,
   type ProjectAccessContext,
+  type EligibleAssigneeListResponse,
   type ProjectMember,
   type ProjectRole,
   type ProjectSummary,
@@ -56,6 +57,14 @@ interface ProjectService {
     organization: OrganizationAccess;
     search?: string | undefined;
   }) => Promise<ProjectSummary[]>;
+  listEligibleAssignees: (input: {
+    cursor?: string | undefined;
+    ids?: string | undefined;
+    limit?: number | undefined;
+    organization: OrganizationAccess;
+    projectId: string;
+    q?: string | undefined;
+  }) => Promise<EligibleAssigneeListResponse>;
   listMembers: (input: {
     organization: OrganizationAccess;
     projectId: string;
@@ -379,6 +388,131 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
         userId: record.userId,
       }));
     },
+    listEligibleAssignees: async ({
+      cursor: rawCursor,
+      ids,
+      limit = 25,
+      organization,
+      projectId,
+      q,
+    }) => {
+      const resolved = await resolveProject({
+        actorMemberId: organization.memberId,
+        organizationId: organization.organizationId,
+        organizationRole: organization.role,
+        projectId,
+      });
+
+      assertProjectAction(resolved.access, "view");
+
+      const search = q?.trim().slice(0, 80) ?? "";
+
+      if (ids !== undefined) {
+        if (rawCursor !== undefined) {
+          throw new AppError(
+            400,
+            "VALIDATION_ERROR",
+            "A page cursor cannot be combined with an assignee lookup.",
+          );
+        }
+
+        const requestedIds = parseAssigneeIds(ids);
+
+        if (requestedIds.length === 0) {
+          return { assignees: [], nextCursor: null };
+        }
+
+        const matched = await db
+          .select({
+            email: user.email,
+            id: member.id,
+            image: user.image,
+            name: user.name,
+          })
+          .from(member)
+          .innerJoin(user, eq(member.userId, user.id))
+          .leftJoin(
+            projectMembership,
+            and(
+              eq(projectMembership.memberId, member.id),
+              eq(projectMembership.organizationId, member.organizationId),
+              eq(projectMembership.projectId, projectId),
+            ),
+          )
+          .where(
+            and(
+              eq(member.organizationId, organization.organizationId),
+              inArray(member.id, requestedIds),
+              eligibleAssigneeCondition(resolved.access.visibility),
+              buildLiteralSearchCondition(
+                [user.name, user.email],
+                search.length === 0 ? undefined : search,
+              ),
+            ),
+          )
+          .orderBy(asc(sql`lower(${user.name})`), asc(member.id));
+
+        return {
+          assignees: matched.map(toEligibleAssignee),
+          nextCursor: null,
+        };
+      }
+
+      const cursor = rawCursor === undefined ? undefined : decodeAssigneeCursor(rawCursor);
+
+      if (rawCursor !== undefined && (cursor === undefined || cursor.q !== search)) {
+        throw new AppError(400, "VALIDATION_ERROR", "The page cursor does not match this search.");
+      }
+
+      const records = await db
+        .select({
+          email: user.email,
+          id: member.id,
+          image: user.image,
+          name: user.name,
+        })
+        .from(member)
+        .innerJoin(user, eq(member.userId, user.id))
+        .leftJoin(
+          projectMembership,
+          and(
+            eq(projectMembership.memberId, member.id),
+            eq(projectMembership.organizationId, member.organizationId),
+            eq(projectMembership.projectId, projectId),
+          ),
+        )
+        .where(
+          and(
+            eq(member.organizationId, organization.organizationId),
+            eligibleAssigneeCondition(resolved.access.visibility),
+            buildLiteralSearchCondition(
+              [user.name, user.email],
+              search.length === 0 ? undefined : search,
+            ),
+            cursor === undefined
+              ? undefined
+              : sql`(lower(${user.name}), ${member.id}) > (lower(${cursor.name}), ${cursor.id})`,
+          ),
+        )
+        .orderBy(asc(sql`lower(${user.name})`), asc(member.id))
+        .limit(limit + 1);
+      const hasMore = records.length > limit;
+      const page = hasMore ? records.slice(0, limit) : records;
+      const last = page[page.length - 1];
+
+      return {
+        assignees: page.map((record) => ({
+          email: record.email,
+          id: record.id,
+          image: record.image,
+          name: record.name,
+        })),
+        nextCursor:
+          hasMore && last !== undefined
+            ? encodeAssigneeCursor({ id: last.id, name: last.name, q: search })
+            : null,
+      };
+    },
     remove: async ({ organization, projectId, request }) => {
       const resolved = await resolveProject({
         actorMemberId: organization.memberId,
@@ -605,6 +739,96 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
       );
     },
   };
+}
+
+interface AssigneeCursor {
+  id: string;
+  name: string;
+  q: string;
+}
+
+function eligibleAssigneeCondition(visibility: ProjectVisibility) {
+  return visibility === "private"
+    ? or(inArray(member.role, ["owner", "admin"]), isNotNull(projectMembership.id))
+    : undefined;
+}
+
+function toEligibleAssignee(record: {
+  email: string;
+  id: string;
+  image: string | null;
+  name: string;
+}) {
+  return {
+    email: record.email,
+    id: record.id,
+    image: record.image,
+    name: record.name,
+  };
+}
+
+function parseAssigneeIds(value: string): string[] {
+  const ids = [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    ),
+  ];
+
+  if (ids.length > 50) {
+    throw new AppError(400, "VALIDATION_ERROR", "At most 50 assignees can be looked up at once.");
+  }
+
+  return ids;
+}
+
+function encodeAssigneeCursor(cursor: AssigneeCursor): string {
+  const bytes = new TextEncoder().encode(JSON.stringify({ ...cursor, v: 1 }));
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+function decodeAssigneeCursor(value: string): AssigneeCursor | undefined {
+  if (value.length === 0 || value.length > 2_000) {
+    return undefined;
+  }
+
+  try {
+    const padded = value.replaceAll("-", "+").replaceAll("_", "/");
+    const binary = atob(padded.padEnd(padded.length + ((4 - (padded.length % 4)) % 4), "="));
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+
+    if (typeof parsed !== "object" || parsed === null) {
+      return undefined;
+    }
+
+    const record = parsed as { id?: unknown; name?: unknown; q?: unknown; v?: unknown };
+
+    if (
+      record.v !== 1 ||
+      typeof record.id !== "string" ||
+      record.id.length === 0 ||
+      record.id.length > 200 ||
+      typeof record.name !== "string" ||
+      record.name.length > 500 ||
+      typeof record.q !== "string" ||
+      record.q.length > 80
+    ) {
+      return undefined;
+    }
+
+    return { id: record.id, name: record.name, q: record.q };
+  } catch {
+    return undefined;
+  }
 }
 
 async function lockProject(

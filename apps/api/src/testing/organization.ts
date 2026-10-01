@@ -12,6 +12,7 @@ import type {
 } from "@/auth/index.js";
 import type {
   IssueService,
+  IssueViewService,
   OrganizationManagementService,
   OrganizationMemberService,
   ProjectService,
@@ -201,9 +202,31 @@ function createFakeIssueService(): IssueService {
   return {
     clearAssignees: async () => {},
     create: rejectFakeMutation,
-    list: async () => ({ issues: [], total: 0 }),
+    get: rejectFakeMutation,
+    list: async ({ page = 1, pageSize = 20 }) => ({
+      issues: [],
+      page,
+      pageCount: 0,
+      pageSize,
+      total: 0,
+    }),
+    listBoard: async () => ({ columns: [] }),
+    listColumn: async () => ({ hasMore: false, issues: [], nextCursor: null }),
     remove: async () => {},
     removeMany: async () => {},
+    update: rejectFakeMutation,
+  };
+}
+
+function createFakeIssueViewService(): IssueViewService {
+  return {
+    create: rejectFakeMutation,
+    get: rejectFakeMutation,
+    list: async ({ limit, offset }) => ({
+      pagination: { limit, offset, total: 0 },
+      views: [],
+    }),
+    remove: async () => {},
     update: rejectFakeMutation,
   };
 }
@@ -238,6 +261,7 @@ function createFakeProjectService(projects: readonly ProjectSummary[] = []): Pro
 
       return [...matched];
     },
+    listEligibleAssignees: async () => ({ assignees: [], nextCursor: null }),
     listMembers: async () => [],
     remove: async () => {},
     removeMember: async () => {},
@@ -319,6 +343,7 @@ export {
   buildSession,
   createFakeAuthService,
   createFakeIssueService,
+  createFakeIssueViewService,
   createFakeOrganizationAccessService,
   createFakeOrganizationGateway,
   createFakeOrganizationManagementService,

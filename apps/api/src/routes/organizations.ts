@@ -25,6 +25,7 @@ import type {
   OrganizationRoutes,
 } from "@/routes/organization-types.js";
 import { registerIssueRoutes } from "@/routes/issues.js";
+import { registerIssueViewRoutes } from "@/routes/issue-views.js";
 import { registerProjectRoutes } from "@/routes/projects.js";
 import { registerProjectStatusRoutes } from "@/routes/project-statuses.js";
 import { requireOrganizationAccess } from "@/routes/helpers.js";
@@ -120,6 +121,7 @@ function createOrganizationRoutes(options: CreateOrganizationRoutesOptions): Org
   registerProjectRoutes(routes, options);
   registerProjectStatusRoutes(routes, options);
   registerIssueRoutes(routes, options);
+  registerIssueViewRoutes(routes, options);
 
   return routes;
 }

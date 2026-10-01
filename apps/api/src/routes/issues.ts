@@ -1,10 +1,15 @@
 import { createRoute } from "@hono/zod-openapi";
 import {
   createIssueRequestSchema,
+  decodeIssueColumnCursor,
   deleteIssuesRequestSchema,
+  issueBoardResponseSchema,
+  issueColumnPageResponseSchema,
+  issueColumnQuerySchema,
   issueListQuerySchema,
   issueListResponseSchema,
   issueResponseSchema,
+  issueTableQuerySchema,
   organizationSlugSchema,
   parseIssueListQuery,
   updateIssueRequestSchema,
@@ -12,6 +17,7 @@ import {
 import { z } from "zod";
 
 import { getAuthenticatedSession } from "@/auth/index.js";
+import { AppError } from "@/errors/index.js";
 import {
   apiErrorResponses,
   protectedRouteErrorResponses,
@@ -32,15 +38,19 @@ const issueParamsSchema = projectParamsSchema.extend({
   issueId: z.uuid(),
 });
 
+const columnParamsSchema = projectParamsSchema.extend({
+  statusId: z.uuid(),
+});
+
 const listIssuesRoute = createRoute({
   method: "get",
   operationId: "listIssues",
   path: "/{organizationSlug}/projects/{projectId}/issues",
-  request: { params: projectParamsSchema, query: issueListQuerySchema },
+  request: { params: projectParamsSchema, query: issueTableQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: issueListResponseSchema } },
-      description: "Returns up to 200 issues matching the optional filters, plus the match total.",
+      description: "Returns one page of issues matching the filters, with the match total.",
       headers: requestIdHeaders,
     },
     ...protectedRouteErrorResponses,
@@ -48,6 +58,63 @@ const listIssuesRoute = createRoute({
   },
   security: [{ sessionCookie: [] }],
   summary: "List project issues",
+  tags: ["Issues"],
+});
+
+const getIssueRoute = createRoute({
+  method: "get",
+  operationId: "getIssue",
+  path: "/{organizationSlug}/projects/{projectId}/issues/{issueId}",
+  request: { params: issueParamsSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: issueResponseSchema } },
+      description: "Returns one issue, including its description.",
+      headers: requestIdHeaders,
+    },
+    ...protectedRouteErrorResponses,
+    ...apiErrorResponses,
+  },
+  security: [{ sessionCookie: [] }],
+  summary: "Get an issue",
+  tags: ["Issues"],
+});
+
+const listIssueBoardRoute = createRoute({
+  method: "get",
+  operationId: "listIssueBoard",
+  path: "/{organizationSlug}/projects/{projectId}/issue-board",
+  request: { params: projectParamsSchema, query: issueListQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: issueBoardResponseSchema } },
+      description: "Returns the first page and filtered total for every column.",
+      headers: requestIdHeaders,
+    },
+    ...protectedRouteErrorResponses,
+    ...apiErrorResponses,
+  },
+  security: [{ sessionCookie: [] }],
+  summary: "List the issue board",
+  tags: ["Issues"],
+});
+
+const listIssueColumnRoute = createRoute({
+  method: "get",
+  operationId: "listIssueColumn",
+  path: "/{organizationSlug}/projects/{projectId}/issue-columns/{statusId}",
+  request: { params: columnParamsSchema, query: issueColumnQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: issueColumnPageResponseSchema } },
+      description: "Returns the next or previous page of one column.",
+      headers: requestIdHeaders,
+    },
+    ...protectedRouteErrorResponses,
+    ...apiErrorResponses,
+  },
+  security: [{ sessionCookie: [] }],
+  summary: "List an issue column page",
   tags: ["Issues"],
 });
 
@@ -152,15 +219,80 @@ function registerIssueRoutes(
   routes.openapi(listIssuesRoute, async (context) => {
     const session = getAuthenticatedSession(context);
     const { organizationSlug, projectId } = context.req.valid("param");
+    const query = context.req.valid("query");
+    const filters = parseIssueListQuery(query);
+    const organization = await requireOrganizationAccess(
+      organizationAccess,
+      organizationSlug,
+      session.user.id,
+    );
+    const result = await issues.list({
+      direction: query.direction,
+      filters,
+      organization,
+      page: query.page,
+      pageSize: query.pageSize,
+      projectId,
+      sort: query.sort,
+    });
+
+    return context.json(issueListResponseSchema.parse(result), 200);
+  });
+
+  routes.openapi(getIssueRoute, async (context) => {
+    const session = getAuthenticatedSession(context);
+    const { issueId, organizationSlug, projectId } = context.req.valid("param");
+    const organization = await requireOrganizationAccess(
+      organizationAccess,
+      organizationSlug,
+      session.user.id,
+    );
+    const issue = await issues.get({ issueId, organization, projectId });
+
+    return context.json(issueResponseSchema.parse({ issue }), 200);
+  });
+
+  routes.openapi(listIssueBoardRoute, async (context) => {
+    const session = getAuthenticatedSession(context);
+    const { organizationSlug, projectId } = context.req.valid("param");
     const filters = parseIssueListQuery(context.req.valid("query"));
     const organization = await requireOrganizationAccess(
       organizationAccess,
       organizationSlug,
       session.user.id,
     );
-    const result = await issues.list({ filters, organization, projectId });
+    const result = await issues.listBoard({ filters, organization, projectId });
 
-    return context.json(issueListResponseSchema.parse(result), 200);
+    return context.json(issueBoardResponseSchema.parse(result), 200);
+  });
+
+  routes.openapi(listIssueColumnRoute, async (context) => {
+    const session = getAuthenticatedSession(context);
+    const { organizationSlug, projectId, statusId } = context.req.valid("param");
+    const query = context.req.valid("query");
+    const cursor = query.cursor === undefined ? undefined : decodeIssueColumnCursor(query.cursor);
+
+    if (query.cursor !== undefined && cursor === undefined) {
+      throw new AppError(400, "VALIDATION_ERROR", "The page cursor does not match this column.");
+    }
+
+    const filters = parseIssueListQuery(query);
+    const organization = await requireOrganizationAccess(
+      organizationAccess,
+      organizationSlug,
+      session.user.id,
+    );
+    const result = await issues.listColumn({
+      before: query.before === "1",
+      cursor,
+      filters,
+      limit: query.limit,
+      organization,
+      projectId,
+      statusId,
+    });
+
+    return context.json(issueColumnPageResponseSchema.parse(result), 200);
   });
 
   routes.openapi(createIssueRoute, async (context) => {

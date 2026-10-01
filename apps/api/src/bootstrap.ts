@@ -27,6 +27,7 @@ import {
   createOrganizationManagementService,
   createOrganizationMemberService,
   createIssueService,
+  createIssueViewService,
   createProjectService,
   createProjectStatusService,
   createReadinessService,
@@ -218,6 +219,7 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
       logger,
       managementRateLimiter,
       organization: {
+        issueViews: createIssueViewService(resources.database.db),
         issues: issueService,
         management: createOrganizationManagementService({
           clearAssignees: (input) => issueService.clearAssignees(input),

@@ -19,6 +19,7 @@ import {
   createFakeOrganizationAccessService,
   createFakeOrganizationGateway,
   createFakeIssueService,
+  createFakeIssueViewService,
   createFakeOrganizationMemberService,
   createFakeProjectService,
   createFakeProjectStatusService,
@@ -66,6 +67,7 @@ function createTestApp(options: TestAppOptions = {}) {
     ...options.gateway,
   };
   const organization: OrganizationServices = {
+    issueViews: createFakeIssueViewService(),
     issues: createFakeIssueService(),
     management: createOrganizationManagementService({
       clearAssignees: async () => {},

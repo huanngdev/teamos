@@ -66,6 +66,25 @@ function assertProjectAction(access: ProjectAccessContext, action: ProjectAction
   throw new AppError(403, "FORBIDDEN", "You are not allowed to perform this action.");
 }
 
+async function lockProjectShare(
+  transaction: ProjectTransaction,
+  organizationId: string,
+  projectId: string,
+): Promise<{ id: string; visibility: string }> {
+  const [record] = await transaction
+    .select({ id: project.id, visibility: project.visibility })
+    .from(project)
+    .where(and(eq(project.organizationId, organizationId), eq(project.id, projectId)))
+    .for("share")
+    .limit(1);
+
+  if (record === undefined) {
+    throw toProjectNotFoundError();
+  }
+
+  return record;
+}
+
 async function lockProject(
   transaction: ProjectTransaction,
   organizationId: string,
@@ -188,6 +207,7 @@ export {
   createProjectAccess,
   findProjectRole,
   lockProject,
+  lockProjectShare,
   toProjectNotFoundError,
   toProjectVisibility,
   type ProjectTransaction,
