@@ -8,6 +8,7 @@ import {
   type IssueStatusCategory,
 } from "./issue-workflow.js";
 
+const currentUserAssigneeId = "me";
 const unassignedAssigneeId = "unassigned";
 const issueListFilterLimit = 50;
 
@@ -17,6 +18,7 @@ interface IssueListFilters {
   createdFrom: string | undefined;
   createdTo: string | undefined;
   description: string | undefined;
+  includeCurrentUser: boolean;
   includeFacets: boolean;
   includeUnassigned: boolean;
   numberMax: number | undefined;
@@ -31,7 +33,7 @@ interface IssueListFilters {
   updatedTo: string | undefined;
 }
 
-function isDateKey(value: string): boolean {
+function isCalendarDateKey(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
   }
@@ -46,7 +48,7 @@ function isDateKey(value: string): boolean {
   );
 }
 
-function isValidTimeZone(value: string): boolean {
+function isSupportedTimeZone(value: string): boolean {
   try {
     Intl.DateTimeFormat(undefined, { timeZone: value });
 
@@ -119,6 +121,24 @@ function parseText(value: string | undefined, max: number): string | undefined {
   return trimmed.slice(0, max);
 }
 
+/*
+ * `me` is resolved to the caller's organization member id at request time.
+ * Leaving it unresolved must not be treated as "no assignee filter".
+ */
+function resolveCurrentUserAssignee(filters: IssueListFilters, memberId: string): IssueListFilters {
+  if (!filters.includeCurrentUser || memberId.length === 0) {
+    return filters;
+  }
+
+  return {
+    ...filters,
+    assignees: filters.assignees.includes(memberId)
+      ? filters.assignees
+      : [...filters.assignees, memberId],
+    includeCurrentUser: false,
+  };
+}
+
 function parseIssueListQuery(input: IssueListQuery): IssueListFilters {
   let unsatisfiable = false;
   const statusIds = parseList(input.status).filter((value) => z.uuid().safeParse(value).success);
@@ -150,22 +170,27 @@ function parseIssueListQuery(input: IssueListQuery): IssueListFilters {
   }
 
   const assigneeTokens = parseList(input.assignee);
+  const includeCurrentUser = assigneeTokens.includes(currentUserAssigneeId);
   const includeUnassigned = assigneeTokens.includes(unassignedAssigneeId);
-  const assignees = assigneeTokens.filter((value) => value !== unassignedAssigneeId);
+  const assignees = assigneeTokens.filter(
+    (value) => value !== unassignedAssigneeId && value !== currentUserAssigneeId,
+  );
   const number = parseRange(input.number);
   const numberMin = parsePositiveInteger(number?.[0]);
   const numberMax = parsePositiveInteger(number?.[1]);
   const created = parseRange(input.created);
   const updated = parseRange(input.updated);
   const timeZone =
-    input.timeZone !== undefined && isValidTimeZone(input.timeZone) ? input.timeZone : "UTC";
+    input.timeZone !== undefined && isSupportedTimeZone(input.timeZone) ? input.timeZone : "UTC";
 
   return {
     assignees,
     categories,
-    createdFrom: created?.[0] !== undefined && isDateKey(created[0]) ? created[0] : undefined,
-    createdTo: created?.[1] !== undefined && isDateKey(created[1]) ? created[1] : undefined,
+    createdFrom:
+      created?.[0] !== undefined && isCalendarDateKey(created[0]) ? created[0] : undefined,
+    createdTo: created?.[1] !== undefined && isCalendarDateKey(created[1]) ? created[1] : undefined,
     description: parseText(input.description, 200),
+    includeCurrentUser,
     includeFacets: input.facets === "1",
     includeUnassigned,
     numberMax,
@@ -176,9 +201,18 @@ function parseIssueListQuery(input: IssueListQuery): IssueListFilters {
     timeZone,
     title: parseText(input.title, 140),
     unsatisfiable,
-    updatedFrom: updated?.[0] !== undefined && isDateKey(updated[0]) ? updated[0] : undefined,
-    updatedTo: updated?.[1] !== undefined && isDateKey(updated[1]) ? updated[1] : undefined,
+    updatedFrom:
+      updated?.[0] !== undefined && isCalendarDateKey(updated[0]) ? updated[0] : undefined,
+    updatedTo: updated?.[1] !== undefined && isCalendarDateKey(updated[1]) ? updated[1] : undefined,
   };
 }
 
-export { parseIssueListQuery, unassignedAssigneeId, type IssueListFilters };
+export {
+  currentUserAssigneeId,
+  isCalendarDateKey,
+  isSupportedTimeZone,
+  parseIssueListQuery,
+  resolveCurrentUserAssignee,
+  unassignedAssigneeId,
+  type IssueListFilters,
+};

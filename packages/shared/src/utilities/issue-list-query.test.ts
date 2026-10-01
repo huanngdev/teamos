@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseIssueListQuery } from "./issue-list-query.js";
+import { parseIssueListQuery, resolveCurrentUserAssignee } from "./issue-list-query.js";
 
 const statusId = "11111111-1111-4111-8111-111111111111";
 
@@ -52,5 +52,32 @@ describe("parseIssueListQuery", () => {
 
   test("ignores an invalid time zone", () => {
     expect(parseIssueListQuery({ timeZone: "Not/AZone" }).timeZone).toBe("UTC");
+  });
+
+  test("keeps me symbolic until the caller is known", () => {
+    const filters = parseIssueListQuery({ assignee: "me,unassigned,member-1" });
+
+    expect(filters.includeCurrentUser).toBe(true);
+    expect(filters.includeUnassigned).toBe(true);
+    expect(filters.assignees).toEqual(["member-1"]);
+    expect(filters.unsatisfiable).toBe(false);
+  });
+});
+
+describe("resolveCurrentUserAssignee", () => {
+  test("resolves me to the caller and does not duplicate an explicit member id", () => {
+    const resolved = resolveCurrentUserAssignee(
+      parseIssueListQuery({ assignee: "me,member-1" }),
+      "member-1",
+    );
+
+    expect(resolved.includeCurrentUser).toBe(false);
+    expect(resolved.assignees).toEqual(["member-1"]);
+  });
+
+  test("leaves an unresolved me filter closed", () => {
+    const filters = parseIssueListQuery({ assignee: "me" });
+
+    expect(resolveCurrentUserAssignee(filters, "").includeCurrentUser).toBe(true);
   });
 });

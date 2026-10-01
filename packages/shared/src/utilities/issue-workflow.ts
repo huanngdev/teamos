@@ -1,7 +1,14 @@
 import { z } from "zod";
 
-const ISSUE_BOARD_MAX = 200;
+const ISSUE_BULK_DELETE_MAX = 200;
+const ISSUE_COLUMN_PAGE_SIZE = 40;
+const ISSUE_COLUMN_PAGE_MAX = 50;
 const ISSUE_POSITION_GAP = 1000;
+const ISSUE_POSITION_MAX = 2_147_483_647;
+const ISSUE_POSITION_MIN = -2_147_483_648;
+const ISSUE_TABLE_PAGE_MAX = 1_000_000;
+const ISSUE_TABLE_PAGE_SIZE_DEFAULT = 20;
+const ISSUE_TABLE_PAGE_SIZE_MAX = 50;
 const PROJECT_STATUS_MAX = 20;
 
 const issueStatusCategorySchema = z.enum([
@@ -21,6 +28,14 @@ const issuePrioritySchema = z.enum(["none", "low", "medium", "high", "urgent"]);
 type IssuePriority = z.infer<typeof issuePrioritySchema>;
 
 const issuePriorities = issuePrioritySchema.options;
+
+const issuePriorityRank: Record<IssuePriority, number> = {
+  high: 3,
+  low: 1,
+  medium: 2,
+  none: 0,
+  urgent: 4,
+};
 
 /*
  * These records are the only display copy for coded issue values. A column
@@ -51,9 +66,17 @@ function getIssueStatusCategoryLabel(category: IssueStatusCategory): string {
 }
 
 export {
-  ISSUE_BOARD_MAX,
+  ISSUE_BULK_DELETE_MAX,
+  ISSUE_COLUMN_PAGE_MAX,
+  ISSUE_COLUMN_PAGE_SIZE,
   ISSUE_POSITION_GAP,
+  ISSUE_POSITION_MAX,
+  ISSUE_POSITION_MIN,
+  ISSUE_TABLE_PAGE_MAX,
+  ISSUE_TABLE_PAGE_SIZE_DEFAULT,
+  ISSUE_TABLE_PAGE_SIZE_MAX,
   PROJECT_STATUS_MAX,
+  issuePriorityRank,
   getIssuePriorityLabel,
   getIssueStatusCategoryLabel,
   issuePriorities,

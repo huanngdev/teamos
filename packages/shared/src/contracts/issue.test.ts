@@ -27,17 +27,23 @@ describe("updateIssueRequestSchema", () => {
     const parsed = updateIssueRequestSchema.parse({ description: null });
 
     expect(parsed.description).toBeNull();
-    expect(parsed.index).toBeUndefined();
+    expect(parsed.placement).toBeUndefined();
   });
 
-  test("accepts a drop index and strips a raw position", () => {
-    const parsed = updateIssueRequestSchema.parse({ index: 2, position: 4000 });
+  test("accepts an anchor placement and strips a raw position", () => {
+    const anchorIssueId = "11111111-1111-4111-8111-111111111111";
+    const parsed = updateIssueRequestSchema.parse({
+      placement: { anchorIssueId, type: "after" },
+      position: 4000,
+    });
 
-    expect(parsed).toEqual({ index: 2 });
+    expect(parsed).toEqual({ placement: { anchorIssueId, type: "after" } });
   });
 
-  test("rejects an index past the board cap", () => {
-    expect(updateIssueRequestSchema.safeParse({ index: 201 }).success).toBe(false);
+  test("rejects a placement without an anchor", () => {
+    expect(updateIssueRequestSchema.safeParse({ placement: { type: "before" } }).success).toBe(
+      false,
+    );
   });
 });
 

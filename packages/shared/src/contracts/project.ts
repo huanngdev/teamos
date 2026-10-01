@@ -52,6 +52,25 @@ const projectMemberListResponseSchema = z.object({
   members: z.array(projectMemberSchema),
 });
 
+const eligibleAssigneeSchema = z.object({
+  email: z.email(),
+  id: z.string().min(1),
+  image: z.string().nullable(),
+  name: z.string(),
+});
+
+const eligibleAssigneeListQuerySchema = z.object({
+  cursor: z.string().min(1).max(2_000).optional(),
+  ids: z.string().max(2_000).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(25),
+  q: z.string().max(80).optional(),
+});
+
+const eligibleAssigneeListResponseSchema = z.object({
+  assignees: z.array(eligibleAssigneeSchema),
+  nextCursor: z.string().nullable(),
+});
+
 const createProjectRequestSchema = z.object({
   description: z.string().trim().max(500).optional(),
   name: z.string().trim().min(1).max(80),
@@ -84,6 +103,9 @@ type DeleteProjectRequest = z.infer<typeof deleteProjectRequestSchema>;
 type ProjectDetailResponse = z.infer<typeof projectDetailResponseSchema>;
 type ProjectListQuery = z.infer<typeof projectListQuerySchema>;
 type ProjectListResponse = z.infer<typeof projectListResponseSchema>;
+type EligibleAssignee = z.infer<typeof eligibleAssigneeSchema>;
+type EligibleAssigneeListQuery = z.infer<typeof eligibleAssigneeListQuerySchema>;
+type EligibleAssigneeListResponse = z.infer<typeof eligibleAssigneeListResponseSchema>;
 type ProjectMember = z.infer<typeof projectMemberSchema>;
 type ProjectMemberListResponse = z.infer<typeof projectMemberListResponseSchema>;
 type ProjectSlug = z.infer<typeof projectSlugSchema>;
@@ -94,6 +116,9 @@ type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
 export {
   createProjectRequestSchema,
   deleteProjectRequestSchema,
+  eligibleAssigneeListQuerySchema,
+  eligibleAssigneeListResponseSchema,
+  eligibleAssigneeSchema,
   projectDetailResponseSchema,
   projectListQuerySchema,
   projectListResponseSchema,
@@ -105,6 +130,9 @@ export {
   updateProjectRequestSchema,
   type CreateProjectRequest,
   type DeleteProjectRequest,
+  type EligibleAssignee,
+  type EligibleAssigneeListQuery,
+  type EligibleAssigneeListResponse,
   type ProjectDetailResponse,
   type ProjectListResponse,
   type ProjectListQuery,
