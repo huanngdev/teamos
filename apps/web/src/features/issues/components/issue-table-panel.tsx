@@ -49,6 +49,7 @@ function IssueTablePanel({ state }: IssueTablePanelProps) {
   return (
     <IssueTableContext.Provider
       value={{
+        assignees: view.assignees,
         facets: view.facets,
         isSelected: view.isSelected,
         members: view.members,
@@ -94,12 +95,7 @@ function IssueTablePanel({ state }: IssueTablePanelProps) {
         onConfirm={view.deleteSelected.confirm}
         open={view.deleteSelected.open}
       />
-      <IssueFormDialog
-        form={view.issueForm}
-        members={view.members}
-        membersError={view.membersError}
-        statuses={view.statuses}
-      />
+      <IssueFormDialog assignees={view.assignees} form={view.issueForm} statuses={view.statuses} />
     </IssueTableContext.Provider>
   );
 }

@@ -37,6 +37,7 @@ const member: ProjectMember = {
 
 function issue(overrides: Partial<IssueSummary> = {}): IssueSummary {
   return {
+    assignee: null,
     assigneeMemberId: null,
     createdAt: "2026-01-15T08:00:00.000Z",
     description: "Gate check",
@@ -108,16 +109,20 @@ test("round-trips search, sort, paging, and filters", () => {
   expect(parseIssueTableSearch(serializeIssueTableSearch(query))).toEqual(query);
 });
 
-test("sends filters to the list request and keeps paging local", () => {
+test("sends filters, sort, and the page to the list request", () => {
   const query = parseIssueTableSearch(
     new URLSearchParams("q=gate&priority=urgent&page=2&sort=title.asc"),
   );
   const params = issueListRequestParams(query, "UTC");
 
   expect(params).toEqual({
+    direction: "asc",
     facets: "1",
+    page: "2",
+    pageSize: "20",
     priority: "urgent",
     q: "gate",
+    sort: "title",
     timeZone: "UTC",
   });
 });

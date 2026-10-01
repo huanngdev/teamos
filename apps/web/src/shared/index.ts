@@ -8,6 +8,7 @@ export {
 } from "./api/api-client";
 export { ErrorBoundary } from "./components/error-boundary";
 export { Logo, type LogoProps, type LogoVariant } from "./components/logo";
+export { PersonIdentity } from "./components/person-identity";
 export { ModeToggle } from "./components/mode-toggle";
 export { PageError } from "./components/page-error";
 export { PageLoading } from "./components/page-loading";

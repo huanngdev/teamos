@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { IssueSummary, ProjectStatusSummary } from "@teamos/shared";
 
-import { applyIssueMove, groupBoardColumns } from "./board-columns";
+import { applyIssueMove, groupBoardColumns, resolveBoardSnapshot } from "./board-columns";
 
 const backlog: ProjectStatusSummary = {
   category: "backlog",
@@ -21,6 +21,7 @@ const todo: ProjectStatusSummary = {
 
 function issue(id: string, statusId: string, position: number): IssueSummary {
   return {
+    assignee: null,
     assigneeMemberId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     description: null,
@@ -33,6 +34,19 @@ function issue(id: string, statusId: string, position: number): IssueSummary {
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
 }
+
+describe("resolveBoardSnapshot", () => {
+  test("ignores a store snapshot that has not loaded columns yet", () => {
+    const snapshot = resolveBoardSnapshot(
+      { issues: [], statuses: [] },
+      [backlog, todo],
+      [issue("a", backlog.id, 0)],
+    );
+
+    expect(snapshot.statuses.map((status) => status.id)).toEqual([backlog.id, todo.id]);
+    expect(snapshot.issues.map((item) => item.id)).toEqual(["a"]);
+  });
+});
 
 describe("groupBoardColumns", () => {
   test("sorts columns and the cards inside them", () => {

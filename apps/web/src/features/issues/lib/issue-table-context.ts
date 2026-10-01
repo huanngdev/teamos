@@ -6,9 +6,11 @@ import type {
   ProjectStatusSummary,
 } from "@teamos/shared";
 
+import type { EligibleAssigneePicker } from "@/features/projects";
 import type { IssueTableRow } from "./issue-table-query";
 
 interface IssueTableContextValue {
+  assignees: EligibleAssigneePicker;
   facets: IssueListFacets | null;
   isSelected: (issueId: string) => boolean;
   members: readonly ProjectMember[];
@@ -19,7 +21,20 @@ interface IssueTableContextValue {
   toggleSelected: (issueId: string, selected: boolean) => void;
 }
 
+const emptyAssigneePicker: EligibleAssigneePicker = {
+  assignees: [],
+  error: null,
+  hasMore: false,
+  loading: false,
+  loadingMore: false,
+  onLoadMore: () => undefined,
+  onRetry: () => undefined,
+  onSearch: () => undefined,
+  search: "",
+};
+
 const IssueTableContext = createContext<IssueTableContextValue>({
+  assignees: emptyAssigneePicker,
   facets: null,
   isSelected: () => false,
   members: [],

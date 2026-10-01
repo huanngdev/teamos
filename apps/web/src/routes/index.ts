@@ -4,6 +4,8 @@ export { InvitationRoute } from "./invitation-route";
 export { LoginRoute } from "./login-route";
 export { NotFoundRoute } from "./not-found-route";
 export { ProjectBoardRoute } from "./project-board-route";
+export { ProjectViewRoute } from "./project-view-route";
+export { ProjectViewsRoute } from "./project-views-route";
 export { ProjectIssuesRoute } from "./project-issues-route";
 export { ProjectOverviewRoute } from "./project-overview-route";
 export { ProjectSettingsRoute } from "./project-settings-route";

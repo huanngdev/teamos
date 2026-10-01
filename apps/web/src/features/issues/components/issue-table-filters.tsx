@@ -4,13 +4,13 @@ import {
   getIssueStatusCategoryLabel,
   issuePriorities,
   issueStatusCategories,
+  type EligibleAssignee,
 } from "@teamos/shared";
 
 import { DropdownMenuCheckboxItem, DropdownMenuGroup } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useIssueTableContext } from "../lib/issue-table-context";
 import {
-  countRowsBy,
   issueTableColumnLabels,
   unassignedAssigneeId,
   type IssueTableRow,
@@ -43,6 +43,10 @@ function readBound(value: unknown): string {
 function IssueColumnFilter({ column }: { column: FilterColumn }) {
   const options = useFilterOptions(column.id);
 
+  if (column.id === "assignee" && options !== null) {
+    return <AssigneeValueFilter column={column} options={options} />;
+  }
+
   if (options !== null) {
     return <MultiValueFilter column={column} options={options} />;
   }
@@ -56,6 +60,43 @@ function IssueColumnFilter({ column }: { column: FilterColumn }) {
   }
 
   return <TextFilter column={column} />;
+}
+
+function AssigneeValueFilter({
+  column,
+  options,
+}: {
+  column: FilterColumn;
+  options: readonly FilterOption[];
+}) {
+  const { assignees } = useIssueTableContext();
+
+  return (
+    <DropdownMenuGroup>
+      <div className="px-2 py-1.5">
+        <Input
+          aria-label="Search assignees"
+          onChange={(event) => {
+            assignees.onSearch(event.target.value);
+          }}
+          onKeyDown={stopMenuKeys}
+          placeholder="Search name or email"
+          value={assignees.search}
+        />
+      </div>
+      <MultiValueFilter column={column} options={options} />
+      {assignees.hasMore ? (
+        <button className="px-2 py-1.5 text-left" onClick={assignees.onLoadMore} type="button">
+          {assignees.loadingMore ? "Loading" : "Load more"}
+        </button>
+      ) : null}
+      {assignees.error === null ? null : (
+        <button className="px-2 py-1.5 text-left" onClick={assignees.onRetry} type="button">
+          Retry
+        </button>
+      )}
+    </DropdownMenuGroup>
+  );
 }
 
 function MultiValueFilter({
@@ -201,7 +242,7 @@ function DateRangeFilter({ column }: { column: FilterColumn }) {
 }
 
 function useFilterOptions(columnId: string): FilterOption[] | null {
-  const { facets, members, rows, statuses } = useIssueTableContext();
+  const { assignees, facets, members, rows, statuses } = useIssueTableContext();
 
   if (!isMultiColumn(columnId)) {
     return null;
@@ -212,38 +253,26 @@ function useFilterOptions(columnId: string): FilterOption[] | null {
   }
 
   if (columnId === "assignee") {
-    return assigneeOptions(rows, members, facets?.assignee);
+    return assigneeOptions(rows, members, assignees.assignees, facets?.assignee);
   }
 
   if (columnId === "priority") {
-    const counts = countRowsBy(rows, (row) => row.priority);
-
     return issuePriorities.map((priority) => ({
-      count: facetCount(facets?.priority, counts, priority),
+      count: facetCount(facets?.priority, priority),
       id: priority,
       label: getIssuePriorityLabel(priority),
     }));
   }
 
-  const counts = countRowsBy(rows, (row) => row.category ?? "");
-
   return issueStatusCategories.map((category) => ({
-    count: facetCount(facets?.category, counts, category),
+    count: facetCount(facets?.category, category),
     id: category,
     label: getIssueStatusCategoryLabel(category),
   }));
 }
 
-function facetCount(
-  facets: Record<string, number> | undefined,
-  fallback: Map<string, number>,
-  id: string,
-): number {
-  if (facets !== undefined) {
-    return facets[id] ?? 0;
-  }
-
-  return fallback.get(id) ?? 0;
+function facetCount(facets: Record<string, number> | undefined, id: string): number {
+  return facets?.[id] ?? 0;
 }
 
 function isMultiColumn(
@@ -262,7 +291,6 @@ function statusOptions(
   statuses: IssueTableContextStatuses,
   facets: Record<string, number> | undefined,
 ): FilterOption[] {
-  const counts = countRowsBy(rows, (row) => row.statusId);
   const known = new Set(statuses.map((status) => status.id));
   const extras = new Map<string, string>();
 
@@ -276,12 +304,12 @@ function statusOptions(
     ...[...statuses]
       .sort((left, right) => left.position - right.position)
       .map((status) => ({
-        count: facetCount(facets, counts, status.id),
+        count: facetCount(facets, status.id),
         id: status.id,
         label: status.name,
       })),
     ...[...extras].map(([id, label]) => ({
-      count: facetCount(facets, counts, id),
+      count: facetCount(facets, id),
       id,
       label,
     })),
@@ -291,36 +319,38 @@ function statusOptions(
 function assigneeOptions(
   rows: readonly IssueTableRow[],
   members: IssueTableContextMembers,
+  eligible: readonly EligibleAssignee[],
   facets: Record<string, number> | undefined,
 ): FilterOption[] {
-  const counts = countRowsBy(rows, (row) => row.assigneeId);
-  const known = new Set(members.map((member) => member.memberId));
-  const extras = new Map<string, string>();
+  const labels = new Map<string, string>();
+
+  for (const member of members) {
+    labels.set(member.memberId, member.name);
+  }
+
+  for (const assignee of eligible) {
+    labels.set(assignee.id, assignee.name);
+  }
 
   for (const row of rows) {
-    if (row.assigneeId !== unassignedAssigneeId && !known.has(row.assigneeId)) {
-      extras.set(row.assigneeId, row.assigneeName);
+    if (row.assigneeId !== unassignedAssigneeId && !labels.has(row.assigneeId)) {
+      labels.set(row.assigneeId, row.assigneeName);
     }
   }
 
   return [
     {
-      count: facetCount(facets, counts, unassignedAssigneeId),
+      count: facetCount(facets, unassignedAssigneeId),
       id: unassignedAssigneeId,
       label: "Unassigned",
     },
-    ...[...members]
-      .sort((left, right) => left.name.localeCompare(right.name))
-      .map((member) => ({
-        count: facetCount(facets, counts, member.memberId),
-        id: member.memberId,
-        label: member.name,
+    ...[...labels]
+      .sort((left, right) => left[1].localeCompare(right[1]))
+      .map(([id, label]) => ({
+        count: facetCount(facets, id),
+        id,
+        label,
       })),
-    ...[...extras].map(([id, label]) => ({
-      count: facetCount(facets, counts, id),
-      id,
-      label,
-    })),
   ];
 }
 

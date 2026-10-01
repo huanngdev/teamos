@@ -1,7 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import type { OrganizationRole, ProjectMember, ProjectRole, ProjectSummary } from "@teamos/shared";
+import type {
+  OrganizationMember,
+  OrganizationRole,
+  ProjectMember,
+  ProjectRole,
+  ProjectSummary,
+} from "@teamos/shared";
 
-import { workspaceProjectsPath } from "@/features/workspaces/lib/workspace-paths";
+import { listOrganizationMembers, memberKeys } from "@/features/members";
+import {
+  workspaceMembersPath,
+  workspaceProjectsPath,
+} from "@/features/workspaces/lib/workspace-paths";
 import { listProjectMembers } from "../api/project-api";
 import { projectKeys } from "../query-keys";
 import { useProjectList } from "./use-project-list";
@@ -38,11 +48,17 @@ interface ProjectOverviewView {
   dialog: ProjectOverviewDialog;
   hiddenMemberCount: number;
   membersError: string | null;
+  membersPath: string;
   membersPending: boolean;
   onManageMembers: () => void;
   onRetryMembers: () => void;
+  onRetryWorkspaceMembers: () => void;
   previewMembers: readonly ProjectMember[];
   project: ProjectSummary;
+  workspaceMembers: readonly OrganizationMember[];
+  workspaceMembersError: string | null;
+  workspaceMembersPending: boolean;
+  workspaceMemberTotal: number;
 }
 
 /*
@@ -61,6 +77,16 @@ function useProjectOverview(options: UseProjectOverviewOptions): ProjectOverview
     enabled: options.enabled && project !== null,
     queryFn: () => listProjectMembers(options.organizationSlug, project?.id ?? ""),
     queryKey: projectKeys(options.organizationSlug).members(project?.id ?? "unresolved"),
+  });
+  const workspaceMembersQuery = useQuery({
+    enabled: options.enabled && project !== null,
+    queryFn: () =>
+      listOrganizationMembers(options.organizationSlug, {
+        limit: PREVIEW_MEMBER_LIMIT,
+        offset: 0,
+        search: undefined,
+      }),
+    queryKey: memberKeys(options.organizationSlug).overview(),
   });
   const memberActions = useProjectMembers({
     organizationRole: options.organizationRole,
@@ -104,7 +130,8 @@ function useProjectOverview(options: UseProjectOverviewOptions): ProjectOverview
         pendingMemberId: memberActions.pendingMemberId,
       },
       hiddenMemberCount: Math.max(0, members.length - PREVIEW_MEMBER_LIMIT),
-      membersError: membersQuery.isError ? "Project members could not be loaded." : null,
+      membersError: membersQuery.isError ? "Project roles could not be loaded." : null,
+      membersPath: workspaceMembersPath(options.organizationSlug),
       membersPending: membersQuery.isPending,
       onManageMembers: () => {
         memberActions.open(project.id);
@@ -112,8 +139,17 @@ function useProjectOverview(options: UseProjectOverviewOptions): ProjectOverview
       onRetryMembers: () => {
         void membersQuery.refetch();
       },
+      onRetryWorkspaceMembers: () => {
+        void workspaceMembersQuery.refetch();
+      },
       previewMembers: members.slice(0, PREVIEW_MEMBER_LIMIT),
       project,
+      workspaceMembers: workspaceMembersQuery.data?.members ?? [],
+      workspaceMembersError: workspaceMembersQuery.isError
+        ? "Workspace members could not be loaded."
+        : null,
+      workspaceMembersPending: workspaceMembersQuery.isPending,
+      workspaceMemberTotal: workspaceMembersQuery.data?.pagination.total ?? 0,
     },
   };
 }

@@ -1,4 +1,4 @@
-import { getInitials, type IssueSummary, type ProjectMember } from "@teamos/shared";
+import { getInitials, type IssueCardSummary, type ProjectMember } from "@teamos/shared";
 import { UserCircleIcon } from "@phosphor-icons/react";
 
 import { KanbanItem, KanbanItemHandle } from "@/components/reui/kanban";
@@ -8,20 +8,25 @@ import { IssuePriorityIcon } from "./issue-priority-icon";
 
 interface IssueCardProps {
   canDrag: boolean;
-  issue: IssueSummary;
+  issue: IssueCardSummary;
   member: ProjectMember | undefined;
   onEdit: () => void;
 }
 
 function IssueCard({ canDrag, issue, member, onEdit }: IssueCardProps) {
+  const assigneeName = issue.assignee?.name ?? member?.name;
   const body = (
     <button
-      aria-label={member === undefined ? issue.title : `${issue.title}, ${member.name}`}
+      aria-label={assigneeName === undefined ? issue.title : `${issue.title}, ${assigneeName}`}
       className="w-full text-left"
       onClick={onEdit}
       type="button"
     >
-      <IssueCardBody issue={issue} member={member} />
+      <IssueCardBody
+        assigneeName={assigneeName}
+        image={issue.assignee?.image ?? member?.image}
+        issue={issue}
+      />
     </button>
   );
 
@@ -36,8 +41,14 @@ function IssueCard({ canDrag, issue, member, onEdit }: IssueCardProps) {
   );
 }
 
-function IssueAssignee({ member }: { member: ProjectMember | undefined }) {
-  if (member === undefined) {
+function IssueAssignee({
+  image,
+  name,
+}: {
+  image: string | null | undefined;
+  name: string | undefined;
+}) {
+  if (name === undefined) {
     return (
       <span aria-label="Unassigned" className="shrink-0 text-muted-foreground" role="img">
         <UserCircleIcon className="size-4" />
@@ -48,22 +59,24 @@ function IssueAssignee({ member }: { member: ProjectMember | undefined }) {
   return (
     <span className="flex min-w-0 items-center gap-1">
       <Avatar className="size-4">
-        <AvatarImage alt="" src={member.image ?? undefined} />
-        <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+        <AvatarImage alt="" src={image ?? undefined} />
+        <AvatarFallback>{getInitials(name)}</AvatarFallback>
       </Avatar>
-      <span className="line-clamp-1 min-w-0 text-xs text-muted-foreground" title={member.name}>
-        {member.name}
+      <span className="line-clamp-1 min-w-0 text-xs text-muted-foreground" title={name}>
+        {name}
       </span>
     </span>
   );
 }
 
 function IssueCardBody({
+  assigneeName,
+  image,
   issue,
-  member,
 }: {
-  issue: IssueSummary;
-  member: ProjectMember | undefined;
+  assigneeName: string | undefined;
+  image: string | null | undefined;
+  issue: IssueCardSummary;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border">
@@ -75,7 +88,7 @@ function IssueCardBody({
               <div className="shrink-0">
                 <IssuePriorityIcon priority={issue.priority} />
               </div>
-              <IssueAssignee member={member} />
+              <IssueAssignee image={image} name={assigneeName} />
             </div>
           </div>
         </CardContent>

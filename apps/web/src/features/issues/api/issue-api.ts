@@ -1,4 +1,6 @@
 import {
+  issueBoardResponseSchema,
+  issueColumnPageResponseSchema,
   issueListResponseSchema,
   issueResponseSchema,
   projectStatusListResponseSchema,
@@ -6,6 +8,8 @@ import {
   type CreateIssueRequest,
   type DeleteIssuesRequest,
   type CreateProjectStatusRequest,
+  type IssueBoardResponse,
+  type IssueColumnPageResponse,
   type IssueListResponse,
   type IssueSummary,
   type ProjectStatusSummary,
@@ -83,6 +87,40 @@ async function listIssues(
   });
 }
 
+async function getIssue(slug: string, projectId: string, issueId: string): Promise<IssueSummary> {
+  const response = await requestParsed(issueResponseSchema, {
+    method: "GET",
+    url: issuePath(slug, projectId, `/issues/${encodeURIComponent(issueId)}`),
+  });
+
+  return response.issue;
+}
+
+async function listIssueBoard(
+  slug: string,
+  projectId: string,
+  params?: Record<string, string>,
+): Promise<IssueBoardResponse> {
+  return requestParsed(issueBoardResponseSchema, {
+    method: "GET",
+    params,
+    url: issuePath(slug, projectId, "/issue-board"),
+  });
+}
+
+async function listIssueColumn(
+  slug: string,
+  projectId: string,
+  statusId: string,
+  params?: Record<string, string>,
+): Promise<IssueColumnPageResponse> {
+  return requestParsed(issueColumnPageResponseSchema, {
+    method: "GET",
+    params,
+    url: issuePath(slug, projectId, `/issue-columns/${encodeURIComponent(statusId)}`),
+  });
+}
+
 async function createIssue(
   slug: string,
   projectId: string,
@@ -137,6 +175,9 @@ export {
   deleteIssue,
   deleteIssues,
   deleteProjectStatus,
+  getIssue,
+  listIssueBoard,
+  listIssueColumn,
   listIssues,
   listProjectStatuses,
   updateIssue,

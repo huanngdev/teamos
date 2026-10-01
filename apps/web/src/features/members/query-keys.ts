@@ -3,6 +3,7 @@ function memberKeys(slug: string) {
     invitations: () => ["organization", slug, "invitations"] as const,
     list: (search: string, offset: number) =>
       ["organization", slug, "members", search, offset] as const,
+    overview: () => ["organization", slug, "members", "overview"] as const,
     /* Prefix for invalidating every filtered member page at once. */
     listPrefix: () => ["organization", slug, "members"] as const,
   };

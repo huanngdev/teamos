@@ -44,6 +44,16 @@ Object.defineProperty(window, "ResizeObserver", {
   writable: true,
 });
 
+Object.defineProperty(window, "IntersectionObserver", {
+  configurable: true,
+  value: class IntersectionObserver {
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  },
+  writable: true,
+});
+
 Object.defineProperty(window, "cancelAnimationFrame", {
   configurable: true,
   value: (handle: number) => window.clearTimeout(handle),

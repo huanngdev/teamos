@@ -1,10 +1,11 @@
 /* eslint-disable shadcn/no-arbitrary-values -- viewport height is a fixed calc, not a theme token */
-import { Outlet } from "react-router";
+import { Link, Outlet } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Breadcrumb,
   BreadcrumbItem,
+  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
@@ -12,6 +13,7 @@ import {
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CreateProjectDialog, ProjectSwitcher } from "@/features/projects";
 import { ProjectSidebar } from "@/features/projects/components/project-sidebar";
+import { IssueViewHeaderMenu } from "@/features/views";
 import { WorkspaceMessage, WorkspaceSwitcher } from "@/features/workspaces";
 import { useProjectLayout } from "@/layouts/use-project-layout";
 import { ModeToggle, PageLoading } from "@/shared";
@@ -67,7 +69,26 @@ function ProjectLayout() {
                   projects={view.projects}
                 />
               </BreadcrumbItem>
-              {view.pageLabel === null ? null : (
+              {view.viewActive ? (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink render={<Link to={view.viewsPath} />}>Views</BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem className="min-w-0">
+                    <BreadcrumbPage>
+                      <span className="block max-w-48 truncate">{view.viewName ?? "View"}</span>
+                    </BreadcrumbPage>
+                    {view.viewActions?.canManage ? (
+                      <IssueViewHeaderMenu
+                        onDelete={view.viewActions.onDelete}
+                        onEdit={view.viewActions.onEdit}
+                      />
+                    ) : null}
+                  </BreadcrumbItem>
+                </>
+              ) : view.pageLabel === null ? null : (
                 <>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
@@ -89,7 +110,7 @@ function ProjectLayout() {
             </Alert>
           )}
           <div
-            className={`min-h-0 min-w-0 flex-1 ${view.issuesActive || view.boardActive ? "overflow-hidden" : "overflow-x-hidden overflow-y-auto"}`}
+            className={`min-h-0 min-w-0 flex-1 ${view.issuesActive || view.boardActive || view.viewsActive ? "overflow-hidden" : "overflow-x-hidden overflow-y-auto"}`}
           >
             <Outlet />
           </div>

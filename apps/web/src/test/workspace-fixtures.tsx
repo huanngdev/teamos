@@ -5,6 +5,8 @@ import { ProjectLayout } from "@/layouts/project-layout";
 import { WorkspaceLayout } from "@/layouts/workspace-layout";
 import { WorkspaceMembersRoute } from "@/routes/workspace-members-route";
 import { ProjectBoardRoute } from "@/routes/project-board-route";
+import { ProjectViewRoute } from "@/routes/project-view-route";
+import { ProjectViewsRoute } from "@/routes/project-views-route";
 import { ProjectIssuesRoute } from "@/routes/project-issues-route";
 import { ProjectOverviewRoute } from "@/routes/project-overview-route";
 import { ProjectSettingsRoute } from "@/routes/project-settings-route";
@@ -102,7 +104,58 @@ const boardStatuses = {
   ],
 } as const;
 
-const emptyIssues = { issues: [], total: 0 } as const;
+const emptyIssues = {
+  issues: [],
+  page: 1,
+  pageCount: 0,
+  pageSize: 20,
+  total: 0,
+} as const;
+
+const emptyIssueBoard = {
+  columns: [
+    {
+      hasMore: false,
+      issues: [],
+      nextCursor: null,
+      scope: "fixture",
+      statusId: "11111111-1111-4111-8111-111111111111",
+      total: 0,
+    },
+    {
+      hasMore: false,
+      issues: [],
+      nextCursor: null,
+      scope: "fixture",
+      statusId: "22222222-2222-4222-8222-222222222222",
+      total: 0,
+    },
+  ],
+} as const;
+
+const eligibleAssignees = {
+  assignees: [
+    {
+      email: "ada@example.com",
+      id: "member-1",
+      image: null,
+      name: "Ada Lovelace",
+    },
+    {
+      email: "charles@example.com",
+      id: "member-2",
+      image: null,
+      name: "Charles Babbage",
+    },
+    {
+      email: "grace@example.com",
+      id: "member-3",
+      image: null,
+      name: "Grace Hopper",
+    },
+  ],
+  nextCursor: null,
+} as const;
 
 const projectResponse = {
   projects: [
@@ -153,6 +206,19 @@ function useWorkspaceHandlers(options: WorkspaceHandlerOptions = {}) {
     ),
     http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues`, () =>
       HttpResponse.json(emptyIssues),
+    ),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issue-board`, () =>
+      HttpResponse.json(emptyIssueBoard),
+    ),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/assignees`, () =>
+      HttpResponse.json(eligibleAssignees),
+    ),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/views`, () =>
+      HttpResponse.json({ pagination: { limit: 50, offset: 0, total: 0 }, views: [] }),
+    ),
+    http.get(
+      `${apiUrl}/api/organizations/acme/projects/:projectId/views/:viewId`,
+      () => new HttpResponse(null, { status: 404 }),
     ),
     http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/members`, () =>
       HttpResponse.json({
@@ -218,6 +284,8 @@ function renderWorkspace(route = "/workspaces/acme/projects") {
         <Route element={<ProjectOverviewRoute />} index />
         <Route element={<ProjectBoardRoute />} path="issues/board" />
         <Route element={<ProjectIssuesRoute />} path="issues" />
+        <Route element={<ProjectViewRoute />} path="views/:viewId" />
+        <Route element={<ProjectViewsRoute />} path="views" />
         <Route element={<ProjectSettingsRoute />} path="settings" />
       </Route>
       <Route element={<WorkspaceLayout />} path="/workspaces/:organizationSlug">

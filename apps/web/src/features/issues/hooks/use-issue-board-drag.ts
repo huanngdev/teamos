@@ -1,13 +1,13 @@
 import { useState } from "react";
-import type { IssueSummary } from "@teamos/shared";
+import type { IssueCardSummary } from "@teamos/shared";
 
 import type { KanbanCommitMeta } from "@/components/reui/kanban";
 import type { BoardColumn, IssueDropTarget } from "../lib/board-columns";
 import { columnDragId, issueDragId } from "../query-keys";
 
-type BoardValue = Record<string, IssueSummary[]>;
+type BoardValue = Record<string, IssueCardSummary[]>;
 
-function getIssueItemId(issue: IssueSummary): string {
+function getIssueItemId(issue: IssueCardSummary): string {
   return issue.id;
 }
 
@@ -16,12 +16,10 @@ function boardValue(columns: readonly BoardColumn[]): BoardValue {
 }
 
 function columnsFromValue(source: readonly BoardColumn[], value: BoardValue): BoardColumn[] {
-  const statuses = new Map(source.map((column) => [column.status.id, column.status]));
-
   return Object.entries(value).flatMap(([statusId, issues]) => {
-    const status = statuses.get(statusId);
+    const column = source.find((item) => item.status.id === statusId);
 
-    return status === undefined ? [] : [{ issues, status }];
+    return column === undefined ? [] : [{ ...column, issues }];
   });
 }
 
@@ -46,7 +44,7 @@ function useIssueBoardDrag(options: {
     setPreview(next);
   }
 
-  function onValueCommit(_next: BoardValue, meta: KanbanCommitMeta<IssueSummary>) {
+  function onValueCommit(_next: BoardValue, meta: KanbanCommitMeta<IssueCardSummary>) {
     if (meta.kind === "item") {
       options.onDrop(
         issueDragId(String(meta.event.active.id)),

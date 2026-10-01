@@ -1,3 +1,4 @@
+/* eslint-disable shadcn/no-restyle */
 import { formatDate, type OrganizationInvitation } from "@teamos/shared";
 import { CircleNotchIcon } from "@phosphor-icons/react";
 
@@ -81,8 +82,7 @@ function PendingInvitations({ state }: PendingInvitationsProps) {
           <AlertDescription>{state.cancelError}</AlertDescription>
         </Alert>
       )}
-
-      <Card>
+      <Card className="py-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -169,7 +169,6 @@ function PendingInvitations({ state }: PendingInvitationsProps) {
           </TableBody>
         </Table>
       </Card>
-
       <AlertDialog
         onOpenChange={(open) => {
           if (!open) {

@@ -262,9 +262,13 @@ function writeProjectLists(
     useShellStore.getState().setProjects(organizationSlug, update(cached));
   }
 
+  /*
+   * The prefix also matches project-scoped queries such as views and issues.
+   * Only project-list arrays are updated.
+   */
   queryClient.setQueriesData<ProjectSummary[]>(
     { queryKey: projectKeys(organizationSlug).listPrefix() },
-    (existing) => (existing === undefined ? existing : update(existing)),
+    (existing) => (Array.isArray(existing) ? update(existing) : existing),
   );
 }
 

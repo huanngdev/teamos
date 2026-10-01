@@ -10,7 +10,8 @@ import {
   type ProjectStatusSummary,
 } from "@teamos/shared";
 
-import { listProjectMembers, useProjectList } from "@/features/projects";
+import { listProjectMembers, useEligibleAssignees, useProjectList } from "@/features/projects";
+import type { EligibleAssigneePicker } from "@/features/projects";
 import { projectKeys } from "@/features/projects/query-keys";
 import { memberCacheKey, useShellStore } from "@/shared";
 import { listIssues, listProjectStatuses } from "../api/issue-api";
@@ -72,6 +73,7 @@ interface IssueTableView {
   isSelected: (issueId: string) => boolean;
   togglePage: (issueIds: readonly string[], selected: boolean) => void;
   toggleSelected: (issueId: string, selected: boolean) => void;
+  assignees: EligibleAssigneePicker;
   hasFilters: boolean;
   issueForm: IssueFormState;
   members: ProjectMember[];
@@ -93,9 +95,9 @@ interface IssueTableView {
 type IssueTableFacets = NonNullable<Awaited<ReturnType<typeof listIssues>>["facets"]> | null;
 
 /*
- * Search and column filters are sent to the list endpoint. Sort, page, column
- * order, and visibility stay in the URL and run on the returned page. The
- * board keeps its own unfiltered request so a filtered table cannot replace it.
+ * Filter, search, sort, and page are all applied by the list endpoint. Column
+ * order and visibility stay in the URL. The board uses its own query, so a
+ * table page cannot replace the columns.
  */
 function useIssueTable(options: UseIssueTableOptions): IssueTableState {
   const location = useLocation();
@@ -135,20 +137,7 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
   const listed = useQuery({
     enabled: options.enabled && projectId !== null,
     placeholderData: keepPreviousData,
-    queryFn: async () => {
-      const result = await listIssues(options.organizationSlug, projectId ?? "", listParams);
-      const filtered = Object.keys(listParams).some(
-        (key) => key !== "facets" && key !== "timeZone",
-      );
-
-      if (projectId !== null && !filtered) {
-        useBoardStore
-          .getState()
-          .setIssues(boardKey(options.organizationSlug, projectId), result.issues, result.total);
-      }
-
-      return result;
-    },
+    queryFn: () => listIssues(options.organizationSlug, projectId ?? "", listParams),
     queryKey: issueKeys(options.organizationSlug, projectId ?? "").list(listParams),
   });
   const cachedMembers = useShellStore((state) =>
@@ -173,6 +162,11 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
   const issues = listed.data?.issues ?? emptyIssues;
   const statusList = cachedBoard?.statuses ?? statuses.data ?? emptyStatuses;
   const memberList = cachedMembers ?? members.data ?? emptyMembers;
+  const assignees = useEligibleAssignees({
+    enabled: options.enabled,
+    organizationSlug: options.organizationSlug,
+    projectId,
+  });
   const rows = useMemo(
     () => buildIssueTableRows(issues, statusList, memberList),
     [issues, memberList, statusList],
@@ -269,6 +263,10 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
     enableMultiSort: false,
     features: issueTableFeatures,
     manualFiltering: true,
+    manualPagination: true,
+    manualSorting: true,
+    pageCount: listed.data?.pageCount ?? 0,
+    rowCount: listed.data?.total ?? 0,
     getRowId: (row) => row.id,
     globalFilterFn: issueGlobalFilter,
     onColumnFiltersChange: (updater) => {
@@ -407,7 +405,6 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
     visibility: project.visibility,
   };
   const canCreate = canPerformProjectAction("create-issue", access);
-  const total = listed.data?.total ?? issues.length;
   const chosenIds = Object.keys(selectedIds);
 
   return {
@@ -426,6 +423,7 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
         toggleSelection(selection, issueId, selected);
         logSelectedIssues(selectedIssueSummaries(rows, selectedIds, [issueId], selected));
       },
+      assignees,
       hasFilters: issueTableHasFilters(query),
       issueForm,
       members: memberList,
@@ -461,7 +459,7 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
       selectedCount: chosenIds.length,
       statuses: statusList,
       table,
-      truncated: total > issues.length ? { shown: issues.length, total } : null,
+      truncated: null,
     },
   };
 }

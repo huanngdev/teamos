@@ -19,4 +19,5 @@ export {
   type PendingInvitationsState,
 } from "./hooks/use-pending-invitations";
 export { useWorkspaceMembers, type WorkspaceMembersState } from "./hooks/use-workspace-members";
+export { listOrganizationMembers } from "./api/organization-members-api";
 export { memberKeys } from "./query-keys";

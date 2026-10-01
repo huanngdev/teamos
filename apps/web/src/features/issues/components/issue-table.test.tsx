@@ -23,6 +23,7 @@ function issue(
   overrides: Partial<IssueSummary> = {},
 ): IssueSummary {
   return {
+    assignee: null,
     assigneeMemberId: null,
     createdAt,
     description: null,
@@ -34,6 +35,25 @@ function issue(
     title,
     updatedAt: createdAt,
     ...overrides,
+  };
+}
+
+function pageIssues(issues: IssueSummary[], params: URLSearchParams) {
+  const direction = params.get("direction") === "asc" ? 1 : -1;
+  const page = Number(params.get("page") ?? "1");
+  const pageSize = Number(params.get("pageSize") ?? "20");
+  const sorted = [...issues].sort(
+    (left, right) =>
+      left.createdAt.localeCompare(right.createdAt) * direction || left.id.localeCompare(right.id),
+  );
+  const start = Math.max(0, page - 1) * pageSize;
+
+  return {
+    issues: sorted.slice(start, start + pageSize),
+    page,
+    pageCount: sorted.length === 0 ? 0 : Math.ceil(sorted.length / pageSize),
+    pageSize,
+    total: sorted.length,
   };
 }
 
@@ -59,7 +79,7 @@ function mockIssues(issues: IssueSummary[]) {
         return true;
       });
 
-      return HttpResponse.json({ issues: filtered, total: filtered.length });
+      return HttpResponse.json(pageIssues(filtered, params));
     }),
   );
 }
@@ -148,12 +168,14 @@ test("applies a priority filter from the URL", async () => {
       requested = new URL(request.url).search;
       const priority = new URL(request.url).searchParams.get("priority");
 
-      return HttpResponse.json({
-        issues: [
-          issue(2, "Urgent gate", "2026-06-01T12:00:00.000Z", { priority: "urgent" }),
-        ].filter((item) => priority === null || priority.split(",").includes(item.priority)),
-        total: 1,
-      });
+      return HttpResponse.json(
+        pageIssues(
+          [issue(2, "Urgent gate", "2026-06-01T12:00:00.000Z", { priority: "urgent" })].filter(
+            (item) => priority === null || priority.split(",").includes(item.priority),
+          ),
+          new URL(request.url).searchParams,
+        ),
+      );
     }),
   );
   renderWorkspace("/workspaces/acme/projects/apollo/issues?priority=urgent");
@@ -218,11 +240,13 @@ test("opens an issue and hides creation from a viewer", async () => {
     role: "member",
   });
   server.use(
-    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues`, () =>
-      HttpResponse.json({
-        issues: [issue(1, "Alpha gate", "2026-01-01T12:00:00.000Z")],
-        total: 1,
-      }),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues`, ({ request }) =>
+      HttpResponse.json(
+        pageIssues(
+          [issue(1, "Alpha gate", "2026-01-01T12:00:00.000Z")],
+          new URL(request.url).searchParams,
+        ),
+      ),
     ),
   );
   renderWorkspace("/workspaces/acme/projects/apollo/issues");

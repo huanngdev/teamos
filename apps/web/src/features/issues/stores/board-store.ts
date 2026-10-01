@@ -1,10 +1,10 @@
-import type { IssueSummary, ProjectStatusSummary } from "@teamos/shared";
+import type { IssueCardSummary, ProjectStatusSummary } from "@teamos/shared";
 import { create } from "zustand";
 
-import { applyIssueMove } from "../lib/board-columns";
+import { applyColumnMove, applyIssueMove } from "../lib/board-columns";
 
 interface BoardSnapshot {
-  issues: IssueSummary[];
+  issues: IssueCardSummary[];
   statuses: ProjectStatusSummary[];
   total: number;
 }
@@ -15,33 +15,12 @@ interface BoardState {
   moveColumn: (key: string, statusId: string, index: number) => void;
   moveIssue: (key: string, issueId: string, statusId: string, index: number) => void;
   setBoard: (key: string, board: BoardSnapshot) => void;
-  setIssues: (key: string, issues: IssueSummary[], total: number) => void;
+  setIssues: (key: string, issues: IssueCardSummary[], total: number) => void;
   setStatuses: (key: string, statuses: ProjectStatusSummary[]) => void;
 }
 
 function boardKey(slug: string, projectId: string): string {
   return `${slug}:${projectId}`;
-}
-
-function applyColumnMove(
-  statuses: readonly ProjectStatusSummary[],
-  statusId: string,
-  index: number,
-): ProjectStatusSummary[] {
-  const ordered = [...statuses].sort(
-    (left, right) => left.position - right.position || left.id.localeCompare(right.id),
-  );
-  const moving = ordered.find((status) => status.id === statusId);
-
-  if (moving === undefined) {
-    return ordered;
-  }
-
-  const rest = ordered.filter((status) => status.id !== statusId);
-  const clamped = Math.min(Math.max(index, 0), rest.length);
-  const next = [...rest.slice(0, clamped), moving, ...rest.slice(clamped)];
-
-  return next.map((status, itemIndex) => ({ ...status, position: itemIndex * 1000 }));
 }
 
 const useBoardStore = create<BoardState>((set) => ({

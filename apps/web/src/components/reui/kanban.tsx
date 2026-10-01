@@ -109,6 +109,12 @@ const IsOverlayContext = createContext(false);
 const animateLayoutChanges: AnimateLayoutChanges = (args) =>
   defaultAnimateLayoutChanges({ ...args, wasDragging: true });
 
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 const dropAnimationConfig: DropAnimation = {
   sideEffects: defaultDropAnimationSideEffects({
     styles: {
@@ -673,8 +679,8 @@ function KanbanColumn({ value, className, render, disabled, ...props }: KanbanCo
   const isColumnDragging = activeId ? isColumn(activeId) : false;
 
   const style = {
-    transition,
     transform: CSS.Transform.toString(transform),
+    transition: prefersReducedMotion() ? undefined : transition,
   } as CSSProperties;
 
   const defaultProps = isOverlay
@@ -782,8 +788,8 @@ function KanbanItem({ value, className, render, disabled, ...props }: KanbanItem
   const isItemDragging = activeId ? !isColumn(activeId) : false;
 
   const style = {
-    transition,
     transform: CSS.Transform.toString(transform),
+    transition: prefersReducedMotion() ? undefined : transition,
   } as CSSProperties;
 
   const defaultProps = isOverlay
@@ -906,7 +912,7 @@ function KanbanOverlay({ children, className, ...props }: KanbanOverlayProps) {
 
   return createPortal(
     <DragOverlay
-      dropAnimation={dropAnimationConfig}
+      dropAnimation={prefersReducedMotion() ? null : dropAnimationConfig}
       modifiers={modifiers}
       className={cn("z-50", activeId && "cursor-grabbing", className)}
       {...props}

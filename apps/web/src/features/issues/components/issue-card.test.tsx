@@ -1,10 +1,15 @@
 import { render, screen } from "@testing-library/react";
-import type { IssueSummary, ProjectMember } from "@teamos/shared";
+import type { IssueSummary } from "@teamos/shared";
 import { expect, test } from "vitest";
 
 import { IssueCardBody } from "./issue-card";
 
 const issue: IssueSummary = {
+  assignee: {
+    email: "ada@example.com",
+    image: null,
+    name: "Ada Lovelace",
+  },
   assigneeMemberId: "member-1",
   createdAt: "2026-01-01T00:00:00.000Z",
   description: null,
@@ -17,17 +22,14 @@ const issue: IssueSummary = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
-const member: ProjectMember = {
-  email: "ada@example.com",
-  image: null,
-  memberId: "member-1",
-  name: "Ada Lovelace",
-  role: "member",
-  userId: "user-1",
-};
-
 test("shows the assignee name on one line beside the avatar", () => {
-  render(<IssueCardBody issue={issue} member={member} />);
+  render(
+    <IssueCardBody
+      assigneeName={issue.assignee?.name}
+      image={issue.assignee?.image}
+      issue={issue}
+    />,
+  );
 
   const name = screen.getByText("Ada Lovelace");
   expect(name).toHaveClass("line-clamp-1");
@@ -35,7 +37,13 @@ test("shows the assignee name on one line beside the avatar", () => {
 });
 
 test("omits an assignee name when the issue is unassigned", () => {
-  render(<IssueCardBody issue={{ ...issue, assigneeMemberId: null }} member={undefined} />);
+  render(
+    <IssueCardBody
+      assigneeName={undefined}
+      image={null}
+      issue={{ ...issue, assignee: null, assigneeMemberId: null }}
+    />,
+  );
 
   expect(screen.getByLabelText("Unassigned")).toBeInTheDocument();
   expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();

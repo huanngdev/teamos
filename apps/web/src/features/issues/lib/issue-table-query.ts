@@ -70,7 +70,7 @@ interface IssueTableQuery {
   columnOrder: IssueTableColumnId[];
   columnVisibility: Record<string, boolean>;
   pageIndex: number;
-  pageSize: IssueTablePageSize;
+  pageSize: number;
   q: string;
   sorting: IssueTableSort[];
 }
@@ -274,10 +274,10 @@ function parsePageIndex(value: string | null): number {
   return parsed - 1;
 }
 
-function parsePageSize(value: string | null): IssueTablePageSize {
+function parsePageSize(value: string | null): number {
   const parsed = value === null ? undefined : Number(value);
 
-  if (parsed === undefined || !isIssueTablePageSize(parsed)) {
+  if (parsed === undefined || !Number.isInteger(parsed) || parsed < 1 || parsed > 50) {
     return defaultIssueTablePageSize;
   }
 
@@ -477,13 +477,16 @@ function buildIssueTableRows(
     const status = statusById.get(issue.statusId);
     const member =
       issue.assigneeMemberId === null ? undefined : memberById.get(issue.assigneeMemberId);
+    const assignee = issue.assignee;
 
     return {
-      assigneeEmail: member?.email ?? "",
+      assigneeEmail: assignee?.email ?? member?.email ?? "",
       assigneeId: issue.assigneeMemberId ?? unassignedAssigneeId,
-      assigneeImage: member?.image ?? null,
+      assigneeImage: assignee?.image ?? member?.image ?? null,
       assigneeName:
-        issue.assigneeMemberId === null ? "Unassigned" : (member?.name ?? "Unknown member"),
+        issue.assigneeMemberId === null
+          ? "Unassigned"
+          : (assignee?.name ?? member?.name ?? "Unknown member"),
       category: status?.category ?? null,
       createdAt: issue.createdAt,
       description: issue.description ?? "",
@@ -725,8 +728,13 @@ const issueListFilterKeys = [
 
 function issueListRequestParams(query: IssueTableQuery, timeZone: string): Record<string, string> {
   const serialized = serializeIssueTableSearch(query);
+  const sort = query.sorting[0] ?? defaultIssueTableSort;
   const params: Record<string, string> = {
+    direction: sort.desc ? "desc" : "asc",
     facets: "1",
+    page: String(query.pageIndex + 1),
+    pageSize: String(query.pageSize),
+    sort: sort.id,
     timeZone,
   };
 
