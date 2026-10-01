@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 
 import { apiUrl } from "@/shared";
 
-import { App } from "./app";
+import { App } from "./App";
 import { renderWithProviders } from "../test/render-app";
 import { server } from "../test/server";
 
