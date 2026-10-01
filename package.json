@@ -15,7 +15,7 @@
     "db:generate": "bun run --cwd packages/db db:generate",
     "db:migrate": "bun run --cwd packages/db db:migrate",
     "db:studio": "bun run --cwd packages/db db:studio",
-    "seed:issues": "bun run --cwd apps/api seed:issues",
+    "seed": "bun run --cwd apps/api seed",
     "start": "turbo run start --ui=tui",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
