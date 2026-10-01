@@ -185,6 +185,36 @@ export const issue = pgTable(
       table.projectId,
       table.statusId,
       table.position,
+      table.id,
+    ),
+    index("issue_project_assignee_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.assigneeMemberId,
+    ),
+    index("issue_project_created_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.createdAt,
+      table.id,
+    ),
+    index("issue_project_priority_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.priority,
+      table.id,
+    ),
+    index("issue_project_title_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.title,
+      table.id,
+    ),
+    index("issue_project_updated_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.updatedAt,
+      table.id,
     ),
     foreignKey({
       columns: [table.projectId, table.organizationId],
