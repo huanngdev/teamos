@@ -1,4 +1,4 @@
-import { getIssuePriorityLabel, type IssuePriority } from "@teamos/shared";
+import { getIssuePriorityLabel, issuePriorities, type IssuePriority } from "@teamos/shared";
 import {
   CellSignalFullIcon,
   CellSignalHighIcon,
@@ -8,6 +8,8 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 
+import { IssueFieldLabel } from "./issue-field-label";
+
 const priorityIcons: Record<IssuePriority, { className: string; icon: Icon }> = {
   high: { className: "text-orange-500", icon: CellSignalHighIcon },
   low: { className: "text-sky-600", icon: CellSignalLowIcon },
@@ -16,13 +18,16 @@ const priorityIcons: Record<IssuePriority, { className: string; icon: Icon }> = 
   urgent: { className: "text-red-600", icon: CellSignalFullIcon },
 };
 
+const menuLabelClassName =
+  "group-hover/menu-item:text-foreground group-focus/menu-item:text-foreground group-data-[highlighted]/menu-item:text-foreground";
+
 function IssuePriorityIcon({ priority }: { priority: IssuePriority }) {
   const item = priorityIcons[priority];
   const ValueIcon = item.icon;
 
   return (
-    <span className="flex items-center gap-1">
-      <span className="relative size-4">
+    <IssueFieldLabel>
+      <span className="relative size-4 shrink-0">
         <CellSignalFullIcon
           aria-hidden="true"
           className="size-4 text-muted-foreground/30"
@@ -34,9 +39,21 @@ function IssuePriorityIcon({ priority }: { priority: IssuePriority }) {
           weight="bold"
         />
       </span>
-      <span className={`text-xs ${item.className}`}>{getIssuePriorityLabel(priority)}</span>
-    </span>
+      <span className={`min-w-0 truncate ${item.className} ${menuLabelClassName}`}>
+        {getIssuePriorityLabel(priority)}
+      </span>
+    </IssueFieldLabel>
   );
 }
 
-export { IssuePriorityIcon };
+function IssuePriorityOption({ id, label }: { id: string; label: string }) {
+  const priority = issuePriorities.find((item) => item === id);
+
+  if (priority === undefined) {
+    return label;
+  }
+
+  return <IssuePriorityIcon priority={priority} />;
+}
+
+export { IssuePriorityIcon, IssuePriorityOption };

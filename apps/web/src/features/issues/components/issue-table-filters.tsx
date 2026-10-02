@@ -15,6 +15,9 @@ import {
   unassignedAssigneeId,
   type IssueTableRow,
 } from "../lib/issue-table-query";
+import { AssigneeSearchField } from "./assignee-menu";
+import { IssuePriorityOption } from "./issue-priority-icon";
+import { IssueStatusOption } from "./issue-status-indicator";
 
 interface FilterColumn {
   getFilterValue: () => unknown;
@@ -74,15 +77,7 @@ function AssigneeValueFilter({
   return (
     <DropdownMenuGroup>
       <div className="px-2 py-1.5">
-        <Input
-          aria-label="Search assignees"
-          onChange={(event) => {
-            assignees.onSearch(event.target.value);
-          }}
-          onKeyDown={stopMenuKeys}
-          placeholder="Search name or email"
-          value={assignees.search}
-        />
+        <AssigneeSearchField onKeyDown={stopMenuKeys} picker={assignees} />
       </div>
       <MultiValueFilter column={column} options={options} />
       {assignees.hasMore ? (
@@ -106,6 +101,7 @@ function MultiValueFilter({
   column: FilterColumn;
   options: readonly FilterOption[];
 }) {
+  const { statuses } = useIssueTableContext();
   const selected = readStringList(column.getFilterValue());
 
   if (options.length === 0) {
@@ -128,13 +124,37 @@ function MultiValueFilter({
               column.setFilterValue(next.length > 0 ? next : undefined);
             }}
           >
-            <span className="min-w-0 flex-1 truncate">{option.label}</span>
-            <span className="text-muted-foreground tabular-nums">{option.count}</span>
+            <span className="min-w-0 flex-1">
+              <FilterOptionLabel columnId={column.id} option={option} statuses={statuses} />
+            </span>
+            <span className="text-muted-foreground tabular-nums group-hover/menu-item:text-foreground group-focus/menu-item:text-foreground group-data-[highlighted]/menu-item:text-foreground">
+              {option.count}
+            </span>
           </DropdownMenuCheckboxItem>
         ))}
       </div>
     </DropdownMenuGroup>
   );
+}
+
+function FilterOptionLabel({
+  columnId,
+  option,
+  statuses,
+}: {
+  columnId: string;
+  option: FilterOption;
+  statuses: IssueTableContextStatuses;
+}) {
+  if (columnId === "priority") {
+    return <IssuePriorityOption id={option.id} label={option.label} />;
+  }
+
+  if (columnId === "status") {
+    return <IssueStatusOption label={option.label} statusId={option.id} statuses={statuses} />;
+  }
+
+  return <span className="block truncate">{option.label}</span>;
 }
 
 function TextFilter({ column }: { column: FilterColumn }) {

@@ -1,10 +1,15 @@
 import type { EligibleAssignee } from "@teamos/shared";
-import { UserCircleIcon, UsersIcon } from "@phosphor-icons/react";
+import { UserCircleIcon, UsersIcon, XIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Spinner } from "@/components/ui/spinner";
+import {
+  AssigneeMenuList,
+  AssigneeSearchField,
+  IssueChoiceButton,
+  type AssigneeMenuRow,
+} from "@/features/issues/components/assignee-menu";
+import { IssueIconLabel } from "@/features/issues/components/issue-field-label";
 import type { EligibleAssigneePicker } from "@/features/projects";
 import { PersonIdentity } from "@/shared";
 
@@ -28,6 +33,38 @@ function ViewAssigneePicker({
   }
 
   const label = selected.length > 0 ? `Assignee (${selected.length})` : "Assignee";
+  const people: AssigneeMenuRow[] = picker.assignees.map((assignee) => ({
+    content: <PersonIdentity email={assignee.email} image={assignee.image} name={assignee.name} />,
+    id: assignee.id,
+    onSelect: () => {
+      onToggle(assignee.id);
+    },
+    pressed: selected.includes(assignee.id),
+  }));
+  const trailing: AssigneeMenuRow[] = selected
+    .filter(
+      (token) =>
+        token !== "me" &&
+        token !== "unassigned" &&
+        !picker.assignees.some((assignee) => assignee.id === token),
+    )
+    .map((token) => {
+      const assignee = knownById.get(token);
+
+      return {
+        content:
+          assignee === undefined ? (
+            "Saved assignee"
+          ) : (
+            <PersonIdentity email={assignee.email} image={assignee.image} name={assignee.name} />
+          ),
+        id: token,
+        onSelect: () => {
+          onToggle(token);
+        },
+        pressed: true,
+      };
+    });
 
   return (
     <Popover>
@@ -40,121 +77,38 @@ function ViewAssigneePicker({
         }
       />
       <PopoverContent align="start" className="w-80">
-        <Input
-          aria-label="Search assignees"
-          onChange={(event) => {
-            picker.onSearch(event.target.value);
-          }}
-          placeholder="Search name or email"
-          value={picker.search}
+        <AssigneeSearchField picker={picker} />
+        <AssigneeMenuList
+          leading={[
+            {
+              content: <IssueIconLabel icon={UserCircleIcon} label="Me" />,
+              id: "me",
+              onSelect: () => {
+                onToggle("me");
+              },
+              pressed: selected.includes("me"),
+            },
+            {
+              content: <IssueIconLabel icon={UserCircleIcon} label="Unassigned" />,
+              id: "unassigned",
+              onSelect: () => {
+                onToggle("unassigned");
+              },
+              pressed: selected.includes("unassigned"),
+            },
+          ]}
+          people={people}
+          picker={picker}
+          trailing={trailing}
         />
-        <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
-          <AssigneeToken
-            pressed={selected.includes("me")}
-            onToggle={() => {
-              onToggle("me");
-            }}
-            title="Me"
-          />
-          <AssigneeToken
-            pressed={selected.includes("unassigned")}
-            onToggle={() => {
-              onToggle("unassigned");
-            }}
-            title="Unassigned"
-          />
-          {picker.loading ? (
-            <div aria-busy="true" className="flex items-center gap-2 px-2 py-1.5" role="status">
-              <Spinner />
-              <span>Loading assignees</span>
-            </div>
-          ) : null}
-          {picker.assignees.map((assignee) => (
-            <Button
-              aria-pressed={selected.includes(assignee.id)}
-              key={assignee.id}
-              onClick={() => {
-                onToggle(assignee.id);
-              }}
-              type="button"
-              variant="ghost"
-            >
-              <PersonIdentity email={assignee.email} image={assignee.image} name={assignee.name} />
-            </Button>
-          ))}
-          {selected
-            .filter(
-              (token) =>
-                token !== "me" &&
-                token !== "unassigned" &&
-                !picker.assignees.some((assignee) => assignee.id === token),
-            )
-            .map((token) => {
-              const assignee = knownById.get(token);
-
-              return (
-                <Button
-                  aria-pressed={true}
-                  key={token}
-                  onClick={() => {
-                    onToggle(token);
-                  }}
-                  type="button"
-                  variant="ghost"
-                >
-                  {assignee === undefined ? (
-                    "Saved assignee"
-                  ) : (
-                    <PersonIdentity
-                      email={assignee.email}
-                      image={assignee.image}
-                      name={assignee.name}
-                    />
-                  )}
-                </Button>
-              );
-            })}
-          {picker.error === null ? null : (
-            <Button onClick={picker.onRetry} type="button" variant="outline">
-              Retry
-            </Button>
-          )}
-          {picker.hasMore ? (
-            <Button
-              disabled={picker.loadingMore}
-              onClick={picker.onLoadMore}
-              type="button"
-              variant="ghost"
-            >
-              {picker.loadingMore ? <Spinner data-icon="inline-start" /> : null}
-              Load more
-            </Button>
-          ) : null}
-        </div>
         {selected.length === 0 ? null : (
-          <Button onClick={onClear} type="button" variant="ghost">
+          <IssueChoiceButton onClick={onClear}>
+            <XIcon data-icon="inline-start" />
             Clear assignees
-          </Button>
+          </IssueChoiceButton>
         )}
       </PopoverContent>
     </Popover>
-  );
-}
-
-function AssigneeToken({
-  onToggle,
-  pressed,
-  title,
-}: {
-  onToggle: () => void;
-  pressed: boolean;
-  title: string;
-}) {
-  return (
-    <Button aria-pressed={pressed} onClick={onToggle} type="button" variant="ghost">
-      <UserCircleIcon data-icon="inline-start" />
-      {title}
-    </Button>
   );
 }
 

@@ -1,75 +1,18 @@
 import type { EligibleAssignee, ProjectStatusSummary } from "@teamos/shared";
-import { issuePriorities } from "@teamos/shared";
 import { CaretDownIcon, FunnelIcon } from "@phosphor-icons/react";
-import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { IssuePriorityIcon } from "@/features/issues/components/issue-priority-icon";
-import { issueStatusCategoryAppearance } from "@/features/issues/lib/issue-status-appearance";
+import { IssueFieldMenu } from "@/features/issues/components/issue-field-menu";
+import { IssuePriorityOption } from "@/features/issues/components/issue-priority-icon";
+import { IssueStatusOption } from "@/features/issues/components/issue-status-indicator";
 import type { EligibleAssigneePicker } from "@/features/projects";
 import { countAdvancedIssueViewFilters } from "../lib/issue-view-draft";
 import type { IssueViewFilterOption } from "../hooks/use-issue-view-catalog";
 import type { IssueViewFormState } from "../hooks/use-issue-view-form";
 import { ViewAssigneePicker } from "./view-assignee-picker";
-
-function FilterMenu({
-  label,
-  onClear,
-  onToggle,
-  options,
-  renderOption,
-  selected,
-}: {
-  label: string;
-  onClear: () => void;
-  onToggle: (id: string) => void;
-  options: readonly IssueViewFilterOption[];
-  renderOption?: (option: IssueViewFilterOption) => ReactNode;
-  selected: readonly string[];
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button type="button" variant="outline">
-            <FunnelIcon data-icon="inline-start" />
-            {selected.length > 0 ? `${label} (${selected.length})` : label}
-          </Button>
-        }
-      />
-      <DropdownMenuContent>
-        <DropdownMenuGroup>
-          {options.map((option) => (
-            <DropdownMenuCheckboxItem
-              checked={selected.includes(option.id)}
-              key={option.id}
-              onCheckedChange={() => {
-                onToggle(option.id);
-              }}
-            >
-              {renderOption === undefined ? option.label : renderOption(option)}
-            </DropdownMenuCheckboxItem>
-          ))}
-          {selected.length === 0 ? null : (
-            <DropdownMenuCheckboxItem checked={false} onCheckedChange={onClear}>
-              Clear {label.toLowerCase()}
-            </DropdownMenuCheckboxItem>
-          )}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 function IssueViewFilterFields({
   assignees,
@@ -100,28 +43,34 @@ function IssueViewFilterFields({
           picker={assignees}
           selected={form.selectedAssignees}
         />
-        <FilterMenu
+        <IssueFieldMenu
+          icon={<FunnelIcon data-icon="inline-start" />}
           label="Priority"
+          mode="multiple"
           onClear={form.onClearPriorities}
-          onToggle={form.onTogglePriority}
+          onSelect={form.onTogglePriority}
           options={options.priorityOptions}
-          renderOption={(option) => <PriorityChoice id={option.id} label={option.label} />}
+          renderOption={(option) => <IssuePriorityOption id={option.id} label={option.label} />}
           selected={form.selectedPriorities}
         />
-        <FilterMenu
+        <IssueFieldMenu
+          icon={<FunnelIcon data-icon="inline-start" />}
           label="Status"
+          mode="multiple"
           onClear={form.onClearStatuses}
-          onToggle={form.onToggleStatus}
+          onSelect={form.onToggleStatus}
           options={options.statusOptions}
           renderOption={(option) => (
-            <StatusChoice label={option.label} statusId={option.id} statuses={statuses} />
+            <IssueStatusOption label={option.label} statusId={option.id} statuses={statuses} />
           )}
           selected={form.selectedStatuses}
         />
-        <FilterMenu
+        <IssueFieldMenu
+          icon={<FunnelIcon data-icon="inline-start" />}
           label="Category"
+          mode="multiple"
           onClear={form.onClearCategories}
-          onToggle={form.onToggleCategory}
+          onSelect={form.onToggleCategory}
           options={options.categoryOptions}
           selected={form.selectedCategories}
         />
@@ -243,42 +192,6 @@ function IssueViewFilterFields({
         </CollapsibleContent>
       </Collapsible>
     </>
-  );
-}
-
-function PriorityChoice({ id, label }: { id: string; label: string }) {
-  const priority = issuePriorities.find((item) => item === id);
-
-  if (priority === undefined) {
-    return label;
-  }
-
-  return <IssuePriorityIcon priority={priority} />;
-}
-
-function StatusChoice({
-  label,
-  statusId,
-  statuses,
-}: {
-  label: string;
-  statusId: string;
-  statuses: readonly ProjectStatusSummary[];
-}) {
-  const status = statuses.find((item) => item.id === statusId);
-
-  if (status === undefined) {
-    return label;
-  }
-
-  const appearance = issueStatusCategoryAppearance[status.category];
-  const Icon = appearance.icon;
-
-  return (
-    <span className="flex min-w-0 items-center gap-2">
-      <Icon aria-hidden="true" className={`size-4 shrink-0 ${appearance.className}`} />
-      <span className="truncate">{status.name}</span>
-    </span>
   );
 }
 

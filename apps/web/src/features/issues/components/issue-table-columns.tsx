@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { issueSelectColumnId } from "../lib/issue-table-pin";
 import { IssueColumnFilter } from "./issue-table-filters";
+import { IssueIconLabel } from "./issue-field-label";
 import { IssuePriorityIcon } from "./issue-priority-icon";
 import { IssueStatusIndicator } from "./issue-status-indicator";
 import { useIssueTableContext } from "../lib/issue-table-context";
@@ -404,9 +405,8 @@ function IssueAssigneeCell({
 }) {
   if (unassigned) {
     return (
-      <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-        <UserCircleIcon className="size-4" />
-        <span className="truncate">{name}</span>
+      <span className="min-w-0 text-muted-foreground">
+        <IssueIconLabel icon={UserCircleIcon} label={name} />
       </span>
     );
   }

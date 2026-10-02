@@ -1,10 +1,13 @@
-import type { IssuePriority, ProjectStatusSummary } from "@teamos/shared";
-import { issuePriorities } from "@teamos/shared";
+import {
+  getIssuePriorityLabel,
+  issuePriorities,
+  type IssuePriority,
+  type ProjectStatusSummary,
+} from "@teamos/shared";
 
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { issueStatusCategoryAppearance } from "../lib/issue-status-appearance";
-import { IssuePriorityIcon } from "./issue-priority-icon";
+import { IssueFieldMenu } from "./issue-field-menu";
+import { IssuePriorityIcon, IssuePriorityOption } from "./issue-priority-icon";
+import { IssueStatusIndicator, IssueStatusOption } from "./issue-status-indicator";
 
 function IssueStatusPicker({
   disabled,
@@ -20,32 +23,25 @@ function IssueStatusPicker({
   const selected = statuses.find((status) => status.id === value) ?? statuses[0];
 
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button aria-label="Status" disabled={disabled} type="button" variant="outline">
-            {selected === undefined ? "Status" : <StatusOption status={selected} />}
-          </Button>
-        }
-      />
-      <PopoverContent align="start" className="w-64">
-        <div className="flex flex-col gap-1">
-          {statuses.map((status) => (
-            <Button
-              aria-pressed={status.id === value}
-              key={status.id}
-              onClick={() => {
-                onChange(status.id);
-              }}
-              type="button"
-              variant="ghost"
-            >
-              <StatusOption status={status} />
-            </Button>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <IssueFieldMenu
+      accessibleName="Status"
+      disabled={disabled}
+      label="Status"
+      mode="single"
+      onSelect={onChange}
+      options={statuses.map((status) => ({ id: status.id, label: status.name }))}
+      renderOption={(option) => (
+        <IssueStatusOption label={option.label} statusId={option.id} statuses={statuses} />
+      )}
+      selected={value.length === 0 ? [] : [value]}
+      trigger={
+        selected === undefined ? (
+          "Status"
+        ) : (
+          <IssueStatusIndicator category={selected.category} name={selected.name} />
+        )
+      }
+    />
   );
 }
 
@@ -59,44 +55,26 @@ function IssuePriorityPicker({
   value: IssuePriority;
 }) {
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button aria-label="Priority" disabled={disabled} type="button" variant="outline">
-            <IssuePriorityIcon priority={value} />
-          </Button>
+    <IssueFieldMenu
+      accessibleName="Priority"
+      disabled={disabled}
+      label="Priority"
+      mode="single"
+      onSelect={(id) => {
+        const priority = issuePriorities.find((item) => item === id);
+
+        if (priority !== undefined) {
+          onChange(priority);
         }
-      />
-      <PopoverContent align="start" className="w-56">
-        <div className="flex flex-col gap-1">
-          {issuePriorities.map((priority) => (
-            <Button
-              aria-pressed={priority === value}
-              key={priority}
-              onClick={() => {
-                onChange(priority);
-              }}
-              type="button"
-              variant="ghost"
-            >
-              <IssuePriorityIcon priority={priority} />
-            </Button>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function StatusOption({ status }: { status: ProjectStatusSummary }) {
-  const appearance = issueStatusCategoryAppearance[status.category];
-  const Icon = appearance.icon;
-
-  return (
-    <span className="flex min-w-0 items-center gap-2">
-      <Icon aria-hidden="true" className={`size-4 shrink-0 ${appearance.className}`} />
-      <span className="truncate">{status.name}</span>
-    </span>
+      }}
+      options={issuePriorities.map((priority) => ({
+        id: priority,
+        label: getIssuePriorityLabel(priority),
+      }))}
+      renderOption={(option) => <IssuePriorityOption id={option.id} label={option.label} />}
+      selected={[value]}
+      trigger={<IssuePriorityIcon priority={value} />}
+    />
   );
 }
 

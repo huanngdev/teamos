@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { BoardColumn } from "../lib/board-columns";
-import { issueStatusCategoryAppearance } from "../lib/issue-status-appearance";
 import { IssueCard } from "./issue-card";
+import { IssueStatusIndicator } from "./issue-status-indicator";
 
 interface IssueColumnProps {
   canCreateIssue: boolean;
@@ -63,8 +63,6 @@ function IssueColumn({
   const armedAfter = useRef(true);
   const armedBefore = useRef(true);
   const [range, setRange] = useState({ end: 12, start: 0 });
-  const categoryIcon = issueStatusCategoryAppearance[column.status.category];
-  const CategoryIcon = categoryIcon.icon;
   const visibleIssues = column.issues.slice(range.start, range.end);
 
   useEffect(() => {
@@ -198,10 +196,9 @@ function IssueColumn({
               )}
             />
           ) : null}
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            <CategoryIcon className={`size-3.5 shrink-0 ${categoryIcon.className}`} />
-            <span className="truncate text-sm font-normal">{column.status.name}</span>
-            <span className="text-xs text-muted-foreground">{column.total}</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <IssueStatusIndicator category={column.status.category} name={column.status.name} />
+            <span className="shrink-0 text-xs text-muted-foreground">{column.total}</span>
           </div>
           <div className="flex items-center">
             {canCreateIssue ? (
