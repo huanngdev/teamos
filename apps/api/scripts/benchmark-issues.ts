@@ -104,15 +104,41 @@ async function measure(count: number) {
     const inserted = await timed(async () => {
       await db.execute(sql`
         insert into issue (
-          organization_id, project_id, status_id, number, title, description, priority, position,
+          organization_id, project_id, status_id, number, title, content, content_text, priority, position,
           created_by_member_id, updated_by_member_id, created_at, updated_at
         )
         select
           ${organization.organizationId},
           ${project.id}::uuid,
           case when g % 10 = 0 then ${other.id}::uuid else ${skewed.id}::uuid end,
-          g::int,
+          g::bigint,
           case when g % 100 = 0 then 'gate ' || g::text else 'Issue ' || g::text end,
+          jsonb_build_object(
+            'version', 1,
+            'root', jsonb_build_object(
+              'children', jsonb_build_array(jsonb_build_object(
+                'children', jsonb_build_array(jsonb_build_object(
+                  'detail', 0,
+                  'format', 0,
+                  'mode', 'normal',
+                  'style', '',
+                  'text', repeat('note ', 40),
+                  'type', 'text',
+                  'version', 1
+                )),
+                'direction', null,
+                'format', '',
+                'indent', 0,
+                'type', 'paragraph',
+                'version', 1
+              )),
+              'direction', null,
+              'format', '',
+              'indent', 0,
+              'type', 'root',
+              'version', 1
+            )
+          ),
           repeat('note ', 40),
           'none',
           (g * 1000)::int,
@@ -121,6 +147,11 @@ async function measure(count: number) {
           now() - (g || ' seconds')::interval,
           now()
         from generate_series(1, ${count}::int) as g
+      `);
+      await db.execute(sql`
+        update project_issue_counter
+        set last_number = greatest(last_number, ${count}::bigint)
+        where project_id = ${project.id}::uuid
       `);
     });
     const deepOffset = Math.max(0, count - 20);
