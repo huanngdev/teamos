@@ -1,20 +1,21 @@
 import { render, screen } from "@testing-library/react";
-import type { IssueSummary } from "@teamos/shared";
+import type { IssueCardSummary } from "@teamos/shared";
 import { expect, test } from "vitest";
 
 import { IssueCardBody } from "./issue-card";
 
-const issue: IssueSummary = {
-  assignee: {
-    email: "ada@example.com",
-    image: null,
-    name: "Ada Lovelace",
-  },
-  assigneeMemberId: "member-1",
+const ada = {
+  email: "ada@example.com",
+  id: "member-1",
+  image: null,
+  name: "Ada Lovelace",
+};
+
+const issue: IssueCardSummary = {
+  assignees: [ada],
   createdAt: "2026-01-01T00:00:00.000Z",
-  description: null,
   id: "issue-1",
-  number: 1,
+  number: "1",
   position: 0,
   priority: "none",
   statusId: "11111111-1111-4111-8111-111111111111",
@@ -23,13 +24,7 @@ const issue: IssueSummary = {
 };
 
 test("shows the assignee name on one line beside the avatar", () => {
-  render(
-    <IssueCardBody
-      assigneeName={issue.assignee?.name}
-      image={issue.assignee?.image}
-      issue={issue}
-    />,
-  );
+  render(<IssueCardBody issue={issue} />);
 
   const name = screen.getByText("Ada Lovelace");
   expect(name).toHaveClass("line-clamp-1");
@@ -37,14 +32,30 @@ test("shows the assignee name on one line beside the avatar", () => {
 });
 
 test("omits an assignee name when the issue is unassigned", () => {
+  render(<IssueCardBody issue={{ ...issue, assignees: [] }} />);
+
+  expect(screen.getByLabelText("Unassigned")).toBeInTheDocument();
+  expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
+});
+
+test("groups more than one assignee", () => {
   render(
     <IssueCardBody
-      assigneeName={undefined}
-      image={null}
-      issue={{ ...issue, assignee: null, assigneeMemberId: null }}
+      issue={{
+        ...issue,
+        assignees: [
+          ada,
+          {
+            email: "grace@example.com",
+            id: "member-3",
+            image: null,
+            name: "Grace Hopper",
+          },
+        ],
+      }}
     />,
   );
 
-  expect(screen.getByLabelText("Unassigned")).toBeInTheDocument();
+  expect(document.querySelector("[data-slot=avatar-group]")).toBeInTheDocument();
   expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
 });

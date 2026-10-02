@@ -23,11 +23,15 @@ describe("createIssueRequestSchema", () => {
 });
 
 describe("updateIssueRequestSchema", () => {
-  test("allows clearing the description without changing order", () => {
-    const parsed = updateIssueRequestSchema.parse({ description: null });
+  test("allows clearing the content without changing order", () => {
+    const parsed = updateIssueRequestSchema.parse({ content: null });
 
-    expect(parsed.description).toBeNull();
+    expect(parsed.content).toBeNull();
     expect(parsed.placement).toBeUndefined();
+  });
+
+  test("omits content when the patch does not send it", () => {
+    expect(updateIssueRequestSchema.parse({ title: "Rename" }).content).toBeUndefined();
   });
 
   test("accepts an anchor placement and strips a raw position", () => {

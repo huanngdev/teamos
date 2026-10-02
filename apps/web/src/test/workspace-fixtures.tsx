@@ -17,6 +17,7 @@ import { WorkspaceMembersRoute } from "@/routes/workspace-members-route";
 import { ProjectBoardRoute } from "@/routes/project-board-route";
 import { ProjectViewRoute } from "@/routes/project-view-route";
 import { ProjectViewsRoute } from "@/routes/project-views-route";
+import { ProjectIssueRoute } from "@/routes/project-issue-route";
 import { ProjectIssuesRoute } from "@/routes/project-issues-route";
 import { ProjectOverviewRoute } from "@/routes/project-overview-route";
 import { ProjectSettingsRoute } from "@/routes/project-settings-route";
@@ -294,6 +295,7 @@ function renderWorkspace(route = "/w/acme/projects") {
         <Route element={<ProjectOverviewRoute />} index />
         <Route element={<ProjectBoardRoute />} path={projectBoardSegment} />
         <Route element={<ProjectIssuesRoute />} path={projectIssuesSegment} />
+        <Route element={<ProjectIssueRoute />} path={`${projectIssuesSegment}/:issueCode`} />
         <Route element={<ProjectViewRoute />} path={projectViewSegment} />
         <Route element={<ProjectViewsRoute />} path={projectViewsSegment} />
         <Route element={<ProjectSettingsRoute />} path={projectSettingsSegment} />

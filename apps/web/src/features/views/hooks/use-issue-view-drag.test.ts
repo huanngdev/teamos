@@ -9,11 +9,10 @@ import { useIssueViewDrag } from "./use-issue-view-drag";
 
 function card(id: string, statusId: string): IssueCardSummary {
   return {
-    assignee: null,
-    assigneeMemberId: null,
+    assignees: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     id,
-    number: 1,
+    number: "1",
     position: 0,
     priority: "none",
     statusId,

@@ -36,7 +36,7 @@ describe("parseIssueListQuery", () => {
     expect(filters.categories).toEqual(["started"]);
     expect(filters.priorities).toEqual(["high"]);
     expect(filters.statusIds).toEqual([statusId]);
-    expect(filters.numberMin).toBe(2);
+    expect(filters.numberMin).toBe("2");
     expect(filters.numberMax).toBeUndefined();
     expect(filters.createdFrom).toBe("2026-01-01");
     expect(filters.createdTo).toBeUndefined();
@@ -48,6 +48,9 @@ describe("parseIssueListQuery", () => {
   test("is unsatisfiable when every requested token is invalid", () => {
     expect(parseIssueListQuery({ priority: "nope" }).unsatisfiable).toBe(true);
     expect(parseIssueListQuery({ status: "not-a-uuid" }).unsatisfiable).toBe(true);
+    expect(parseIssueListQuery({ number: "nope.." }).unsatisfiable).toBe(true);
+    expect(parseIssueListQuery({ number: "I-0002..I-0010" }).numberMin).toBe("2");
+    expect(parseIssueListQuery({ number: "I-0002..I-0010" }).numberMax).toBe("10");
   });
 
   test("ignores an invalid time zone", () => {

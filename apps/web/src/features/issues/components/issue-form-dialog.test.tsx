@@ -1,4 +1,4 @@
-import type { IssueCardSummary, IssueSummary } from "@teamos/shared";
+import type { IssueCardSummary } from "@teamos/shared";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -40,72 +40,79 @@ test("lists a workspace member who has no project role in the issue assignee she
   await user.click(await screen.findByRole("button", { name: "New issue" }));
   const dialog = await screen.findByRole("dialog", { name: "New issue" });
 
-  expect(within(dialog).getByLabelText("Description")).toBeEnabled();
+  expect(within(dialog).queryByLabelText("Description")).not.toBeInTheDocument();
   expect(within(dialog).getByRole("button", { name: "Create issue" })).toBeDisabled();
 
-  await user.click(within(dialog).getByRole("combobox", { name: "Assignee" }));
+  await user.click(within(dialog).getByRole("button", { name: /Assignee/ }));
   expect(await screen.findByRole("option", { name: "Grace Hopper" })).toBeInTheDocument();
   expect(screen.queryByText("grace@example.com")).not.toBeInTheDocument();
-  expect(screen.getByRole("option", { name: "Unassigned" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "No assignee" })).toBeInTheDocument();
+  expect(screen.queryByText("Invite and assign...")).not.toBeInTheDocument();
+  expect(screen.getByPlaceholderText("Assign to...")).toBeInTheDocument();
 
   await user.click(screen.getByRole("option", { name: "Grace Hopper" }));
-  await user.type(within(dialog).getByLabelText("Title"), "Gate review");
+  expect(screen.getByRole("option", { name: "Grace Hopper" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await user.click(screen.getByRole("option", { name: "Ada Lovelace" }));
+  await user.keyboard("{Escape}");
+  await user.type(within(dialog).getByLabelText("Issue title"), "Gate review");
   await user.click(within(dialog).getByRole("button", { name: "Create issue" }));
 
   await waitFor(() => {
     expect(created).toEqual([
-      expect.objectContaining({ assigneeMemberId: "member-3", title: "Gate review" }),
+      expect.objectContaining({
+        assigneeMemberIds: ["member-3", "member-1"],
+        title: "Gate review",
+      }),
     ]);
   });
-  expect(within(dialog).getByLabelText("Title")).toHaveValue("Gate review");
+  expect(within(dialog).getByLabelText("Issue title")).toHaveValue("Gate review");
   expect(within(dialog).getByText("Issue not saved")).toBeInTheDocument();
 });
 
-test("does not save an edit until the issue detail has loaded", async () => {
+test("quick edit saves title and metadata without replacing content", async () => {
   const user = userEvent.setup();
   const updates: unknown[] = [];
-  let releaseDetail: (() => void) | undefined;
-  const detailGate = new Promise<void>((resolve) => {
-    releaseDetail = resolve;
-  });
+  let detailRequests = 0;
   const card: IssueCardSummary = {
-    assignee: null,
-    assigneeMemberId: null,
+    assignees: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     id: "card-1",
-    number: 7,
+    number: "7",
     position: 1000,
     priority: "none",
     statusId: backlogId,
     title: "Partial card",
     updatedAt: "2026-01-02T00:00:00.000Z",
   };
-  const detail: IssueSummary = {
+  const saved = {
     ...card,
-    description: "Keep the flight notes",
-    updatedAt: "2026-01-03T00:00:00.000Z",
+    content: null,
+    contentText: "Keep the flight notes",
+    title: "Updated card",
   };
 
   useWorkspaceHandlers();
   server.use(
-    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues/:issueId`, async () => {
-      await detailGate;
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues/:issueId`, () => {
+      detailRequests += 1;
 
-      return HttpResponse.json({ issue: detail });
+      return HttpResponse.json({ issue: saved });
     }),
     http.patch(
       `${apiUrl}/api/organizations/acme/projects/:projectId/issues/:issueId`,
       async ({ request }) => {
         updates.push(await request.json());
 
-        return HttpResponse.json({ issue: detail });
+        return HttpResponse.json({ issue: saved });
       },
     ),
   );
 
   function Harness() {
     const form = useIssueForm({
-      canDeleteIssue: true,
       canUpdateIssue: true,
       organizationSlug: "acme",
       projectId,
@@ -131,21 +138,26 @@ test("does not save an edit until the issue detail has loaded", async () => {
   await user.click(screen.getByRole("button", { name: "Open card" }));
 
   const dialog = await screen.findByRole("dialog", { name: "Edit issue" });
-  const description = within(dialog).getByLabelText("Description");
 
-  expect(description).toHaveValue("");
-  expect(description).toBeDisabled();
-  expect(within(dialog).getByRole("button", { name: "Save issue" })).toBeDisabled();
+  expect(within(dialog).queryByLabelText("Description")).not.toBeInTheDocument();
+  expect(within(dialog).getByLabelText("Issue title")).toHaveValue("Partial card");
+  expect(within(dialog).getByRole("button", { name: "Save issue" })).toBeEnabled();
 
+  await user.clear(within(dialog).getByLabelText("Issue title"));
+  await user.type(within(dialog).getByLabelText("Issue title"), "Updated card");
   await user.click(within(dialog).getByRole("button", { name: "Save issue" }));
-  expect(updates).toEqual([]);
-
-  releaseDetail?.();
 
   await waitFor(() => {
-    expect(description).toHaveValue("Keep the flight notes");
+    expect(updates).toEqual([
+      {
+        assigneeMemberIds: [],
+        expectedUpdatedAt: "2026-01-02T00:00:00.000Z",
+        priority: "none",
+        statusId: backlogId,
+        title: "Updated card",
+      },
+    ]);
   });
-  expect(description).toBeEnabled();
-  expect(within(dialog).getByRole("button", { name: "Save issue" })).toBeEnabled();
-  expect(updates).toEqual([]);
+  expect(updates[0]).not.toHaveProperty("content");
+  expect(detailRequests).toBe(0);
 });
