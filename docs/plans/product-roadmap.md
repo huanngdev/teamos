@@ -2,7 +2,7 @@
 
 Date: 2026-10-02
 
-Status: product direction agreed by the user. M0 short browser URLs are implemented, and the old `/workspaces` routes were removed instead of redirected. Later milestones still need their own implementation pass before coding.
+Status: product direction agreed by the user. M1 is next. Each later milestone still needs its own implementation pass before coding.
 
 ## 1. Goal and Implementation Order
 
@@ -10,8 +10,7 @@ Complete the issue workflow first, then add collaboration and progress visibilit
 
 | Milestone | User-facing outcome                                             | Dependencies                         |
 | --------- | --------------------------------------------------------------- | ------------------------------------ |
-| M0        | Short workspace/project URLs; old routes removed                | Existing foundation                  |
-| M1        | Stable issue codes, shareable URLs, and issue detail            | M0                                   |
+| M1        | Stable issue codes, shareable URLs, and issue detail            | Existing foundation                  |
 | M2        | Issue activity history and workspace audit log                  | M1                                   |
 | M3        | Blocks/blocked-by relationships and enforced status transitions | M1–M2                                |
 | M4        | Rich descriptions, images/files, and comments                   | M1–M2                                |
@@ -20,39 +19,11 @@ Complete the issue workflow first, then add collaboration and progress visibilit
 | M7        | Project chat                                                    | M4–M5                                |
 | M8        | Production readiness                                            | Required before a production release |
 
-**Start with M0, then M1. Do not begin all milestones at once.**
+**Start with M1. Do not begin all milestones at once.**
 
 Schedules and dedicated HR functionality are outside this roadmap. For now, employee management means workspace/project membership, roles, assignments, and workload visibility.
 
 ## 2. Milestones and Subtasks
-
-### M0 — Short, Human-Readable URLs
-
-Shorten browser routes while preserving readable workspace/project slugs. Use `/w/:organizationSlug/p/:projectSlug` as the project base. The small `w` and `p` namespaces avoid collisions between existing slugs and application pages such as `login`, `members`, and `settings`, without requiring slug renames or new reserved-name restrictions.
-
-| Destination                    | Canonical browser path                                  | Example                                         |
-| ------------------------------ | ------------------------------------------------------- | ----------------------------------------------- |
-| Create workspace               | `/w/new`                                                | `/w/new`                                        |
-| Workspace entry                | `/w/:organizationSlug`                                  | `/w/acme`                                       |
-| Workspace projects             | `/w/:organizationSlug/projects`                         | `/w/acme/projects`                              |
-| Workspace members              | `/w/:organizationSlug/members`                          | `/w/acme/members`                               |
-| Workspace settings             | `/w/:organizationSlug/settings`                         | `/w/acme/settings`                              |
-| Workspace audit, when M2 ships | `/w/:organizationSlug/audit`                            | `/w/acme/audit`                                 |
-| Project overview               | `/w/:organizationSlug/p/:projectSlug`                   | `/w/acme/p/website`                             |
-| Issue list                     | `/w/:organizationSlug/p/:projectSlug/issues`            | `/w/acme/p/website/issues`                      |
-| Issue board                    | `/w/:organizationSlug/p/:projectSlug/board`             | `/w/acme/p/website/board`                       |
-| Issue detail, when M1 ships    | `/w/:organizationSlug/p/:projectSlug/issues/:issueCode` | `/w/acme/p/website/issues/I-0001`               |
-| Saved views                    | `/w/:organizationSlug/p/:projectSlug/views`             | `/w/acme/p/website/views`                       |
-| Saved view detail              | `/w/:organizationSlug/p/:projectSlug/views/:viewId`     | Existing view ID under the shorter project base |
-| Project settings               | `/w/:organizationSlug/p/:projectSlug/settings`          | `/w/acme/p/website/settings`                    |
-
-- [x] **M0.1 — Canonical route registration.** Register the shorter routes using the existing layouts and protected-route boundary. Workspace entry still redirects to its project list. Keep public auth, account, and invitation routes unchanged. `/w/new` is a static creation route; a workspace whose slug is `new` still has explicit `/w/new/projects`, `/members`, and `/settings` paths.
-- [x] **M0.2 — Shared path builders.** Update existing frontend path helpers and route orchestration together. Encode dynamic segments consistently. Keep route construction in the owning helpers rather than duplicating path strings across features.
-- [x] **M0.3 — Remove legacy routes.** The user chose to delete the old browser routes instead of keeping redirects. `/workspaces/...` and `/issues/board` are not registered. An old link renders the not-found page. Do not add aliases later unless that decision is reversed.
-- [x] **M0.4 — Generated links and return paths.** Update workspace/project switchers, breadcrumbs, issue/view navigation, post-login destinations, invitation landing navigation, and application-generated browser links. Internal `next` paths stay inside the app. External return URLs stay rejected. Old `/workspaces` values in `next` are not rewritten, because those routes no longer exist.
-- [x] **M0.5 — Direct navigation and documentation.** Vite's default SPA fallback serves the app for a direct load or refresh of a `/w/...` path. Route tables and tests use the short paths. Existing slugs, UUIDs, role checks, and HTTP API paths stay unchanged. This milestone changes browser navigation only and needs no database migration.
-
-**Acceptance:** `/w/acme/p/website/board` opens the board; `/w/acme` opens that workspace's project list; `/workspaces/acme/projects/website/issues/board` is not found; navigation and refresh work on the short paths; inaccessible projects remain inaccessible; project slugs such as `members` or `settings` do not conflict with workspace pages.
 
 ### M1 — Issue Identity and Detail
 
@@ -74,7 +45,7 @@ Build two surfaces on a shared event foundation: an issue activity timeline and 
 - [ ] **M2.2 — Cover existing mutations.** Capture workspace, project, issue, workflow-column, and saved-view create/update/delete operations, plus role/member changes and invitation operations.
 - [ ] **M2.3 — Reliable recording.** Commit TeamOS mutations and their events in the same transaction. For Better Auth operations, use a server integration/hook at the confirmed mutation boundary, with reconciliation and deduplication. Logging after an HTTP response is not an audit guarantee.
 - [ ] **M2.4 — Issue activity.** Anyone allowed to view an issue can read its history. Comments are added in M4.
-- [ ] **M2.5 — Workspace audit page.** Owners and admins can filter by actor, action, resource, and time, with server-side pagination. Provide no audit-record edit/delete controls.
+- [ ] **M2.5 — Workspace audit page.** Owners and admins can filter by actor, action, resource, and time, with server-side pagination, at `/w/:organizationSlug/audit`. Provide no audit-record edit/delete controls.
 - [ ] **M2.6 — Safe event data.** Never store tokens, secrets, or complete file/description/comment contents in audit records. Record change type and revision for content changes; store before/after status and assignee values for history and analytics.
 
 **Limits:** history starts when recording is deployed. Do not fabricate historical events for existing data. Do not record every page view. The first version does not automatically expire audit records.
@@ -155,14 +126,14 @@ Ownership transfer and self-service workspace leaving should become a separate m
 - Every new API has a contract in `packages/shared`, server-side authorization, and tenant isolation. Return `404` for resources the caller cannot see.
 - Review schema migrations and convert existing data before enabling dependent UI.
 - Run formatting, lint, type checking, tests, and builds. Run live isolation verification when tenant/permission behavior changes. Verify keyboard use, responsive layout, light/dark themes, and reduced motion.
-- Required scenarios include short-URL navigation, a removed legacy URL, and slug collisions such as a workspace named `new` or a project named `members`; concurrent number allocation; direct/back/refresh detail navigation; missing/duplicate audit events; blocker cycles/races/reopening; private files and failed uploads; editor conflicts; realtime reconnect/access revocation; and analytics with incomplete history.
+- Required scenarios include concurrent number allocation; direct/back/refresh detail navigation; missing/duplicate audit events; blocker cycles/races/reopening; private files and failed uploads; editor conflicts; realtime reconnect/access revocation; and analytics with incomplete history.
 - Update `docs/progress.md` after each completed milestone. Reconcile stale statements in `docs/infra-guide.md` when this roadmap is adopted; preserve unrelated user changes.
 
 ## 4. Agreed Decisions and Proposed Defaults
 
 The user explicitly selected:
 
-- Shorter, human-readable workspace/project URLs. The old `/workspaces` browser routes are removed, not redirected.
+- Browser routes stay on `/w/:organizationSlug` and `/w/:organizationSlug/p/:projectSlug`. Old `/workspaces` routes stay unregistered.
 - Audit captures data changes; workspace audit access belongs to owners/admins.
 - Issue codes use `I-`, are unique within a project, and must keep increasing beyond four digits.
 - Detail opens as an overlay with a URL; direct navigation opens a full page.
@@ -172,9 +143,9 @@ The user explicitly selected:
 
 Implementation defaults proposed in this roadmap:
 
-- Use `/w/:organizationSlug/p/:projectSlug` browser routes, delete the old `/workspaces` browser routes, and leave HTTP API routes and existing slugs unchanged. M0 is implemented. Issue detail is M1 and is not started.
+- Leave HTTP API routes and existing slugs unchanged. Issue detail is M1 and is not started.
 - Never reuse allocated issue numbers; use a project counter with `bigint` storage and decimal-string contracts.
 - Use Tiptap for the visual editor, private MinIO storage for attachments, SSE for initial realtime delivery, and the existing Recharts library for analytics.
 - Preserve the TeamOS stack and architecture boundaries. Keep chat and schedules out of the initial issue-completion milestones.
 
-M0 is the exception: those short routes are implemented. The remaining defaults are planning recommendations, not evidence of implemented functionality or permission to introduce unrelated product changes.
+These defaults are planning recommendations, not evidence of implemented functionality or permission to introduce unrelated product changes.
