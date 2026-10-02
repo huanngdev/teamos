@@ -7,15 +7,24 @@ import { useState } from "react";
 import { useMatch, useNavigate, useParams } from "react-router";
 
 import { useAuthSession, useSignOut } from "@/features/auth";
-import { projectBoardPath, projectIssuesPath } from "@/features/issues";
 import {
+  projectBoardPath,
+  projectBoardRoutePattern,
+  projectIssuesPath,
+  projectIssuesRoutePattern,
+} from "@/features/issues";
+import {
+  projectViewRoutePattern,
   projectViewsPath,
+  projectViewsRoutePattern,
   useIssueViewHeaderStore,
   useIssueViewNavigation,
 } from "@/features/views";
 import {
   projectOverviewPath,
+  projectRoutePattern,
   projectSettingsPath,
+  projectSettingsRoutePattern,
   useCreateProjectForm,
   useProjectList,
   type CreateProjectFormState,
@@ -66,27 +75,27 @@ function useProjectLayout(): ProjectLayoutState {
   const navigate = useNavigate();
   const overviewMatch = useMatch({
     end: true,
-    path: "/workspaces/:organizationSlug/projects/:projectSlug",
+    path: projectRoutePattern,
   });
   const issuesMatch = useMatch({
     end: true,
-    path: "/workspaces/:organizationSlug/projects/:projectSlug/issues",
+    path: projectIssuesRoutePattern,
   });
   const boardMatch = useMatch({
     end: true,
-    path: "/workspaces/:organizationSlug/projects/:projectSlug/issues/board",
+    path: projectBoardRoutePattern,
   });
   const settingsMatch = useMatch({
     end: true,
-    path: "/workspaces/:organizationSlug/projects/:projectSlug/settings",
+    path: projectSettingsRoutePattern,
   });
   const viewsMatch = useMatch({
     end: true,
-    path: "/workspaces/:organizationSlug/projects/:projectSlug/views",
+    path: projectViewsRoutePattern,
   });
   const viewMatch = useMatch({
     end: true,
-    path: "/workspaces/:organizationSlug/projects/:projectSlug/views/:viewId",
+    path: projectViewRoutePattern,
   });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const workspace = useWorkspace(organizationSlug);

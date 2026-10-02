@@ -1,5 +1,15 @@
 import { Navigate, Route, Routes } from "react-router";
 
+import { projectBoardSegment, projectIssuesSegment } from "@/features/issues";
+import { projectRoutePattern, projectSettingsSegment } from "@/features/projects";
+import { projectViewSegment, projectViewsSegment } from "@/features/views";
+import {
+  createWorkspacePath,
+  workspaceMembersSegment,
+  workspaceProjectsSegment,
+  workspaceRoutePattern,
+  workspaceSettingsSegment,
+} from "@/features/workspaces";
 import { AccountLayout } from "@/layouts/account-layout";
 import { ProjectLayout } from "@/layouts/project-layout";
 import { ProtectedLayout } from "@/layouts/protected-layout";
@@ -34,30 +44,32 @@ function AppRoutes() {
 
       <Route element={<ProtectedLayout />}>
         <Route element={<WorkspaceIndexRoute />} path="/" />
-        <Route element={<CreateWorkspaceRoute />} path="/workspaces/new" />
+        {/*
+         * `/w/new` is creation. A workspace whose slug is `new` stays reachable
+         * at `/w/new/projects`, `/members`, and `/settings`, because this static
+         * route does not swallow those longer paths.
+         */}
+        <Route element={<CreateWorkspaceRoute />} path={createWorkspacePath} />
 
         <Route element={<AccountLayout />} path="/account">
           <Route element={<Navigate replace to="profile" />} index />
           <Route element={<ProfileRoute />} path="profile" />
         </Route>
 
-        <Route
-          element={<ProjectLayout />}
-          path="/workspaces/:organizationSlug/projects/:projectSlug"
-        >
+        <Route element={<ProjectLayout />} path={projectRoutePattern}>
           <Route element={<ProjectOverviewRoute />} index />
-          <Route element={<ProjectBoardRoute />} path="issues/board" />
-          <Route element={<ProjectIssuesRoute />} path="issues" />
-          <Route element={<ProjectViewRoute />} path="views/:viewId" />
-          <Route element={<ProjectViewsRoute />} path="views" />
-          <Route element={<ProjectSettingsRoute />} path="settings" />
+          <Route element={<ProjectBoardRoute />} path={projectBoardSegment} />
+          <Route element={<ProjectIssuesRoute />} path={projectIssuesSegment} />
+          <Route element={<ProjectViewRoute />} path={projectViewSegment} />
+          <Route element={<ProjectViewsRoute />} path={projectViewsSegment} />
+          <Route element={<ProjectSettingsRoute />} path={projectSettingsSegment} />
         </Route>
 
-        <Route element={<WorkspaceLayout />} path="/workspaces/:organizationSlug">
-          <Route element={<Navigate replace to="projects" />} index />
-          <Route element={<WorkspaceProjectsRoute />} path="projects" />
-          <Route element={<WorkspaceMembersRoute />} path="members" />
-          <Route element={<WorkspaceSettingsRoute />} path="settings" />
+        <Route element={<WorkspaceLayout />} path={workspaceRoutePattern}>
+          <Route element={<Navigate replace to={workspaceProjectsSegment} />} index />
+          <Route element={<WorkspaceProjectsRoute />} path={workspaceProjectsSegment} />
+          <Route element={<WorkspaceMembersRoute />} path={workspaceMembersSegment} />
+          <Route element={<WorkspaceSettingsRoute />} path={workspaceSettingsSegment} />
         </Route>
       </Route>
 

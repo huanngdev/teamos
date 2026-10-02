@@ -23,8 +23,8 @@ function renderIndex() {
   return renderWithProviders(
     <Routes>
       <Route element={<WorkspaceIndexRoute />} path="/" />
-      <Route element={<WorkspaceTarget />} path="/workspaces/:organizationSlug/projects" />
-      <Route element={<p>New workspace form</p>} path="/workspaces/new" />
+      <Route element={<WorkspaceTarget />} path="/w/:organizationSlug/projects" />
+      <Route element={<p>New workspace form</p>} path="/w/new" />
     </Routes>,
     { route: "/" },
   );

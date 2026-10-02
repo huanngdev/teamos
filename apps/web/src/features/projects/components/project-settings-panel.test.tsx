@@ -32,7 +32,7 @@ test("lets a lead rename the project without exposing delete", async () => {
     }),
   );
 
-  renderWorkspace("/workspaces/acme/projects/apollo/settings");
+  renderWorkspace("/w/acme/p/apollo/settings");
 
   const name = await screen.findByLabelText("Name");
   const save = screen.getByRole("button", { name: "Save changes" });
@@ -44,7 +44,7 @@ test("lets a lead rename the project without exposing delete", async () => {
   expect(
     screen
       .getAllByRole("link", { name: "Settings" })
-      .some((link) => link.getAttribute("href") === "/workspaces/acme/projects/apollo/settings"),
+      .some((link) => link.getAttribute("href") === "/w/acme/p/apollo/settings"),
   ).toBe(true);
   expect(screen.queryByRole("button", { name: "Delete project" })).not.toBeInTheDocument();
 
@@ -78,7 +78,7 @@ test("clears a description without sending the slug", async () => {
     }),
   );
 
-  renderWorkspace("/workspaces/acme/projects/apollo/settings");
+  renderWorkspace("/w/acme/p/apollo/settings");
 
   const description = await screen.findByLabelText("Description");
 
@@ -98,7 +98,7 @@ test("redirects a project member away from settings and hides the item", async (
     role: "member",
   });
 
-  renderWorkspace("/workspaces/acme/projects/apollo/settings");
+  renderWorkspace("/w/acme/p/apollo/settings");
 
   expect(await screen.findByRole("heading", { name: "Apollo" })).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
@@ -120,7 +120,7 @@ test("requires the exact project name before deleting", async () => {
     }),
   );
 
-  renderWorkspace("/workspaces/acme/projects/apollo/settings");
+  renderWorkspace("/w/acme/p/apollo/settings");
 
   await userEvent.click(await screen.findByRole("button", { name: "Delete project" }));
 

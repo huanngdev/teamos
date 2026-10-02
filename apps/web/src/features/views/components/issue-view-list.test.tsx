@@ -60,7 +60,7 @@ test("lists saved views in a searchable table", async () => {
   const user = userEvent.setup();
   useWorkspaceHandlers();
   mockViews();
-  renderWorkspace("/workspaces/acme/projects/apollo/views");
+  renderWorkspace("/w/acme/p/apollo/views");
 
   expect(await screen.findByRole("columnheader", { name: "Name" })).toBeInTheDocument();
   expect(screen.getByRole("columnheader", { name: "Sharing" })).toBeInTheDocument();
@@ -107,7 +107,7 @@ test("does not offer project sharing to a viewer", async () => {
     role: "member",
   });
   mockViews([personalView]);
-  renderWorkspace("/workspaces/acme/projects/apollo/views");
+  renderWorkspace("/w/acme/p/apollo/views");
 
   await user.click(await screen.findByRole("button", { name: "New view" }));
 
@@ -135,7 +135,7 @@ test("creates a view with the selected filters", async () => {
       return HttpResponse.json({ view: personalView }, { status: 201 });
     }),
   );
-  renderWorkspace("/workspaces/acme/projects/apollo/views");
+  renderWorkspace("/w/acme/p/apollo/views");
 
   await user.click(await screen.findByRole("button", { name: "New view" }));
   await user.type(screen.getByLabelText("Name"), "Release watch");
@@ -170,7 +170,7 @@ test("keeps advanced filters when resetting and saving a multi-select assignee",
       return HttpResponse.json({ view: personalView }, { status: 201 });
     }),
   );
-  renderWorkspace("/workspaces/acme/projects/apollo/views");
+  renderWorkspace("/w/acme/p/apollo/views");
 
   await user.click(await screen.findByRole("button", { name: "New view" }));
   const dialog = await screen.findByRole("dialog", { name: "New view" });
@@ -263,9 +263,7 @@ test("opens a saved view on the default board and edits its filters", async () =
       },
     ),
   );
-  renderWorkspace(
-    `/workspaces/acme/projects/apollo/views/${viewId}?draft=1&priority=high&timeZone=UTC`,
-  );
+  renderWorkspace(`/w/acme/p/apollo/views/${viewId}?draft=1&priority=high&timeZone=UTC`);
 
   expect((await screen.findAllByRole("link", { name: "My issues" })).length).toBeGreaterThan(0);
   expect(screen.queryByRole("heading", { name: "My issues" })).not.toBeInTheDocument();
@@ -288,7 +286,7 @@ test("opens a saved view on the default board and edits its filters", async () =
   expect(
     screen
       .getAllByRole("link", { name: "Views" })
-      .some((link) => link.getAttribute("href") === "/workspaces/acme/projects/apollo/views"),
+      .some((link) => link.getAttribute("href") === "/w/acme/p/apollo/views"),
   ).toBe(true);
 
   await user.click(screen.getByRole("button", { name: "View actions" }));

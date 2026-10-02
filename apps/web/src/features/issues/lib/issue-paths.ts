@@ -1,9 +1,23 @@
+import { projectOverviewPath, projectRoutePattern } from "@/features/projects/lib/project-paths";
+
+const projectBoardSegment = "board";
+const projectIssuesSegment = "issues";
+const projectBoardRoutePattern = `${projectRoutePattern}/${projectBoardSegment}`;
+const projectIssuesRoutePattern = `${projectRoutePattern}/${projectIssuesSegment}`;
+
 function projectIssuesPath(organizationSlug: string, projectSlug: string): string {
-  return `/workspaces/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectSlug)}/issues`;
+  return `${projectOverviewPath(organizationSlug, projectSlug)}/${projectIssuesSegment}`;
 }
 
 function projectBoardPath(organizationSlug: string, projectSlug: string): string {
-  return `${projectIssuesPath(organizationSlug, projectSlug)}/board`;
+  return `${projectOverviewPath(organizationSlug, projectSlug)}/${projectBoardSegment}`;
 }
 
-export { projectBoardPath, projectIssuesPath };
+export {
+  projectBoardPath,
+  projectBoardRoutePattern,
+  projectBoardSegment,
+  projectIssuesPath,
+  projectIssuesRoutePattern,
+  projectIssuesSegment,
+};

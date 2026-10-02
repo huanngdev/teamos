@@ -35,7 +35,7 @@ test("lists a workspace member who has no project role in the issue assignee she
       },
     ),
   );
-  renderWorkspace("/workspaces/acme/projects/apollo/issues");
+  renderWorkspace("/w/acme/p/apollo/issues");
 
   await user.click(await screen.findByRole("button", { name: "New issue" }));
   const dialog = await screen.findByRole("dialog", { name: "New issue" });
