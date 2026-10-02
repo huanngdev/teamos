@@ -3,7 +3,6 @@ import type { IssueCardSummary } from "@teamos/shared";
 
 import type { KanbanCommitMeta } from "@/components/reui/kanban";
 import type { BoardColumn } from "@/features/issues";
-import { issueViewStatusMoveRequest } from "../lib/issue-view-move";
 
 type BoardValue = Record<string, IssueCardSummary[]>;
 
@@ -21,8 +20,7 @@ function columnsFromValue(source: readonly BoardColumn[], value: BoardValue): Bo
 
 function useIssueViewDrag(options: {
   columns: readonly BoardColumn[];
-  onMoveColumn: (statusId: string, index: number) => void;
-  onMoveStatus: (issueId: string, statusId: string) => void;
+  onMoveIssue: (issueId: string, statusId: string, index: number) => void;
 }) {
   const [preview, setPreview] = useState<BoardValue | null>(null);
   const value = preview ?? boardValue(options.columns);
@@ -34,11 +32,6 @@ function useIssueViewDrag(options: {
   }
 
   function onValueCommit(_next: BoardValue, meta: KanbanCommitMeta<IssueCardSummary>) {
-    if (meta.kind === "column") {
-      options.onMoveColumn(meta.activeContainer, meta.overIndex);
-      return;
-    }
-
     if (meta.kind !== "item") {
       return;
     }
@@ -47,12 +40,12 @@ function useIssueViewDrag(options: {
     const issue = options.columns
       .flatMap((column) => column.issues)
       .find((item) => item.id === issueId);
-    const request =
-      issue === undefined ? null : issueViewStatusMoveRequest(issue.statusId, meta.overContainer);
 
-    if (request !== null) {
-      options.onMoveStatus(issueId, request.statusId);
+    if (issue === undefined) {
+      return;
     }
+
+    options.onMoveIssue(issueId, meta.overContainer, meta.overIndex);
   }
 
   return {

@@ -1,9 +1,11 @@
 import {
+  currentUserAssigneeId,
   isCalendarDateKey,
   issueViewDefinitionFromFilters,
   issueViewDefinitionsEqual,
   issueViewToListQuery,
   parseIssueListQuery,
+  unassignedAssigneeId,
   type IssueListQuery,
   type IssueViewDefinition,
   type IssueViewFilters,
@@ -115,29 +117,21 @@ function toggleFilterValue<T extends string>(
   return next.length === 0 ? undefined : next;
 }
 
-function toggleAssignee(filters: IssueViewFilters, token: string): IssueViewFilters {
-  const current = filters.assignee ?? {
-    includeCurrentUser: false,
-    includeUnassigned: false,
-    memberIds: [],
-  };
-  const next =
-    token === "me"
-      ? { ...current, includeCurrentUser: !current.includeCurrentUser }
-      : token === "unassigned"
-        ? { ...current, includeUnassigned: !current.includeUnassigned }
-        : {
-            ...current,
-            memberIds: current.memberIds.includes(token)
-              ? current.memberIds.filter((memberId) => memberId !== token)
-              : [...current.memberIds, token],
-          };
-  const assignee =
-    next.includeCurrentUser || next.includeUnassigned || next.memberIds.length > 0
-      ? next
-      : undefined;
+function setAssignees(filters: IssueViewFilters, tokens: readonly string[]): IssueViewFilters {
+  const includeCurrentUser = tokens.includes(currentUserAssigneeId);
+  const includeUnassigned = tokens.includes(unassignedAssigneeId);
+  const memberIds = tokens.filter(
+    (token) => token !== currentUserAssigneeId && token !== unassignedAssigneeId,
+  );
 
-  return { ...filters, assignee };
+  if (!includeCurrentUser && !includeUnassigned && memberIds.length === 0) {
+    return { ...filters, assignee: undefined };
+  }
+
+  return {
+    ...filters,
+    assignee: { includeCurrentUser, includeUnassigned, memberIds },
+  };
 }
 
 function setFilterText(
@@ -238,9 +232,9 @@ export {
   parseIssueViewDraft,
   selectedAssigneeIds,
   serializeIssueViewDraft,
+  setAssignees,
   setFilterDate,
   setFilterNumber,
   setFilterText,
-  toggleAssignee,
   toggleFilterValue,
 };

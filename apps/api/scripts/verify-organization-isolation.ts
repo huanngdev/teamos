@@ -1193,6 +1193,32 @@ async function main() {
       staleView?.status === 409 &&
       staleView.code === "CONFLICT",
   );
+  const deniedShare = await rejected(() =>
+    views.update({
+      organization: orgAMember,
+      projectId: memberProject.id,
+      request: { expectedRevision: personalView.revision, visibility: "project" },
+      viewId: personalView.id,
+    }),
+  );
+  check("a viewer cannot share a personal view with the project", deniedShare?.status === 403);
+  const madePersonal = await views.update({
+    organization: orgA,
+    projectId: memberProject.id,
+    request: { expectedRevision: renamedView.revision, visibility: "personal" },
+    viewId: renamedView.id,
+  });
+  const hiddenShared = await views.list({
+    limit: 50,
+    offset: 0,
+    organization: orgAMember,
+    projectId: memberProject.id,
+  });
+  check(
+    "changing a project view to personal hides it from other members",
+    madePersonal.visibility === "personal" &&
+      hiddenShared.views.every((view) => view.id !== renamedView.id),
+  );
   const missingColumn = await rejected(() =>
     views.create({
       organization: orgA,

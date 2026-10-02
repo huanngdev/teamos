@@ -2,12 +2,22 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   ArrowsDownUpIcon,
+  CalendarBlankIcon,
+  CellSignalHighIcon,
+  CircleIcon,
+  ClockIcon,
   ColumnsIcon,
   FunnelIcon,
+  HashIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  TagIcon,
+  TextAlignLeftIcon,
+  TextTIcon,
   TrashIcon,
+  UserCircleIcon,
   XIcon,
+  type Icon,
 } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
@@ -36,7 +46,7 @@ import {
   issueTableColumnLabels,
   type IssueTableColumnId,
 } from "../lib/issue-table-query";
-import { IssueColumnFilter } from "./issue-table-filters";
+import { IssueColumnFilter, type FilterColumn } from "./issue-table-filters";
 
 interface IssueTableToolbarProps {
   canCreate: boolean;
@@ -59,6 +69,18 @@ function columnLabel(columnId: string): string {
 
   return columnId;
 }
+
+const filterColumnIcons: Record<IssueTableColumnId, Icon> = {
+  assignee: UserCircleIcon,
+  category: TagIcon,
+  createdAt: CalendarBlankIcon,
+  description: TextAlignLeftIcon,
+  number: HashIcon,
+  priority: CellSignalHighIcon,
+  status: CircleIcon,
+  title: TextTIcon,
+  updatedAt: ClockIcon,
+};
 
 function isColumnLabel(columnId: string): columnId is IssueTableColumnId {
   return Object.hasOwn(issueTableColumnLabels, columnId);
@@ -124,14 +146,20 @@ function IssueTableToolbar({
               {table
                 .getAllLeafColumns()
                 .filter((column) => column.getCanFilter())
-                .map((column) => (
-                  <DropdownMenuSub key={column.id}>
-                    <DropdownMenuSubTrigger>{columnLabel(column.id)}</DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-64">
-                      <IssueColumnFilter column={column} />
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ))}
+                .map((column) => {
+                  const count = selectedFilterCount(column.getFilterValue());
+                  const label = columnLabel(column.id);
+
+                  return (
+                    <DropdownMenuSub key={column.id}>
+                      <DropdownMenuSubTrigger>
+                        <FilterColumnIcon columnId={column.id} />
+                        {count > 0 ? `${label} (${count})` : label}
+                      </DropdownMenuSubTrigger>
+                      <FilterSubmenu column={column} />
+                    </DropdownMenuSub>
+                  );
+                })}
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -218,7 +246,7 @@ function IssueTableToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
         {hasFilters ? (
-          <Button onClick={onClearFilters} type="button" variant="ghost">
+          <Button onClick={onClearFilters} type="button" variant="destructive">
             <XIcon data-icon="inline-start" />
             Clear filters
           </Button>
@@ -238,6 +266,57 @@ function IssueTableToolbar({
       ) : null}
     </div>
   );
+}
+
+function FilterSubmenu({ column }: { column: FilterColumn }) {
+  if (column.id === "createdAt" || column.id === "updatedAt") {
+    return (
+      <DropdownMenuSubContent className="w-auto">
+        <IssueColumnFilter column={column} />
+      </DropdownMenuSubContent>
+    );
+  }
+
+  if (column.id === "assignee") {
+    return (
+      <DropdownMenuSubContent className="w-80">
+        <IssueColumnFilter column={column} />
+      </DropdownMenuSubContent>
+    );
+  }
+
+  return (
+    <DropdownMenuSubContent className="w-64">
+      <IssueColumnFilter column={column} />
+    </DropdownMenuSubContent>
+  );
+}
+
+function selectedFilterCount(value: unknown): number {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item !== undefined && item !== null && String(item).length > 0)
+      .length;
+  }
+
+  if (typeof value === "string") {
+    return value.length > 0 ? 1 : 0;
+  }
+
+  if (typeof value === "number") {
+    return 1;
+  }
+
+  return 0;
+}
+
+function FilterColumnIcon({ columnId }: { columnId: string }) {
+  if (!isColumnLabel(columnId)) {
+    return null;
+  }
+
+  const Icon = filterColumnIcons[columnId];
+
+  return <Icon />;
 }
 
 export { IssueTableToolbar };

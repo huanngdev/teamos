@@ -250,7 +250,7 @@ function IssueColumnHeader({
           </Button>
         }
       />
-      <DropdownMenuContent align="start" className="w-64">
+      <DropdownMenuContent align="start" className="w-80">
         {column.getCanSort() ? (
           <DropdownMenuGroup>
             <DropdownMenuItem
@@ -288,6 +288,7 @@ function IssueColumnHeader({
               onClick={() => {
                 column.setFilterValue(undefined);
               }}
+              variant="destructive"
             >
               <XIcon data-icon="inline-start" />
               Clear filter

@@ -60,6 +60,7 @@ function IssueBoardReady({
       <IssueBoardCanvas
         canCreateIssue={view.canCreateIssue}
         canUpdateIssue={view.canUpdateIssue}
+        canReorderColumns={view.canUpdateProject}
         canUpdateProject={view.canUpdateProject}
         drag={drag}
         members={view.members}

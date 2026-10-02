@@ -1,34 +1,36 @@
-import type { IssueSummary, IssueViewDefinition, ProjectStatusSummary } from "@teamos/shared";
+import type {
+  IssuePlacement,
+  IssueSummary,
+  IssueViewDefinition,
+  ProjectStatusSummary,
+} from "@teamos/shared";
 
-function issueViewStatusMoveRequest(
-  currentStatusId: string,
-  destinationStatusId: string,
-): { statusId: string } | null {
-  if (currentStatusId === destinationStatusId) {
+import { placementForDrop } from "@/features/issues/lib/issue-placement";
+
+function issueViewMoveRequest(input: {
+  currentStatusId: string;
+  destinationIssues: readonly { id: string }[];
+  destinationStatusId: string;
+  index: number;
+  movingId: string;
+  skippedBefore: number;
+  sourceIndex: number;
+}): { placement: IssuePlacement; statusId: string } | null {
+  if (input.currentStatusId === input.destinationStatusId && input.index === input.sourceIndex) {
     return null;
   }
 
-  return { statusId: destinationStatusId };
-}
-
-function placeIssueAtColumnTop(
-  issues: readonly IssueSummary[],
-  issueId: string,
-  statusId: string,
-): IssueSummary[] {
-  const moving = issues.find((issue) => issue.id === issueId);
-
-  if (moving === undefined || moving.statusId === statusId) {
-    return [...issues];
-  }
-
-  const destination = issues.filter((issue) => issue.statusId === statusId && issue.id !== issueId);
-  const nextPosition =
-    destination.length === 0 ? 0 : Math.min(...destination.map((issue) => issue.position)) - 1000;
-
-  return issues.map((issue) =>
-    issue.id === issueId ? { ...issue, position: nextPosition, statusId } : issue,
-  );
+  // The index is the card's place among the loaded, filtered cards. Anchors
+  // keep that place without sending the index as a position in the full column.
+  return {
+    placement: placementForDrop(
+      input.destinationIssues,
+      input.movingId,
+      input.index,
+      input.skippedBefore,
+    ),
+    statusId: input.destinationStatusId,
+  };
 }
 
 function issueMatchesViewColumns(
@@ -53,4 +55,4 @@ function issueMatchesViewColumns(
   return status !== undefined && categories.includes(status.category);
 }
 
-export { issueMatchesViewColumns, issueViewStatusMoveRequest, placeIssueAtColumnTop };
+export { issueMatchesViewColumns, issueViewMoveRequest };

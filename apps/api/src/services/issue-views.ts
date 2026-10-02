@@ -499,6 +499,13 @@ function createIssueViewService(db: Database): IssueViewService {
           throw viewForbidden();
         }
 
+        if (
+          request.visibility !== undefined &&
+          !canCreateIssueView(request.visibility, viewAccess)
+        ) {
+          throw viewForbidden();
+        }
+
         if (record.revision !== request.expectedRevision) {
           throw viewConflict();
         }
@@ -517,6 +524,12 @@ function createIssueViewService(db: Database): IssueViewService {
           .set({
             ...(definition === undefined ? {} : { definition }),
             ...(request.name === undefined ? {} : { name: request.name }),
+            ...(request.visibility === undefined
+              ? {}
+              : {
+                  ownerMemberId: request.visibility === "personal" ? organization.memberId : null,
+                  visibility: request.visibility,
+                }),
             revision: sql`${issueView.revision} + 1`,
             updatedByMemberId: organization.memberId,
           })

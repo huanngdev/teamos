@@ -86,10 +86,13 @@ const updateIssueViewRequestSchema = z
     definition: issueViewDefinitionSchema.optional(),
     expectedRevision: z.number().int().min(1),
     name: issueViewNameSchema.optional(),
+    visibility: issueViewVisibilitySchema.optional(),
   })
-  .refine((value) => value.definition !== undefined || value.name !== undefined, {
-    message: "Change the name or the filters.",
-  });
+  .refine(
+    (value) =>
+      value.definition !== undefined || value.name !== undefined || value.visibility !== undefined,
+    { message: "Change the name, the filters, or the sharing." },
+  );
 
 type CreateIssueViewRequest = z.infer<typeof createIssueViewRequestSchema>;
 type IssueViewAssigneeFilter = z.infer<typeof issueViewAssigneeFilterSchema>;

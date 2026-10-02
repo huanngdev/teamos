@@ -81,12 +81,6 @@ function IssueViewFormDialog({
                   value={form.name}
                 />
               </Field>
-              {form.mode === "edit" ? (
-                <Field>
-                  <FieldLabel>Sharing</FieldLabel>
-                  <p>{form.visibilityLabel}</p>
-                </Field>
-              ) : null}
               {form.showVisibility ? (
                 <Field>
                   <FieldLabel htmlFor="issue-view-visibility">Sharing</FieldLabel>
@@ -108,6 +102,11 @@ function IssueViewFormDialog({
                       </SelectGroup>
                     </SelectContent>
                   </Select>
+                </Field>
+              ) : form.mode === "edit" ? (
+                <Field>
+                  <FieldLabel>Sharing</FieldLabel>
+                  <p>{form.visibilityLabel}</p>
                 </Field>
               ) : null}
               {catalog.isPending ? (

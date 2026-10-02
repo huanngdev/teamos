@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  issueMatchesViewColumns,
-  issueViewStatusMoveRequest,
-  placeIssueAtColumnTop,
-} from "./issue-view-move";
+import { issueMatchesViewColumns, issueViewMoveRequest } from "./issue-view-move";
 
 const issue = {
   assignee: null,
@@ -21,21 +17,66 @@ const issue = {
 };
 
 describe("issue view moves", () => {
-  test("changes status without sending a filtered index", () => {
-    expect(issueViewStatusMoveRequest("backlog", "todo")).toEqual({ statusId: "todo" });
-    expect(issueViewStatusMoveRequest("todo", "todo")).toBeNull();
+  test("keeps a card where it was dropped in another column", () => {
+    expect(
+      issueViewMoveRequest({
+        currentStatusId: "backlog",
+        destinationIssues: [{ id: "a" }, { id: "b" }],
+        destinationStatusId: "todo",
+        index: 2,
+        movingId: issue.id,
+        skippedBefore: 0,
+        sourceIndex: 0,
+      }),
+    ).toEqual({
+      placement: { anchorIssueId: "b", type: "after" },
+      statusId: "todo",
+    });
   });
 
-  test("places a moved issue ahead of hidden cards in the destination column", () => {
-    const hidden = { ...issue, id: "hidden", position: 0, statusId: "todo" };
-    const visible = { ...issue, id: "visible", position: 1000, statusId: "todo" };
-    const placed = placeIssueAtColumnTop([issue, hidden, visible], issue.id, "todo");
-    const todo = placed
-      .filter((item) => item.statusId === "todo")
-      .sort((left, right) => left.position - right.position);
+  test("reorders a card inside its column", () => {
+    expect(
+      issueViewMoveRequest({
+        currentStatusId: "todo",
+        destinationIssues: [{ id: issue.id }, { id: "a" }, { id: "b" }],
+        destinationStatusId: "todo",
+        index: 2,
+        movingId: issue.id,
+        skippedBefore: 0,
+        sourceIndex: 0,
+      }),
+    ).toEqual({
+      placement: { anchorIssueId: "b", type: "after" },
+      statusId: "todo",
+    });
+  });
 
-    expect(todo.map((item) => item.id)).toEqual(["issue-1", "hidden", "visible"]);
-    expect(placed.find((item) => item.id === "issue-1")?.position).toBeLessThan(hidden.position);
+  test("uses the top only when the card is dropped first", () => {
+    expect(
+      issueViewMoveRequest({
+        currentStatusId: "backlog",
+        destinationIssues: [{ id: "a" }],
+        destinationStatusId: "todo",
+        index: 0,
+        movingId: issue.id,
+        skippedBefore: 0,
+        sourceIndex: 1,
+      }),
+    ).toEqual({ placement: { type: "start" }, statusId: "todo" });
+  });
+
+  test("ignores a drop that does not move the card", () => {
+    expect(
+      issueViewMoveRequest({
+        currentStatusId: "todo",
+        destinationIssues: [{ id: issue.id }, { id: "a" }],
+        destinationStatusId: "todo",
+        index: 0,
+        movingId: issue.id,
+        skippedBefore: 0,
+        sourceIndex: 0,
+      }),
+    ).toBeNull();
   });
 
   test("drops an issue from a view when the destination column is filtered out", () => {

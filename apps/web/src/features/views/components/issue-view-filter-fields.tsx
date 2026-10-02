@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/shared";
 import { IssueFieldMenu } from "@/features/issues/components/issue-field-menu";
 import { IssuePriorityOption } from "@/features/issues/components/issue-priority-icon";
 import { IssueStatusOption } from "@/features/issues/components/issue-status-indicator";
@@ -38,8 +39,7 @@ function IssueViewFilterFields({
       <div className="flex flex-wrap gap-2">
         <ViewAssigneePicker
           known={knownAssignees}
-          onClear={form.onClearAssignees}
-          onToggle={form.onToggleAssignee}
+          onChange={form.onSetAssignees}
           picker={assignees}
           selected={form.selectedAssignees}
         />
@@ -86,109 +86,89 @@ function IssueViewFilterFields({
           }
         />
         <CollapsibleContent>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="view-search-filter">Search</FieldLabel>
-              <Input
-                id="view-search-filter"
-                onChange={(event) => {
-                  form.onSetText("q", event.target.value);
-                }}
-                value={form.definition.filters.q ?? ""}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="view-title-filter">Title</FieldLabel>
-              <Input
-                id="view-title-filter"
-                onChange={(event) => {
-                  form.onSetText("title", event.target.value);
-                }}
-                value={form.definition.filters.title ?? ""}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="view-description-filter">Description</FieldLabel>
-              <Input
-                id="view-description-filter"
-                onChange={(event) => {
-                  form.onSetText("description", event.target.value);
-                }}
-                value={form.definition.filters.description ?? ""}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="view-number-min">Number from</FieldLabel>
-              <Input
-                id="view-number-min"
-                min={1}
-                onChange={(event) => {
-                  form.onSetNumber("min", event.target.value);
-                }}
-                type="number"
-                value={form.definition.filters.numberMin ?? ""}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="view-number-max">Number to</FieldLabel>
-              <Input
-                id="view-number-max"
-                min={1}
-                onChange={(event) => {
-                  form.onSetNumber("max", event.target.value);
-                }}
-                type="number"
-                value={form.definition.filters.numberMax ?? ""}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="view-created-from">Created from</FieldLabel>
-              <Input
-                id="view-created-from"
-                onChange={(event) => {
-                  form.onSetDate("createdFrom", event.target.value);
-                }}
-                type="date"
-                value={form.definition.filters.createdFrom ?? ""}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="view-created-to">Created to</FieldLabel>
-              <Input
-                id="view-created-to"
-                onChange={(event) => {
-                  form.onSetDate("createdTo", event.target.value);
-                }}
-                type="date"
-                value={form.definition.filters.createdTo ?? ""}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="view-updated-from">Updated from</FieldLabel>
-              <Input
-                id="view-updated-from"
-                onChange={(event) => {
-                  form.onSetDate("updatedFrom", event.target.value);
-                }}
-                type="date"
-                value={form.definition.filters.updatedFrom ?? ""}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="view-updated-to">Updated to</FieldLabel>
-              <Input
-                id="view-updated-to"
-                onChange={(event) => {
-                  form.onSetDate("updatedTo", event.target.value);
-                }}
-                type="date"
-                value={form.definition.filters.updatedTo ?? ""}
-              />
-            </Field>
-          </FieldGroup>
-          <Button onClick={form.onResetFilters} type="button" variant="ghost">
-            Reset filters
-          </Button>
+          <div className="flex flex-col gap-4 pt-4">
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="view-search-filter">Search</FieldLabel>
+                <Input
+                  id="view-search-filter"
+                  onChange={(event) => {
+                    form.onSetText("q", event.target.value);
+                  }}
+                  value={form.definition.filters.q ?? ""}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="view-title-filter">Title</FieldLabel>
+                <Input
+                  id="view-title-filter"
+                  onChange={(event) => {
+                    form.onSetText("title", event.target.value);
+                  }}
+                  value={form.definition.filters.title ?? ""}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="view-description-filter">Description</FieldLabel>
+                <Input
+                  id="view-description-filter"
+                  onChange={(event) => {
+                    form.onSetText("description", event.target.value);
+                  }}
+                  value={form.definition.filters.description ?? ""}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="view-number-min">Number from</FieldLabel>
+                <Input
+                  id="view-number-min"
+                  min={1}
+                  onChange={(event) => {
+                    form.onSetNumber("min", event.target.value);
+                  }}
+                  type="number"
+                  value={form.definition.filters.numberMin ?? ""}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="view-number-max">Number to</FieldLabel>
+                <Input
+                  id="view-number-max"
+                  min={1}
+                  onChange={(event) => {
+                    form.onSetNumber("max", event.target.value);
+                  }}
+                  type="number"
+                  value={form.definition.filters.numberMax ?? ""}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="view-created-range">Created</FieldLabel>
+                <DateRangePicker
+                  from={form.definition.filters.createdFrom ?? ""}
+                  id="view-created-range"
+                  onChange={(from, to) => {
+                    form.onSetDateRange("created", from, to);
+                  }}
+                  to={form.definition.filters.createdTo ?? ""}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="view-updated-range">Updated</FieldLabel>
+                <DateRangePicker
+                  from={form.definition.filters.updatedFrom ?? ""}
+                  id="view-updated-range"
+                  onChange={(from, to) => {
+                    form.onSetDateRange("updated", from, to);
+                  }}
+                  to={form.definition.filters.updatedTo ?? ""}
+                />
+              </Field>
+            </FieldGroup>
+            <Button onClick={form.onResetFilters} type="button" variant="ghost">
+              Reset filters
+            </Button>
+          </div>
         </CollapsibleContent>
       </Collapsible>
     </>
