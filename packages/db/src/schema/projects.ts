@@ -1,10 +1,14 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  check,
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -149,9 +153,9 @@ export const projectStatus = pgTable(
 );
 
 /*
- * Assignee uses a composite foreign key with ON DELETE RESTRICT. A composite
- * ON DELETE SET NULL would also try to null organization_id. Callers must clear
- * assignee_member_id before deleting the member row.
+ * Assignees live in `issue_assignee`. That foreign key is RESTRICT, so callers
+ * must delete those rows before deleting the member. A composite ON DELETE SET
+ * NULL would also try to null organization_id.
  */
 export const issue = pgTable(
   "issue",
@@ -160,12 +164,12 @@ export const issue = pgTable(
     organizationId: text("organization_id").notNull(),
     projectId: uuid("project_id").notNull(),
     statusId: uuid("status_id").notNull(),
-    number: integer("number").notNull(),
+    number: bigint("number", { mode: "bigint" }).notNull(),
     title: text("title").notNull(),
-    description: text("description"),
+    content: jsonb("content"),
+    contentText: text("content_text").default("").notNull(),
     priority: text("priority").default("none").notNull(),
     position: integer("position").notNull(),
-    assigneeMemberId: text("assignee_member_id"),
     createdByMemberId: text("created_by_member_id").references(() => member.id, {
       onDelete: "set null",
     }),
@@ -179,18 +183,28 @@ export const issue = pgTable(
       .notNull(),
   },
   (table) => [
+    check("issue_number_check", sql`${table.number} >= 1`),
+    check("issue_content_text_length_check", sql`char_length(${table.contentText}) <= 20000`),
+    check(
+      "issue_content_json_size_check",
+      sql`${table.content} is null or octet_length(${table.content}::text) <= 1500000`,
+    ),
+    check(
+      "issue_content_empty_check",
+      sql`(${table.content} is null) = (${table.contentText} = '')`,
+    ),
     unique("issue_project_number_unique").on(table.projectId, table.number),
+    unique("issue_id_project_organization_unique").on(
+      table.id,
+      table.projectId,
+      table.organizationId,
+    ),
     index("issue_project_status_position_idx").on(
       table.organizationId,
       table.projectId,
       table.statusId,
       table.position,
       table.id,
-    ),
-    index("issue_project_assignee_idx").on(
-      table.organizationId,
-      table.projectId,
-      table.assigneeMemberId,
     ),
     index("issue_project_created_idx").on(
       table.organizationId,
@@ -226,11 +240,59 @@ export const issue = pgTable(
       foreignColumns: [projectStatus.id, projectStatus.projectId, projectStatus.organizationId],
       name: "issue_status_fk",
     }).onDelete("restrict"),
+  ],
+);
+
+export const issueAssignee = pgTable(
+  "issue_assignee",
+  {
+    issueId: uuid("issue_id").notNull(),
+    memberId: text("member_id").notNull(),
+    organizationId: text("organization_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.issueId, table.memberId] }),
+    index("issue_assignee_member_idx").on(table.organizationId, table.memberId),
+    index("issue_assignee_project_member_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.memberId,
+    ),
     foreignKey({
-      columns: [table.assigneeMemberId, table.organizationId],
+      columns: [table.issueId, table.projectId, table.organizationId],
+      foreignColumns: [issue.id, issue.projectId, issue.organizationId],
+      name: "issue_assignee_issue_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.memberId, table.organizationId],
       foreignColumns: [member.id, member.organizationId],
-      name: "issue_assignee_fk",
+      name: "issue_assignee_member_fk",
     }).onDelete("restrict"),
+  ],
+);
+
+/*
+ * High-water mark for issue numbers. Create increments this row and never
+ * reads max(issue.number) once the row exists, so a deleted number stays free.
+ * The row is separate from `project` because issue create holds FOR SHARE on
+ * the project row; updating that same row from two creates can deadlock.
+ */
+export const projectIssueCounter = pgTable(
+  "project_issue_counter",
+  {
+    projectId: uuid("project_id").primaryKey(),
+    organizationId: text("organization_id").notNull(),
+    lastNumber: bigint("last_number", { mode: "bigint" }).notNull(),
+  },
+  (table) => [
+    check("project_issue_counter_last_number_check", sql`${table.lastNumber} >= 0`),
+    foreignKey({
+      columns: [table.projectId, table.organizationId],
+      foreignColumns: [project.id, project.organizationId],
+      name: "project_issue_counter_project_fk",
+    }).onDelete("cascade"),
   ],
 );
 
@@ -242,11 +304,8 @@ export const projectStatusRelations = relations(projectStatus, ({ one, many }) =
   }),
 }));
 
-export const issueRelations = relations(issue, ({ one }) => ({
-  assignee: one(member, {
-    fields: [issue.assigneeMemberId],
-    references: [member.id],
-  }),
+export const issueRelations = relations(issue, ({ many, one }) => ({
+  assignees: many(issueAssignee),
   project: one(project, {
     fields: [issue.projectId],
     references: [project.id],
@@ -254,6 +313,17 @@ export const issueRelations = relations(issue, ({ one }) => ({
   status: one(projectStatus, {
     fields: [issue.statusId],
     references: [projectStatus.id],
+  }),
+}));
+
+export const issueAssigneeRelations = relations(issueAssignee, ({ one }) => ({
+  issue: one(issue, {
+    fields: [issueAssignee.issueId],
+    references: [issue.id],
+  }),
+  member: one(member, {
+    fields: [issueAssignee.memberId],
+    references: [member.id],
   }),
 }));
 
