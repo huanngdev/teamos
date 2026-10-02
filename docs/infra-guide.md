@@ -224,6 +224,20 @@ bun run db:studio
 
 Migration generation and application are deliberate release/development steps. The API does not run migrations at startup, which avoids concurrent migration races across multiple API instances.
 
+## Continuous integration
+
+GitHub Actions runs on pull requests to `main` and on pushes to `main`. The repository is public, so these minutes are free.
+
+| Workflow   | File                           | What it does                                                                                                                                                                         |
+| ---------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CI         | `.github/workflows/ci.yml`     | Installs with `bun install --frozen-lockfile`, then runs `bun run check` (lint, typecheck, test, and build). A second job runs TruffleHog and fails when a verified secret is found. |
+| CodeQL     | `.github/workflows/codeql.yml` | Analyzes JavaScript and TypeScript with `build-mode: none`, and again every Monday.                                                                                                  |
+| Dependabot | `.github/dependabot.yml`       | Opens weekly Bun and GitHub Actions updates. Bun minor and patch updates are grouped.                                                                                                |
+
+The web build uses the default `VITE_API_URL` from `apps/web/env.schema.ts`, so the workflow does not need an env file. The test scripts do not need PostgreSQL. `verify:isolation` stays a local command.
+
+GitHub secret scanning and push protection are enabled on the repository. TruffleHog scans the commits in the pull request or push and reports only verified secrets. Dependabot security updates are enabled in the repository settings.
+
 ## Current Production Limitations
 
 - Authentication uses Better Auth OAuth, but production requires explicit `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `WEB_URL`, both Google and GitHub credentials, and SMTP email credentials that are validated at startup.
