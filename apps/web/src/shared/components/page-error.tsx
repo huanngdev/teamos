@@ -1,8 +1,8 @@
-import { RefreshCwIcon, TriangleAlertIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowsClockwiseIcon, WarningIcon } from "@phosphor-icons/react";
 
 interface PageErrorProps {
   description: string;
@@ -28,7 +28,7 @@ function PageError({
         <CardHeader>
           <div className="flex items-start gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-              <TriangleAlertIcon aria-hidden="true" />
+              <WarningIcon aria-hidden="true" />
             </div>
             <div className="flex flex-col gap-1">
               <CardTitle>{title}</CardTitle>
@@ -39,7 +39,7 @@ function PageError({
         {onRetry === undefined ? null : (
           <CardContent>
             <Button className="w-full" onClick={onRetry} variant="outline">
-              <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
+              <ArrowsClockwiseIcon aria-hidden="true" data-icon="inline-start" />
               {retryLabel}
             </Button>
           </CardContent>

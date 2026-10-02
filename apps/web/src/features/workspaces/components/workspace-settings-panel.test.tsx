@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";

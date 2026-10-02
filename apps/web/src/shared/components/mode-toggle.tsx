@@ -1,9 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { MoonIcon, SunIcon } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { getActiveThemeLabel } from "@/shared/hooks/use-active-theme";
 import { useModeToggle } from "@/shared/hooks/use-mode-toggle";
+import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 
 function ModeToggle() {
   const { activeTheme, toggleTheme } = useModeToggle();

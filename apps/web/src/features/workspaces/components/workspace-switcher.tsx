@@ -1,7 +1,5 @@
 import { Link } from "react-router";
 import type { OrganizationSummary } from "@teamos/shared";
-import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { workspaceProjectsPath, workspacesNewPath } from "../lib/workspace-paths";
 import {
@@ -13,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CheckIcon, CaretUpDownIcon, PlusIcon } from "@phosphor-icons/react";
 
 interface WorkspaceSwitcherProps {
   currentName: string;
@@ -31,7 +30,7 @@ function WorkspaceSwitcher({ currentName, currentSlug, organizations }: Workspac
             variant="ghost"
           >
             <span className="min-w-0 truncate">{currentName}</span>
-            <ChevronsUpDownIcon data-icon="inline-end" />
+            <CaretUpDownIcon data-icon="inline-end" />
           </Button>
         }
       />

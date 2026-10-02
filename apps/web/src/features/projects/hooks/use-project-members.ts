@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   canPerformProjectAction,
   type OrganizationRole,
@@ -9,7 +9,7 @@ import {
 } from "@teamos/shared";
 import { useState } from "react";
 
-import { notify } from "@/shared";
+import { notify, useShellStore } from "@/shared";
 import { listProjectMembers, removeProjectMember, setProjectMember } from "../api/project-api";
 import { useProjectListInvalidator } from "./use-project-list";
 import { projectKeys } from "../query-keys";
@@ -43,7 +43,20 @@ interface ProjectMembersState {
  */
 function useProjectMembers(options: UseProjectMembersOptions): ProjectMembersState {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const invalidateList = useProjectListInvalidator(options.organizationSlug);
+
+  async function invalidateProjectAccess(projectId: string) {
+    await Promise.all([
+      invalidateList(),
+      queryClient.invalidateQueries({
+        queryKey: projectKeys(options.organizationSlug).members(projectId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectKeys(options.organizationSlug).assigneesPrefix(projectId),
+      }),
+    ]);
+  }
 
   const membersQuery = useQuery({
     enabled: selectedProjectId !== null,
@@ -57,9 +70,10 @@ function useProjectMembers(options: UseProjectMembersOptions): ProjectMembersSta
     onError: () => {
       notify.error("The project role could not be updated.");
     },
-    onSettled: invalidateList,
-    onSuccess: () => {
+    onSuccess: async (_result, input) => {
+      useShellStore.getState().clearMembers(options.organizationSlug, input.projectId);
       notify.success("Project role updated");
+      await invalidateProjectAccess(input.projectId);
     },
   });
 
@@ -69,9 +83,10 @@ function useProjectMembers(options: UseProjectMembersOptions): ProjectMembersSta
     onError: () => {
       notify.error("The project member could not be removed.");
     },
-    onSettled: invalidateList,
-    onSuccess: () => {
+    onSuccess: async (_result, input) => {
+      useShellStore.getState().clearMembers(options.organizationSlug, input.projectId);
       notify.success("Member removed from project");
+      await invalidateProjectAccess(input.projectId);
     },
   });
 

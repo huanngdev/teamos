@@ -13,4 +13,20 @@ function formatDate(value: Date | string): string {
   }).format(date);
 }
 
-export { formatDate };
+/*
+ * Same calendar date as `formatDate`, plus hours and minutes. Used where a
+ * timestamp is the point of the column, not just the day.
+ */
+function formatDateTime(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+export { formatDate, formatDateTime };

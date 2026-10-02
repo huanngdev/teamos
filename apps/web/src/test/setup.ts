@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach } from "vitest";
 
+import { useShellStore } from "@/shared/stores/shell-store";
 import { server } from "./server";
 
 Object.defineProperty(window, "matchMedia", {
@@ -29,9 +30,23 @@ Object.defineProperty(window, "requestAnimationFrame", {
   writable: true,
 });
 
+if (!Element.prototype.getAnimations) {
+  Element.prototype.getAnimations = () => [];
+}
+
 Object.defineProperty(window, "ResizeObserver", {
   configurable: true,
   value: class ResizeObserver {
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  },
+  writable: true,
+});
+
+Object.defineProperty(window, "IntersectionObserver", {
+  configurable: true,
+  value: class IntersectionObserver {
     disconnect() {}
     observe() {}
     unobserve() {}
@@ -53,6 +68,7 @@ Object.defineProperty(window, "cancelAnimationFrame", {
 server.listen({ onUnhandledRequest: "error" });
 
 afterEach(() => {
+  useShellStore.getState().clear();
   server.resetHandlers();
   cleanup();
 });

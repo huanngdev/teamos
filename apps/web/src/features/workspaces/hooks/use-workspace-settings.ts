@@ -8,7 +8,7 @@ import {
   type OrganizationSummary,
 } from "@teamos/shared";
 
-import { notify } from "@/shared";
+import { notify, useShellStore } from "@/shared";
 import { ApiClientError } from "@/shared/api/api-client";
 import { deleteOrganization, updateOrganization } from "../api/organization-api";
 import { resolveWorkspaceDestination } from "../lib/resolve-workspace-destination";
@@ -109,6 +109,7 @@ function useWorkspaceSettings(organization: OrganizationContext): WorkspaceSetti
       notify.error(message);
     },
     onSuccess: (updated) => {
+      useShellStore.getState().setWorkspace(organization.slug, updated);
       queryClient.setQueryData(workspaceKeys(organization.slug).detail(), updated);
       queryClient.setQueryData<OrganizationSummary[]>(ORGANIZATIONS_QUERY_KEY, (current) =>
         current === undefined
@@ -143,6 +144,7 @@ function useWorkspaceSettings(organization: OrganizationContext): WorkspaceSetti
         queryClient.getQueryData<OrganizationSummary[]>(ORGANIZATIONS_QUERY_KEY) ?? []
       ).filter((item) => item.id !== organization.id);
 
+      useShellStore.getState().removeWorkspace(organization.slug);
       queryClient.setQueryData<OrganizationSummary[]>(ORGANIZATIONS_QUERY_KEY, remaining);
       queryClient.removeQueries({ queryKey: workspaceKeys(organization.slug).detail() });
       setDeleteDialogOpen(false);

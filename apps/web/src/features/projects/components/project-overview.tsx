@@ -1,10 +1,10 @@
 import {
   formatDate,
   getInitials,
+  getOrganizationRoleLabel,
   getProjectRoleLabel,
   getProjectVisibilityLabel,
 } from "@teamos/shared";
-import { ArrowLeftIcon, LockIcon, RefreshCwIcon, UsersIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -23,13 +23,18 @@ import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/comp
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ProjectOverviewState } from "../hooks/use-project-overview";
 import { ProjectMembersDialog } from "./project-members-dialog";
+import { ArrowLeftIcon, LockKeyIcon, ArrowsClockwiseIcon, UsersIcon } from "@phosphor-icons/react";
 
 interface ProjectOverviewProps {
   state: ProjectOverviewState;
 }
 
-function formatMemberCount(count: number): string {
-  return count === 1 ? "1 member" : `${count} members`;
+function formatProjectRoleCount(count: number): string {
+  return count === 1 ? "1 project role" : `${count} project roles`;
+}
+
+function formatWorkspaceMemberCount(count: number): string {
+  return count === 1 ? "1 workspace member" : `${count} workspace members`;
 }
 
 function ProjectOverviewLoading() {
@@ -54,7 +59,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
         <AlertDescription>
           <span className="block">{state.message}</span>
           <Button className="mt-2" onClick={state.retry} variant="outline">
-            <RefreshCwIcon data-icon="inline-start" />
+            <ArrowsClockwiseIcon data-icon="inline-start" />
             Retry
           </Button>
         </AlertDescription>
@@ -83,7 +88,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
   const { project } = view;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="truncate font-heading text-2xl font-semibold">{project.name}</h1>
@@ -93,7 +98,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Badge variant="outline">
-            {project.visibility === "private" ? <LockIcon aria-hidden="true" /> : null}
+            {project.visibility === "private" ? <LockKeyIcon aria-hidden="true" /> : null}
             {getProjectVisibilityLabel(project.visibility)}
           </Badge>
           {project.role === null ? null : (
@@ -110,8 +115,8 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-3">
             <div>
-              <dt className="text-muted-foreground">Members</dt>
-              <dd>{formatMemberCount(project.memberCount)}</dd>
+              <dt className="text-muted-foreground">Project roles</dt>
+              <dd>{formatProjectRoleCount(project.memberCount)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Created</dt>
@@ -127,18 +132,20 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>People with an explicit role on this project.</CardDescription>
+          <CardTitle>Project roles</CardTitle>
+          <CardDescription>
+            People with an explicit role on this project. This is not the workspace roster.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-3">
             {view.membersError === null ? null : (
               <Alert variant="destructive">
-                <AlertTitle>Project members unavailable</AlertTitle>
+                <AlertTitle>Project roles unavailable</AlertTitle>
                 <AlertDescription>
                   <span className="block">{view.membersError}</span>
                   <Button className="mt-2" onClick={view.onRetryMembers} variant="outline">
-                    <RefreshCwIcon data-icon="inline-start" />
+                    <ArrowsClockwiseIcon data-icon="inline-start" />
                     Retry
                   </Button>
                 </AlertDescription>
@@ -146,7 +153,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
             )}
             {view.membersPending ? (
               <div aria-busy="true" className="flex flex-col gap-2" role="status">
-                <span className="sr-only">Loading project members</span>
+                <span className="sr-only">Loading project roles</span>
                 <Skeleton className="h-14 w-full" />
                 <Skeleton className="h-14 w-full" />
               </div>
@@ -182,7 +189,7 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
                 {view.hiddenMemberCount === 0 ? null : (
                   <p className="text-sm text-muted-foreground">
                     Showing {view.previewMembers.length} of{" "}
-                    {view.previewMembers.length + view.hiddenMemberCount}
+                    {view.previewMembers.length + view.hiddenMemberCount} project roles
                   </p>
                 )}
               </div>
@@ -195,6 +202,78 @@ function ProjectOverview({ state }: ProjectOverviewProps) {
                 </Button>
               </div>
             ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Workspace members</CardTitle>
+          <CardDescription>
+            {formatWorkspaceMemberCount(view.workspaceMemberTotal)} can belong to this workspace. A
+            workspace role is not a project role.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            {view.workspaceMembersError === null ? null : (
+              <Alert variant="destructive">
+                <AlertTitle>Workspace members unavailable</AlertTitle>
+                <AlertDescription>
+                  <span className="block">{view.workspaceMembersError}</span>
+                  <Button className="mt-2" onClick={view.onRetryWorkspaceMembers} variant="outline">
+                    <ArrowsClockwiseIcon data-icon="inline-start" />
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            {view.workspaceMembersPending ? (
+              <div aria-busy="true" className="flex flex-col gap-2" role="status">
+                <span className="sr-only">Loading workspace members</span>
+                <Skeleton className="h-14 w-full" />
+              </div>
+            ) : view.workspaceMembersError !== null ? null : view.workspaceMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No workspace members yet.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {view.workspaceMembers.map((member) => (
+                  <Item key={member.id} variant="outline">
+                    <ItemMedia>
+                      <Avatar>
+                        <AvatarImage alt="" src={member.image ?? undefined} />
+                        <AvatarFallback>
+                          {getInitials(member.name) || getInitials(member.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </ItemMedia>
+                    <ItemContent className="min-w-0">
+                      <ItemTitle>
+                        <span className="min-w-0 truncate">{member.name}</span>
+                      </ItemTitle>
+                      <ItemDescription>
+                        <span className="block truncate">{member.email}</span>
+                      </ItemDescription>
+                      <span className="text-xs text-muted-foreground">
+                        {getOrganizationRoleLabel(member.role)}
+                      </span>
+                    </ItemContent>
+                  </Item>
+                ))}
+                {view.workspaceMemberTotal <= view.workspaceMembers.length ? null : (
+                  <p className="text-sm text-muted-foreground">
+                    Showing {view.workspaceMembers.length} of {view.workspaceMemberTotal} workspace
+                    members
+                  </p>
+                )}
+              </div>
+            )}
+            <div>
+              <Link className={buttonVariants({ variant: "outline" })} to={view.membersPath}>
+                <UsersIcon data-icon="inline-start" />
+                Workspace members
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>

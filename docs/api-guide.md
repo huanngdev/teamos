@@ -6,21 +6,27 @@ This document is the working guide for adding, testing, and consuming the TeamOS
 
 When `API_DOCS_ENABLED=true`, the API exposes:
 
-| Endpoint                                                 | Purpose                                          |
-| -------------------------------------------------------- | ------------------------------------------------ |
-| `/docs`                                                  | Interactive Scalar API reference                 |
-| `/openapi.json`                                          | OpenAPI 3.1 document for generators and tooling  |
-| `/`                                                      | API identity and liveness response               |
-| `/health`                                                | Lightweight liveness endpoint                    |
-| `/health/ready`                                          | PostgreSQL, Redis, and MinIO readiness status    |
-| `/api/auth/*`                                            | Better Auth handler (sign-in, callback, session) |
-| `/api/authentication/providers`                          | Enabled social sign-in providers                 |
-| `/api/me`                                                | Authenticated user and session                   |
-| `/api/organizations/{organizationSlug}`                  | Organization context for a member                |
-| `/api/organizations/{slug}/members`                      | Searchable, paginated workspace members          |
-| `/api/organizations/{slug}/invitations`                  | Pending workspace invitations                    |
-| `/api/organizations/{slug}/projects`                     | Searchable workspace projects                    |
-| `/api/organizations/{slug}/projects/{projectId}/members` | Project roles                                    |
+| Endpoint                                                  | Purpose                                          |
+| --------------------------------------------------------- | ------------------------------------------------ |
+| `/docs`                                                   | Interactive Scalar API reference                 |
+| `/openapi.json`                                           | OpenAPI 3.1 document for generators and tooling  |
+| `/`                                                       | API identity and liveness response               |
+| `/health`                                                 | Lightweight liveness endpoint                    |
+| `/health/ready`                                           | PostgreSQL, Redis, and MinIO readiness status    |
+| `/api/auth/*`                                             | Better Auth handler (sign-in, callback, session) |
+| `/api/authentication/providers`                           | Enabled social sign-in providers                 |
+| `/api/me`                                                 | Authenticated user, session, and display name    |
+| `/api/organizations/{organizationSlug}`                   | Organization context, rename, and deletion       |
+| `/api/organizations/{slug}/members`                       | Searchable, paginated workspace members          |
+| `/api/organizations/{slug}/invitations`                   | Pending workspace invitations                    |
+| `/api/organizations/{slug}/projects`                      | Searchable workspace projects                    |
+| `/api/organizations/{slug}/projects/{projectId}`          | Project update and deletion                      |
+| `/api/organizations/{slug}/projects/{projectId}/members`  | Project roles                                    |
+| `/api/organizations/{slug}/projects/{projectId}/statuses` | Board columns                                    |
+| `/api/organizations/{slug}/projects/{projectId}/issues`   | Project issues                                   |
+| `/api/organizations/{slug}/projects/{projectId}/views`    | Saved project views                              |
+
+The product snapshot, including which of these have a screen, is in `docs/progress.md`.
 
 Documentation is enabled by default in development and test. It is disabled by default in production and must be explicitly enabled with `API_DOCS_ENABLED=true`.
 
@@ -192,7 +198,8 @@ Project access is a TeamOS domain concern; Better Auth organization roles and te
 | Update project settings  | Yes         | Yes  | No     | No     | No                |
 | Manage project members   | Yes         | Yes  | No     | No     | No                |
 | Create or update issues  | Yes         | Yes  | Yes    | No     | No                |
-| Delete issues            | Yes         | Yes  | Yes    | No     | No                |
+| Delete issues            | Yes         | Yes  | No     | No     | No                |
+| Manage issue columns     | Yes         | Yes  | No     | No     | No                |
 | Delete a project         | Yes         | No   | No     | No     | No                |
 
 `GET /api/organizations/{slug}/projects` accepts an optional `search` term that matches the project name with the same literal, case-insensitive substring comparison used for members.
@@ -202,6 +209,43 @@ Every workspace member may create a project and becomes its `lead` in the same t
 Cross-tenant integrity is enforced by the database, not only by service checks. `member(id, organization_id)` carries a composite unique constraint and `project_membership` references both `project(id, organization_id)` and `member(id, organization_id)` with composite foreign keys, so granting a project role to a member of another workspace fails at the database level.
 
 An inaccessible project is reported as `404 PROJECT_NOT_FOUND` even when it exists, so private projects cannot be enumerated. A visible project with a denied action returns `403 FORBIDDEN`.
+
+`PATCH /api/organizations/{slug}/projects/{projectId}` changes `name`, `description`, and `visibility`. A slug in the body is ignored. A lead or an organization administrator can update a project. A member cannot.
+
+`DELETE /api/organizations/{slug}/projects/{projectId}` requires `{ confirmationName }` to match the stored project name exactly, including case. A mismatch is `422 VALIDATION_ERROR`. Only an organization owner or admin can delete a project. A lead who can see the project receives `403`. The service deletes the project's issues before the project row, because `issue_status_fk` is `ON DELETE RESTRICT` and column rows cascade from the project.
+
+### Issues
+
+Issue columns and cards are TeamOS data on top of the project authorization above. A new project is seeded with Backlog, Todo, In Progress, Done, and Canceled. Backlog is the default column. A new issue with no `statusId` is inserted at the top of that column. A move sends `placement` (`start`, `end`, `before`, or `after` an anchor). It never sends a raw `position` or a local drop index. Reordering a column still sends `index`.
+
+- `GET /api/organizations/{slug}/projects/{projectId}/statuses` lists columns in board order.
+- `POST /api/organizations/{slug}/projects/{projectId}/statuses` adds a column. This requires project `update`, so a lead or an organization administrator can do it and a member cannot.
+- `PATCH /api/organizations/{slug}/projects/{projectId}/statuses/{statusId}` renames or reorders a column. Category cannot change.
+- `DELETE /api/organizations/{slug}/projects/{projectId}/statuses/{statusId}` deletes an empty non-default column. The default column and a column that still has issues return `409 CONFLICT`.
+- `GET /api/organizations/{slug}/projects/{projectId}/issues` returns one filtered, sorted page plus `total`, `page`, and `pageCount`. Page size defaults to 20 and cannot pass 50. Optional query filters narrow that set. `total` is the match count, not the unfiltered project count. `facets=1` adds project-wide counts for status, priority, assignee, and category. The issue table sends the filters, sort, and page from the page URL. The board reads `issue-board` and `issue-columns` instead of this list.
+  - `q` is a case-insensitive substring over title, description, `#number`, status name, priority, assignee name and email, and category.
+  - `status` is a comma-separated list of status ids. A non-uuid token makes the filter match nothing.
+  - `priority` and `category` are comma-separated codes. Invalid tokens are dropped. If every token is invalid, the filter matches nothing.
+  - `assignee` is a comma-separated list of member ids. `unassigned` matches a null assignee.
+  - `title` and `description` are substring filters.
+  - `number` is `min..max`. `created` and `updated` are `YYYY-MM-DD..YYYY-MM-DD`. Either side may be empty. Date bounds use `timeZone`, or UTC when that zone is missing or invalid.
+- `GET /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` returns one issue, including its description.
+- `GET /api/organizations/{slug}/projects/{projectId}/issue-board` returns the first page and the filtered total for every column.
+- `GET /api/organizations/{slug}/projects/{projectId}/issue-columns/{statusId}` returns the next or previous keyset page of one column.
+- `POST /api/organizations/{slug}/projects/{projectId}/issues` creates one issue. A project member can create and update. A viewer cannot. There is no bulk-create HTTP route. Local fixtures are inserted by `bun run seed`, which reads `SEED_*` from `apps/api/.env` and is not reachable from the browser.
+- `PATCH /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` updates fields. `placement` names where the card lands. A status change without `placement` places the issue at the top of that column.
+- `POST /api/organizations/{slug}/projects/{projectId}/issues/bulk-delete` deletes `{ issueIds }` in one transaction. Duplicate ids are removed. If any id is missing from that project, the request is `404 ISSUE_NOT_FOUND` and nothing is deleted. A project member cannot delete issues. A lead, owner, or admin can.
+- `DELETE /api/organizations/{slug}/projects/{projectId}/issues/{issueId}` deletes one issue. A project member cannot delete an issue. A lead, owner, or admin can.
+
+A missing issue in a visible project is `404 ISSUE_NOT_FOUND`. A missing column is `404 PROJECT_STATUS_NOT_FOUND`. A duplicate column name is `409 PROJECT_STATUS_NAME_TAKEN`. A project accepts at most 20 columns. There is no project-wide cap of 200 issues. Bulk delete still accepts at most 200 explicit ids.
+
+Local sample issues are not created through HTTP. From the repository root:
+
+```bash
+bun run seed
+```
+
+`apps/api/scripts/seed/index.ts` runs every registered seed. Add another file and append it to the `seeds` array. The runner reads `apps/api/.env` and refuses to run unless `SEED=true`. It also requires `SEED_ORGANIZATION_ID`, `SEED_PROJECT_ID`, and `SEED_ACTOR_MEMBER_ID`. `SEED_ASSIGNEE_MEMBER_ID` is optional. `SEED_ISSUE_COUNT` defaults to 15 and cannot pass 200. Issue titles, descriptions, priorities, and assignees come from Faker. The actor must already be allowed to create issues in that project. The API process does not load these variables.
 
 ## Testing The API
 

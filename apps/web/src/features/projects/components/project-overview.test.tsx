@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -20,14 +18,24 @@ test("opens a project overview from its card", async () => {
   expect(screen.getByText("Private")).toBeInTheDocument();
   expect(screen.getByText("Private")).not.toHaveTextContent("private");
   expect(screen.getAllByText("Lead").length).toBeGreaterThan(0);
-  expect(screen.getByText("2 members")).toBeInTheDocument();
-  expect(screen.getByText("charles@example.com")).toBeInTheDocument();
+  expect(screen.getByText("2 project roles")).toBeInTheDocument();
+  expect(screen.getAllByText("Workspace members").length).toBeGreaterThan(0);
+  expect(screen.getByText(/2 workspace members/)).toBeInTheDocument();
+  expect(screen.getAllByText("charles@example.com")).toHaveLength(2);
+  expect(screen.getByRole("link", { name: "Workspace members" })).toHaveAttribute(
+    "href",
+    "/workspaces/acme/members",
+  );
   expect(screen.getByRole("link", { name: "TeamOS" })).toHaveAttribute(
     "href",
     "/workspaces/acme/projects",
   );
-  expect(screen.getByRole("link", { current: "page", name: "Overview" })).toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "Members" })).not.toBeInTheDocument();
+  expect(
+    screen
+      .getAllByRole("link", { name: "Overview" })
+      .some((link) => link.getAttribute("href") === "/workspaces/acme/projects/apollo"),
+  ).toBe(true);
+  expect(screen.queryByRole("link", { name: /^Members$/ })).not.toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "Switch workspace, current workspace Analytical Engines" }),
   ).toBeInTheDocument();
@@ -83,7 +91,7 @@ test("shows only the first five project members", async () => {
   );
   renderWorkspace("/workspaces/acme/projects/apollo");
 
-  expect(await screen.findByText("Showing 5 of 6")).toBeInTheDocument();
+  expect(await screen.findByText("Showing 5 of 6 project roles")).toBeInTheDocument();
   expect(screen.getByText("grace@example.com")).toBeInTheDocument();
   expect(screen.queryByText("mary@example.com")).not.toBeInTheDocument();
 });

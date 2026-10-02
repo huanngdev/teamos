@@ -8,6 +8,7 @@ export {
 } from "./api/api-client";
 export { ErrorBoundary } from "./components/error-boundary";
 export { Logo, type LogoProps, type LogoVariant } from "./components/logo";
+export { PersonIdentity } from "./components/person-identity";
 export { ModeToggle } from "./components/mode-toggle";
 export { PageError } from "./components/page-error";
 export { PageLoading } from "./components/page-loading";
@@ -19,3 +20,4 @@ export { useIsMobile } from "./hooks/use-mobile";
 export { useModeToggle } from "./hooks/use-mode-toggle";
 export { notify } from "./notifications/notify";
 export { queryClient } from "./query/query-client";
+export { memberCacheKey, useShellStore } from "./stores/shell-store";

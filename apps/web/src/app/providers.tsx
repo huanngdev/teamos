@@ -1,3 +1,4 @@
+import { IconContext } from "@phosphor-icons/react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import type { PropsWithChildren } from "react";
 import { MotionConfig } from "framer-motion";
@@ -14,8 +15,10 @@ function AppProviders({ children }: PropsWithChildren) {
       <MotionConfig reducedMotion="user">
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
-            {children}
-            <Toaster position="top-right" richColors />
+            <IconContext value={{ weight: "bold" }}>
+              {children}
+              <Toaster position="top-right" richColors />
+            </IconContext>
             {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
           </TooltipProvider>
         </QueryClientProvider>

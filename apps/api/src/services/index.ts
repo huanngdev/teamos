@@ -1,4 +1,6 @@
 export { getHealthStatus } from "@/services/health.js";
+export { createIssueService, type IssueService } from "@/services/issues.js";
+export { createIssueViewService, type IssueViewService } from "@/services/issue-views.js";
 export {
   createOrganizationManagementService,
   type OrganizationManagementService,
@@ -8,6 +10,10 @@ export {
   type OrganizationMemberService,
 } from "@/services/organization-members.js";
 export { createProjectService, type ProjectService } from "@/services/projects.js";
+export {
+  createProjectStatusService,
+  type ProjectStatusService,
+} from "@/services/project-statuses.js";
 export {
   createReadinessService,
   createUnavailableReadinessService,

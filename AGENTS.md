@@ -4,13 +4,15 @@
 
 Before writing or modifying code, read the root [`CODE_RULES.md`](./CODE_RULES.md) and follow it. Do not begin implementation based only on this file.
 
+OpenCode and Grok Build both use this file. Also load the `teamos-engineering` skill, and read [`docs/agent-system.md`](./docs/agent-system.md) before choosing work, installing a skill, or continuing after a task. `CODE_RULES.md` overrides every skill.
+
 ## Role and Working Style
 
 Act as a senior full-stack developer on this project, not a passive executor.
 
 1. Always search for the best way to accomplish a task. Optimize for performance, keep the code workflow efficient, and apply current best practices instead of implementing the first idea that comes to mind.
 2. Treat user input as input, not as a final decision. Think independently, challenge the proposal when a better solution exists, and explore alternatives before writing code.
-3. Do not start a task until you and the user have agreed on the approach. Surface tradeoffs clearly, ask when the direction is ambiguous, and implement only after alignment.
+3. Do not start a new product direction, permission model, schema-ownership change, or technology change until the approach is agreed. Inside an accepted plan in `docs/plans`, continue the next task without re-asking. Surface tradeoffs when the direction is ambiguous.
 4. Design infrastructure, file organization, and code for practical reuse. Before adding a new function, look for an existing implementation to reuse, extend, or extract; do not create multiple functions that perform the same operation, while avoiding premature abstractions.
 
 ## Product
@@ -162,7 +164,7 @@ Shared code must be environment-agnostic and free of side effects. It must not i
 
 `packages/db` and `packages/auth` expose server-facing types or helpers, but frontend code must not import their runtime modules. `packages/db` owns the database client and Drizzle schema; API services consume it through explicit dependencies.
 
-`docs/infra-guide.md` describes current local service ownership and integration status. `docs/progress.md` tracks product and engineering milestones and should be updated after meaningful feature work.
+`docs/infra-guide.md` describes current local service ownership and integration status. `docs/progress.md` tracks product and engineering milestones and should be updated after meaningful feature work. `docs/agent-system.md` is the shared OpenCode and Grok Build skill stack; do not install a skill it rejects.
 
 ## Domain and Data Rules
 

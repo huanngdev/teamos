@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 

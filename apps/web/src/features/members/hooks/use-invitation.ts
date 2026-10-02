@@ -74,6 +74,12 @@ function useInvitation(invitationId: string) {
     }
 
     writeRecentWorkspaceSlug(userId, accepted.slug);
+    await queryClient.invalidateQueries({
+      queryKey: ["organization", accepted.slug, "members"],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["organization", accepted.slug, "assignees"],
+    });
     void navigate(workspaceProjectsPath(accepted.slug), { replace: true });
   };
 

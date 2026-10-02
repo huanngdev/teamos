@@ -1,7 +1,7 @@
 import type { AuthenticatedSession, AuthenticatedUser } from "@teamos/shared";
 import { useQuery } from "@tanstack/react-query";
 
-import { ApiClientError } from "@/shared";
+import { ApiClientError, useShellStore } from "@/shared";
 import { getCurrentUser } from "../api/authentication-api";
 import { CURRENT_USER_QUERY_KEY } from "../query-keys";
 
@@ -17,11 +17,24 @@ type AuthSessionState =
  * 401; any other failure is reported as a retryable error rather than a logout.
  */
 function useAuthSession(): AuthSessionState {
+  const cached = useShellStore((state) => state.session);
+  const setSession = useShellStore((state) => state.setSession);
+  const clear = useShellStore((state) => state.clear);
   const query = useQuery({
-    queryFn: getCurrentUser,
+    enabled: cached === null,
+    queryFn: async () => {
+      const current = await getCurrentUser();
+      setSession(current);
+
+      return current;
+    },
     queryKey: CURRENT_USER_QUERY_KEY,
     retry: false,
   });
+
+  if (cached !== null) {
+    return { session: cached.session, status: "authenticated", user: cached.user };
+  }
 
   if (query.isPending) {
     return { status: "loading" };
@@ -32,6 +45,8 @@ function useAuthSession(): AuthSessionState {
   }
 
   if (query.error instanceof ApiClientError && query.error.status === 401) {
+    clear();
+
     return { status: "unauthenticated" };
   }
 

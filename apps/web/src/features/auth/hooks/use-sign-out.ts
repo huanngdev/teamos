@@ -3,7 +3,8 @@ import { useNavigate } from "react-router";
 
 import { authClient } from "../api/auth-client";
 import { readAuthClientError } from "../api/auth-error";
-import { notify } from "@/shared";
+import { useBoardStore } from "@/features/issues/stores/board-store";
+import { notify, useShellStore } from "@/shared";
 import { queryClient } from "@/shared/query/query-client";
 
 /*
@@ -30,6 +31,8 @@ function useSignOut() {
         return;
       }
 
+      useBoardStore.getState().clear();
+      useShellStore.getState().clear();
       queryClient.clear();
       notify.success("Signed out");
       void navigate("/login", { replace: true });

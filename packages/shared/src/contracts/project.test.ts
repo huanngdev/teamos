@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { SEARCH_TERM_MAX_LENGTH } from "../utilities/search.js";
 import {
   createProjectRequestSchema,
+  deleteProjectRequestSchema,
   projectListQuerySchema,
   projectMemberSchema,
   projectSlugSchema,
@@ -48,6 +49,22 @@ describe("updateProjectRequestSchema", () => {
     const parsed = updateProjectRequestSchema.parse({ name: "Apollo II", slug: "renamed" });
 
     expect(parsed).toEqual({ name: "Apollo II" });
+  });
+});
+
+describe("deleteProjectRequestSchema", () => {
+  test("requires the project name and keeps it exact", () => {
+    expect(deleteProjectRequestSchema.parse({ confirmationName: "Apollo" }).confirmationName).toBe(
+      "Apollo",
+    );
+  });
+
+  test("rejects an empty name and a name longer than 80 characters", () => {
+    expect(deleteProjectRequestSchema.safeParse({}).success).toBe(false);
+    expect(deleteProjectRequestSchema.safeParse({ confirmationName: "" }).success).toBe(false);
+    expect(deleteProjectRequestSchema.safeParse({ confirmationName: "a".repeat(81) }).success).toBe(
+      false,
+    );
   });
 });
 

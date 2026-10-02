@@ -1,4 +1,4 @@
-import { PlusIcon } from "lucide-react";
+import { PlusIcon } from "@phosphor-icons/react";
 
 import { SearchToolbar } from "@/shared/components/search-toolbar";
 import { ProjectCards } from "./project-cards";

@@ -1,2 +1,2 @@
-export { App } from "./app";
+export { App } from "./App";
 export { AppProviders } from "./providers";

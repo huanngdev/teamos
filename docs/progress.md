@@ -1,143 +1,215 @@
 # TeamOS Progress
 
-Last updated: 2026-09-26
+Last updated: 2026-10-01
+
+This file is the product snapshot: what is coded, what is finished, which HTTP APIs exist, and what each UI route does. OpenAPI at `/openapi.json` remains the machine-readable contract. Do not mark a feature complete here until its persistence, authorization, tests, and user-facing flow all exist.
 
 ## Current Milestone
 
-TeamOS has a working monorepo, HTTP foundation, and Better Auth-based authentication with organization-scoped authorization. The next milestone is the first durable project and issue workflow.
+The issue list, the issue board, and project views are implemented. The list is `/workspaces/:organizationSlug/projects/:projectSlug/issues`. The board is the same path with `/board`. Views are `/views` and `/views/:viewId`. The list is a table. Search, filters, sort, and pages are applied by `GET .../issues` in SQL. The board and a saved view each load one page per column. The plan is `docs/plans/issue-pagination.md`. A view is a saved filter set rendered on that same kanban. The Views page is a searchable table. A saved view opens the same board UI, without a title or filter bar. Project settings in `docs/plans/project-settings.md` are implemented too. A new project is seeded with workflow columns. Members create, edit, assign, and drag issues. Leads manage columns and project views. Anyone who can see the project can save a personal view. A lead, owner, or admin can change the project name, description, and visibility from `/workspaces/:organizationSlug/projects/:projectSlug/settings`.
 
-## Completed
+Labels, comments, and realtime are still open. A stable issue URL is not built yet. The next product step is not agreed yet. The recommendation at the bottom is a suggestion, not an accepted plan.
 
-### Product foundation
+## What is finished
 
-- Repository structure for the web app, API, and shared packages.
-- Initial product direction centered on organizations, projects, members, issues, chat, and schedules.
-- Web application shell and API root/health routes.
+A row is finished only when the database, the server check, the tests, and the screen all exist.
 
-### Engineering foundation
+| Area             | Finished behavior                                                                                                                                                                                                                                                                                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace        | Create a workspace, remember the last one per user, switch workspaces, rename, and delete with a typed name. Owners and admins rename. Only owners delete.                                                                                                                                                                              |
+| Members          | Search and page members, change `admin` or `member`, invite, resend, cancel, and remove. The owner role is never granted here.                                                                                                                                                                                                          |
+| Projects         | List and search projects, create one, and show visibility plus member count. Private projects stay hidden from members without a project role.                                                                                                                                                                                          |
+| Project access   | Grant, change, and revoke `lead`, `member`, and `viewer`. The last lead cannot be removed. Organization owners and admins keep full project control.                                                                                                                                                                                    |
+| Profile          | Read the session from `/api/me`. Edit a display name of 1–80 characters. Email stays read-only.                                                                                                                                                                                                                                         |
+| Issue list       | Table of matching issues, newest first, with `#number`. Filter, sort, and page run in SQL. A lead can select explicit row ids across pages and delete those ids in one request. A viewer can read and cannot create or delete.                                                                                                          |
+| Issue board      | Five seeded columns at `.../issues/board`. Each column loads its own page and filtered total. Create and edit issues in a right sheet, drag cards and columns, add, rename, and delete empty columns. A card shows the title, a priority icon, and the assignee name or an unassigned icon.                                             |
+| Project settings | Change the name, description, and visibility. The slug stays fixed. An organization owner or admin deletes the project by typing its exact name. A member or viewer who opens the URL is sent to the overview.                                                                                                                          |
+| Project views    | Save a personal or project-wide filter set and open it as a paged kanban. The Views page lists every visible view in a searchable table. Create and edit use a right sheet. `assignee=me` means the person opening the view. Dragging a card changes its column and places it at the top. A view does not change who can read an issue. |
+| Auth             | Google and GitHub sign-in, email verification, invitation acceptance, session cookie, and blocked native management endpoints.                                                                                                                                                                                                          |
 
-- Turborepo workspace using Bun.
-- Strict TypeScript configuration for web, API, and shared code.
-- Shared API schemas and inferred types in `packages/shared`.
-- API environment validation with Zod.
-- Web environment validation with Zod.
-- Hono API middleware for CORS, security headers, request IDs, client IPs, content types, body limits, timeouts, CSRF, request logging, and rate limiting.
-- Consistent API error response contract with request IDs and server-side error logging.
-- LogLayer integration with sensitive-field redaction.
-- Colored expanded development logs and structured JSON production logs.
-- Docker Compose support for PostgreSQL, Redis, and MinIO with health checks and named volumes.
-- Shared lint, formatting, type-checking, test, and build scripts.
-- Focused API tests covering HTTP hardening and error behavior.
-- OpenAPI 3.1 route documentation and Scalar API reference.
-- API liveness and dependency readiness endpoints.
-- Server-only `@teamos/db` package with Drizzle configuration and an empty schema entry point.
-- Fail-fast startup probes for PostgreSQL, Redis, and MinIO with cleanup on partial failure.
-- Dedicated Drizzle commands for schema checking, migration generation, migration application, and Studio.
-- Tailwind CSS v4 and shadcn/ui base-nova design system using preset `b4VkKso62S`.
-- Full shadcn/ui component registry generated in `apps/web/src/components/ui`.
-- Light and dark theme support with persisted user preference, active toggle state, and an animated toggle icon.
-- Global Sonner-based shadcn/ui toaster with rich colors positioned at the top right.
-- Axios API client and TanStack Query provider with shared runtime response validation.
-- React Router, frontend provider composition, and a backend readiness gate with bounded retries.
-- Frontend test foundation with Vitest, Testing Library, and MSW.
-- `@shadcn/lint` and TanStack Query ESLint rules for frontend design-system usage.
+## What is coded but has no screen
 
-### Authentication and authorization
+- Local fixtures are created with `bun run seed`. The runner is `apps/api/scripts/seed/index.ts`. It reads `apps/api/.env` and is not an HTTP route. There is no seed button in the app.
+- Issue `number` is stored and returned by the issue API. The issue table renders `#number`. Cards and the edit sheet do not.
 
-- Better Auth instance built from validated environment config and the shared Drizzle client.
-- Better Auth handler mounted at `/api/auth/*` with the Drizzle PostgreSQL adapter.
-- Google and GitHub OAuth providers with per-provider email verification enforcement.
-- Implicit account linking for verified provider emails, without trusting providers that cannot confirm email ownership.
-- Session middleware with a typed `authSession` context value and email-verification guard.
-- Nodemailer SMTP email adapter with verification and organization invitation templates.
-- Escaped, HTML and plain-text email rendering with delivery failures logged rather than swallowed.
-- Organization-scoped access service that queries membership from PostgreSQL and powers `404` for non-members.
-- Social provider discovery endpoint that reflects the configured OAuth credentials.
-- Better Auth schema (`user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`) generated into `packages/db` and applied through the first Drizzle migration.
-- Configurable `MAX_ORGANIZATIONS_PER_USER` workspace cap passed to the Better Auth organization plugin.
-- Frontend session, workspace, invitation, and sign-in hooks with public auth routes and a protected workspace layout.
-- Workspace switcher and account menus built from shadcn dropdown, avatar, separator, tabs, and empty primitives.
-- Workspace creation that updates the cached organization list before navigating, retries taken slugs, and surfaces the workspace limit.
-- Drizzle Studio runs with `bun run dev` and the API logs its browser URL beside the API URL in development.
-- Shared organization member-management policies (`admin`/`member` assignment, owner protection) and project permission policies with focused tests.
-- Searchable, paginated workspace member listing with a hard page cap and literal substring matching.
-- TeamOS member and invitation management facade backed by Better Auth server APIs, with mapped error codes, structured audit logs, and a per-actor rate limiter.
-- Blocked direct browser access to the replaced Better Auth member and invitation endpoints.
-- Better Auth hardening: owner roles rejected by a `before` hook, `resend: true` rejected so invitation links rotate, and explicit membership and invitation limits.
-- Workspace members UI with debounced server search, avatars, role controls, invite dialog, pending invitations with resend and cancel, and confirmed removal.
-- Project and project-membership tables with composite foreign keys that make cross-tenant project membership impossible at the database level.
-- Project CRUD and project role management APIs with private-project visibility rules and last-lead protection.
-- Projects UI listing visibility and member counts, project creation, and a project members dialog for role changes and revocation.
-- Replaced the framework CSRF middleware so bodyless unsafe requests such as `DELETE` are accepted while form-encodable cross-site requests stay blocked.
-- Validation failures now return the shared `422 VALIDATION_ERROR` contract instead of the framework's own `400` body.
-- Every unsafe cookie-authenticated request is validated against the origin allowlist or Fetch Metadata, including bodyless requests; sibling-subdomain `same-site` requests are rejected.
-- Native Better Auth organization `update`, `delete`, and `leave` endpoints stay blocked for browser callers, while the TeamOS settings facade owns workspace rename and deletion.
-- Workspace settings facade with `PATCH` and `DELETE /api/organizations/{organizationSlug}`: owners and admins may rename, only owners may delete, deletion requires typing the exact workspace name, and Better Auth deletion is enabled internally for the server gateway only.
-- Workspace settings UI with role-aware visibility, inline rename errors, and a typed-confirmation danger zone; deletion clears organization-scoped caches and navigates with `replace` to the next workspace or creation.
-- Organization membership is unique per `(organization, user)` at the database level, and the project audit foreign keys use single-column `SET NULL` so removing a project author no longer nulls the project tenant.
-- Multi-role organization values such as `"admin,owner"` are parsed with owner precedence, so owner protection cannot be bypassed by role ordering.
-- Invitation cancellation and resend resolve the invitation through the workspace-scoped list and only act on a live pending invitation.
-- Project mutations re-check the actor's authorization after locking the project row, closing the role-revocation race.
-- Production requires HTTPS for `BETTER_AUTH_URL`, `WEB_URL`, and `CORS_ORIGINS` (loopback excepted).
-- The browser reads its session from the sanitized `/api/me` response, so the Better Auth session token stays out of JavaScript; session failures surface as a retryable error instead of a forced logout.
-- Login preserves the requested deep link, and invitation sign-in carries the invitation through email verification so the recipient returns to it.
-- Better Auth mutations reset their pending state on thrown errors, and invitation acceptance falls back to the root route if opening the workspace fails.
-- Profile updates go through `PATCH /api/me`: the facade accepts only a trimmed 1-80 character display name, applies the per-actor management rate limit, forwards Better Auth's refreshed session cookie, and writes a `user.profile.updated` audit record containing only the actor and changed field names.
-- The native `/api/auth/update-user` endpoint is blocked for browser callers, so name edits cannot bypass TeamOS validation and auditing; email, avatar, and password changes have no TeamOS flow yet.
+## UI routes
 
-### Frontend architecture
+Routes are registered in `apps/web/src/app/routes.tsx`. Anything under `ProtectedLayout` requires a verified session. An unknown URL renders the not-found page instead of bouncing to `/`.
 
-- Feature-first `apps/web/src` layout: `app` (providers and routes), `layouts` (router layouts plus their orchestration hooks), `routes` (`*-route.tsx` URL modules), `features/<capability>` (`api`, `components`, `hooks`, `lib`, `query-keys`), and `shared` for genuinely cross-feature browser code.
-- `features/auth`, `features/workspaces`, `features/members`, `features/projects`, and `features/system` now own their components, hooks, API modules, and query keys; each exposes one `index.ts` barrel.
-- Generated shadcn primitives stay in `apps/web/src/components/ui` and the `cn` helper stays on the shadcn `utils` alias; neither is relocated for organizational reasons.
-- Nested React Router routes: `/workspaces/:organizationSlug` renders a `WorkspaceLayout` with `projects`, `members`, and `settings` children, an index redirect, and an explicit not-found route instead of a catch-all redirect. A project overview lives beside that layout at `/workspaces/:organizationSlug/projects/:projectSlug`.
-- Workspace pages keep the centered tab shell. Only a project page uses the inset, icon-collapsible shadcn sidebar, with a back link to Projects, an Overview item, and the account identity in the footer. The overview is built from the visible project list and its members.
-- Account screens live under `/account` behind a dedicated `AccountLayout` that is a sibling of `WorkspaceLayout`; `/account/profile` renders the profile screen without loading any workspace or organization context.
-- The profile screen shows an avatar preview and read-only email, edits the display name with a single save action, updates the `current-user` cache so the account menu reflects the change immediately, and refreshes the shared organization member caches.
-- Workspace tabs are route-aware links, so refreshing, linking, and browser back/forward keep the selected tab.
-- The previously oversized workspace page was split into a workspace layout hook, two feature route modules, and focused `useProjectList`/`useProjectMembers`/`useProjectSearch` hooks.
-- The 566-line workspace integration test was split into layout, projects, and members suites with shared MSW fixtures in `apps/web/src/test`.
-- Project search now also runs server-side with the same bounded, literal substring matching as member search.
-- Project cards use the shadcn `Card` composition with a semantic heading, visibility badge, member count, and an overflow action menu.
-- The members view is a semantic responsive `Table`: the role column collapses under the member email on narrow screens, and pending invitations use their own table with one overflow action menu.
-- Application code no longer passes compact `size="sm"` overrides; only semantic icon sizes such as `size="icon"` remain.
-- Coded domain values are rendered through typed label mappers: `getOrganizationRoleLabel`, `getProjectRoleLabel`, and `getProjectVisibilityLabel` live in `packages/shared`, readiness dependency labels and theme labels are mapped where they are used, and Base UI selects receive the label record through `items` so the trigger shows the label rather than the stored value.
-- Workspace selection is deterministic: the client remembers the last opened workspace per user in `localStorage`, reopens it while the user is still a member, and otherwise opens the newest workspace using the organization `createdAt` rather than the undefined Better Auth row order. Users without workspaces go to `/workspaces/new`.
-- Sign-out now clears the query cache and navigates only after the server confirms it; a failed sign-out keeps the user in place and surfaces a retryable alert.
-- `OrganizationSummary` and the organization context response now include `createdAt`.
+### Public
 
-## In Progress
+| Route                        | Screen        | What it does                                                                                                  |
+| ---------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------- |
+| `/login`                     | Sign in       | Shows the configured Google and GitHub buttons. A signed-in user continues to `next`, or to `/auth/complete`. |
+| `/auth/complete`             | After sign-in | Sends a verified user to their workspace. An unverified user is sent to verify their email.                   |
+| `/auth/verify-email`         | Verify email  | Asks for an email and sends a new verification link. `next` is preserved when it is an app path.              |
+| `/invitations/:invitationId` | Invitation    | The recipient signs in if needed, then accepts or rejects. Acceptance opens that workspace.                   |
 
-- Issue domain model and workflow.
-- Invitation delivery reliability through a durable outbox and background worker.
+### Signed in, no project
 
-## Not Started
+`WorkspaceLayout` puts the logo, workspace switcher, theme toggle, and account menu in the header. The Projects and Members tabs show counts. Settings appears only for an owner or admin.
 
-- Issue Drizzle tables, statuses, priorities, labels, assignment, and ordering.
-- Issue board and list screens.
-- Workspace and project settings beyond member management.
-- Durable chat channels and messages.
-- Schedule, events, and team availability.
-- MinIO bucket management, signed URLs, and attachment ownership metadata.
-- Shared real-time event contracts and Redis pub/sub delivery.
-- Production deployment, secret management, observability, and backup procedures.
+| Route                                    | Screen             | What it does                                                                                                                            |
+| ---------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                      | Workspace picker   | Opens the last workspace this user used, otherwise the newest one. With no workspace, it offers creation.                               |
+| `/workspaces/new`                        | Create workspace   | Name form. Retries a taken slug and explains the workspace limit.                                                                       |
+| `/account`                               | Account            | Redirects to `/account/profile`.                                                                                                        |
+| `/account/profile`                       | Profile            | Avatar preview, read-only email, and a display-name save. Does not load a workspace.                                                    |
+| `/workspaces/:organizationSlug`          | Workspace shell    | Redirects to `projects`. Tabs: Projects, Members, and Settings for owners and admins.                                                   |
+| `/workspaces/:organizationSlug/projects` | Project list       | Search, cards, and create. A card opens the project overview.                                                                           |
+| `/workspaces/:organizationSlug/members`  | Members            | Member table, role changes, invites, pending invitations, and removal.                                                                  |
+| `/workspaces/:organizationSlug/settings` | Workspace settings | Rename, and a danger zone that deletes the workspace after the exact name is typed. Members who open the URL are sent back to Projects. |
 
-## Infrastructure Integration Status
+### Inside a project
 
-| Area           | Status                | Notes                                                                                             |
-| -------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
-| PostgreSQL     | Connected at boot     | `@teamos/db` probes with `SELECT 1`; owns the Better Auth, project, and project-membership tables |
-| Redis          | Partially integrated  | API rate limiter uses Redis with an in-memory insurance limiter                                   |
-| MinIO          | Connected at boot     | S3 client probes credentials with `ListBuckets`; storage workflows pending                        |
-| Logging        | Integrated            | Pretty local output, JSON production output, sensitive-field redaction                            |
-| API protection | Integrated foundation | Middleware and error contract are covered by API tests                                            |
-| API docs       | Integrated            | OpenAPI 3.1 at `/openapi.json`, Scalar UI at `/docs`, cookie session scheme                       |
-| Authentication | Integrated            | Better Auth OAuth with email verification, session guard, and SMTP email                          |
-| Email          | Integrated            | Nodemailer SMTP adapter for verification and invitations; required in production                  |
+`ProjectLayout` is the inset sidebar. The sidebar header links back to the project list. The breadcrumb is the workspace switcher, the project switcher, and the page name. An open view adds Views, then the view name. The project switcher can create a project. The header also has the theme toggle. The sidebar footer has the account menu.
 
-## Quality Checks
+| Route                                                               | Screen           | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/workspaces/:organizationSlug/projects/:projectSlug`               | Overview         | Name, description, visibility, role, member count, and dates. Project roles stay in their own section and dialog. Workspace members are a separate roster with organization roles and a count.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `/workspaces/:organizationSlug/projects/:projectSlug/issues`        | Issue list       | Table of matching issues, newest first. Visible columns start as a pinned checkbox, `#number`, title, status, priority, assignee, created, and updated. Category and description stay hidden until Layout shows them. Search, filters, sort, page, page size, column order, and hidden columns are stored in the URL. Filter, sort, and page are applied in SQL. Changing a filter, the search, or the page size returns to the first page. An empty page clamps back to data that still exists. Status is an icon plus the column name, using the board category color. Created and updated include the time. The header stays fixed while the body scrolls. Other columns can be pinned. Selected issue ids stay in a Zustand store for the project, so changing page does not clear them. A lead sees Delete next to the filters and confirms in an alert dialog. That sends one bulk delete. New issue sits on the right and creates into Backlog. A viewer can open the sheet read-only and does not see New issue or Delete. Page sizes are 10, 20, and 50. |
+| `/workspaces/:organizationSlug/projects/:projectSlug/issues/board`  | Issue board      | Columns show a category icon, name, and the filtered total. Each column loads its own page of cards and more pages as it scrolls. Cards show title, a priority icon, and the assignee. They do not show `#number` or the full description. Click opens a sheet. The edit sheet loads the issue detail before it can save. A viewer can open it read-only. `+` creates in that column. A lead reorders columns from the grip and renames or deletes from the column menu.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `/workspaces/:organizationSlug/projects/:projectSlug/settings`      | Project settings | Edit name, description, and visibility. Save sends one patch of the fields that changed. The slug is shown and cannot be changed. Owners and admins can delete the project after typing its name, then return to the project list. Members and viewers are sent to the overview.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `/workspaces/:organizationSlug/projects/:projectSlug/views`         | Views            | Searchable table of the personal and project views the caller can open. A viewer can create a personal view. A lead, owner, or admin can also create a project view. Create and edit choose filters, then save. Someone who can manage a row can edit or delete it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `/workspaces/:organizationSlug/projects/:projectSlug/views/:viewId` | View             | The saved filters on the same kanban as the project board. The breadcrumb is Views, then the view name. There is no title or filter bar. Edit and delete sit in the header menu when the caller can manage the view. Dragging a card to another column sends only the destination status and places the issue at the top.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `*`                                                                 | Not found        | Says the path does not exist and links back to `/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
-The current repository has scripts for:
+Sidebar items are **Overview**, **Issues**, **Board**, **Views**, and **Settings**. The Issues item matches only the list. The Board item matches only the board. Views matches the view list and an open view. Its chevron expands the saved views; the item itself opens the table. Settings is shown to a lead and to an organization owner or admin.
+
+### Board rules the screen already enforces
+
+- A new project gets Backlog, Todo, In Progress, Done, and Canceled. Backlog is the default inbox.
+- A card shows the title, a priority icon, and the assignee's name or an unassigned icon. The sheet holds the description, column, priority, and assignee. `#number` is shown on the issue table. Cards and the sheet leave it off.
+- A member can create and move issues. A viewer can only look. A lead, or an organization owner or admin, can delete an issue and manage columns.
+- There is no project-wide cap of 200 issues. The table page size is at most 50. A column's first page is 40 cards. Bulk delete still accepts at most 200 explicit ids. A deep table page uses offset and gets slower as the offset grows.
+- A project accepts at most 20 columns. The default column cannot be deleted. A column with issues cannot be deleted.
+- Scroll fade uses the shadcn `scroll-fade` utilities: vertical inside a column, horizontal across the columns.
+- The list view, its search, and its filters live on the issues route. The board has no label, comment, or live update. Refresh loads the board again.
+
+## HTTP API
+
+TeamOS routes below use the shared error contract. Paths are mounted in `apps/api/src/app.ts`. Organization routes are mounted at `/api/organizations`, so `{organizationSlug}` is the first path segment.
+
+An inaccessible organization or private project is `404`. A visible resource with a denied action is `403`.
+
+### Platform
+
+| Method | Path            | Purpose                                     |
+| ------ | --------------- | ------------------------------------------- |
+| `GET`  | `/`             | API identity and liveness                   |
+| `GET`  | `/health`       | Liveness                                    |
+| `GET`  | `/health/ready` | PostgreSQL, Redis, and MinIO readiness      |
+| `GET`  | `/openapi.json` | OpenAPI 3.1 document, when docs are enabled |
+| `GET`  | `/docs`         | Scalar reference, when docs are enabled     |
+
+### Session and profile
+
+| Method  | Path                            | Purpose                                                        |
+| ------- | ------------------------------- | -------------------------------------------------------------- |
+| `GET`   | `/api/authentication/providers` | Which of Google and GitHub are configured                      |
+| `GET`   | `/api/me`                       | Sanitized current user. The session token stays in the cookie. |
+| `PATCH` | `/api/me`                       | Update the display name. Rate limited and audited.             |
+
+`/api/auth/*` is Better Auth. The browser still uses it for sign-in, OAuth callback, session, sign-out, workspace creation, and invitation accept or reject. These management paths are blocked for browser callers and must go through the TeamOS facade instead:
+
+- `/api/auth/organization/update`, `delete`, `leave`
+- `/api/auth/organization/get-full-organization`, `list-members`, `list-invitations`
+- `/api/auth/organization/invite-member`, `cancel-invitation`, `remove-member`, `update-member-role`
+- `/api/auth/update-user`
+
+### Workspace
+
+| Method   | Path                                                                      | Who          | Purpose                                      |
+| -------- | ------------------------------------------------------------------------- | ------------ | -------------------------------------------- |
+| `GET`    | `/api/organizations/{organizationSlug}`                                   | Member       | Workspace name, slug, role, and counts       |
+| `PATCH`  | `/api/organizations/{organizationSlug}`                                   | Owner, admin | Rename                                       |
+| `DELETE` | `/api/organizations/{organizationSlug}`                                   | Owner        | Delete after the body repeats the exact name |
+| `GET`    | `/api/organizations/{organizationSlug}/members`                           | Member       | Searchable, paginated members                |
+| `PATCH`  | `/api/organizations/{organizationSlug}/members/{memberId}/role`           | Owner, admin | Set `admin` or `member`                      |
+| `DELETE` | `/api/organizations/{organizationSlug}/members/{memberId}`                | Owner, admin | Remove a member                              |
+| `GET`    | `/api/organizations/{organizationSlug}/invitations`                       | Owner, admin | Pending invitations                          |
+| `POST`   | `/api/organizations/{organizationSlug}/invitations`                       | Owner, admin | Invite. The owner role is rejected.          |
+| `POST`   | `/api/organizations/{organizationSlug}/invitations/{invitationId}/resend` | Owner, admin | Rotate the invitation link and send again    |
+| `DELETE` | `/api/organizations/{organizationSlug}/invitations/{invitationId}`        | Owner, admin | Cancel a pending invitation                  |
+
+### Projects
+
+| Method   | Path                                          | Who                             | Purpose                                                                             |
+| -------- | --------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------- |
+| `GET`    | `.../projects`                                | Member                          | Searchable project list. Private projects are omitted without a project role.       |
+| `POST`   | `.../projects`                                | Member                          | Create. The creator becomes the lead. Seeds the five columns.                       |
+| `PATCH`  | `.../projects/{projectId}`                    | Lead, owner, admin              | Update name, description, or visibility. The slug is immutable.                     |
+| `DELETE` | `.../projects/{projectId}`                    | Owner, admin                    | Delete after the body repeats the exact project name. A lead cannot delete it.      |
+| `GET`    | `.../projects/{projectId}/members`            | Someone who can see the project | List explicit project roles                                                         |
+| `GET`    | `.../projects/{projectId}/assignees`          | Someone who can see the project | Page members who can view the project and can be assigned. Search by name or email. |
+| `PUT`    | `.../projects/{projectId}/members/{memberId}` | Lead, owner, admin              | Grant or change `lead`, `member`, or `viewer`                                       |
+| `DELETE` | `.../projects/{projectId}/members/{memberId}` | Lead, owner, admin              | Revoke a project role. The last lead stays.                                         |
+
+`...` means `/api/organizations/{organizationSlug}`.
+
+### Issue board
+
+| Method   | Path                                                | Who                             | Purpose                                                                                                |
+| -------- | --------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `GET`    | `.../projects/{projectId}/statuses`                 | Someone who can see the project | Columns, ordered by position                                                                           |
+| `POST`   | `.../projects/{projectId}/statuses`                 | Lead, owner, admin              | Add a column. Category is chosen once and is not editable later.                                       |
+| `PATCH`  | `.../projects/{projectId}/statuses/{statusId}`      | Lead, owner, admin              | Rename or move by `index`. The client never sends `position`.                                          |
+| `DELETE` | `.../projects/{projectId}/statuses/{statusId}`      | Lead, owner, admin              | Delete an empty column that is not the default                                                         |
+| `GET`    | `.../projects/{projectId}/issues`                   | Someone who can see the project | One filtered, sorted page plus `total`, `page`, and `pageCount`. `facets=1` adds project-wide counts.  |
+| `GET`    | `.../projects/{projectId}/issues/{issueId}`         | Someone who can see the project | One issue, including its description                                                                   |
+| `GET`    | `.../projects/{projectId}/issue-board`              | Someone who can see the project | First page and filtered total for every column                                                         |
+| `GET`    | `.../projects/{projectId}/issue-columns/{statusId}` | Someone who can see the project | The next or previous keyset page of one column                                                         |
+| `POST`   | `.../projects/{projectId}/issues`                   | Member, lead, owner, admin      | Create one issue. Omitted `statusId` uses Backlog and places it at the top.                            |
+| `PATCH`  | `.../projects/{projectId}/issues/{issueId}`         | Member, lead, owner, admin      | Title, description, priority, assignee, column, and `placement`                                        |
+| `POST`   | `.../projects/{projectId}/issues/bulk-delete`       | Lead, owner, admin              | Delete the given issue ids in one transaction                                                          |
+| `DELETE` | `.../projects/{projectId}/issues/{issueId}`         | Lead, owner, admin              | Delete one issue                                                                                       |
+| `GET`    | `.../projects/{projectId}/views`                    | Someone who can see the project | Personal views owned by the caller, plus project views. Paginated. Optional `search` matches the name. |
+| `POST`   | `.../projects/{projectId}/views`                    | See view rules                  | Create a personal view, or a project view when the caller can update the project.                      |
+| `GET`    | `.../projects/{projectId}/views/{viewId}`           | Someone allowed to open it      | One view. Another member's personal view is `404`.                                                     |
+| `PATCH`  | `.../projects/{projectId}/views/{viewId}`           | Someone allowed to manage it    | Rename or replace filters. Requires the current `revision`.                                            |
+| `DELETE` | `.../projects/{projectId}/views/{viewId}`           | Someone allowed to manage it    | Delete the saved filters. Issues stay.                                                                 |
+
+Priorities are `none`, `low`, `medium`, `high`, and `urgent`. Column categories are `backlog`, `unstarted`, `started`, `completed`, and `canceled`. A column name is free text. The stored identifier is `#number` inside the project, not a project key. The issue table renders it. Cards and the edit dialog do not. The table sends search, filters, sort, direction, page, and page size on `GET` issues. `q` matches title, description, number, status name, priority, assignee, and category. Date filters use the browser time zone. `assignee=unassigned` matches issues with no assignee. `assignee=me` matches issues assigned to the caller and is resolved on the server. Sort is a whitelist with `id` as the tie-break. Facet counts are project-wide, not the current page and not the active filter. Selected row ids are client state. Bulk delete sends those ids and does not delete every row that matches the filter. A board move sends `placement`: `start`, `end`, `before`, or `after` an anchor issue. A saved view still sends only the destination column, which places the issue at the top. Eligible assignees on a workspace-visible project are the workspace members. On a private project they are organization owners and admins plus explicit project members. Pending invitations are not members.
+
+## Database
+
+PostgreSQL through Drizzle in `packages/db`.
+
+| Table                                        | Owner                                          | Holds                                                             |
+| -------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------- |
+| `user`, `session`, `account`, `verification` | Better Auth                                    | Identity and sessions                                             |
+| `organization`, `member`, `invitation`       | Better Auth, mutated through the TeamOS facade | Workspaces and membership                                         |
+| `project`, `project_membership`              | TeamOS                                         | Projects and `lead` / `member` / `viewer`                         |
+| `project_status`                             | TeamOS                                         | Board columns                                                     |
+| `issue`                                      | TeamOS                                         | Cards, including status, priority, assignee, number, and position |
+| `issue_view`                                 | TeamOS                                         | Saved personal and project filter sets                            |
+
+Project membership and issues use composite foreign keys that include `organization_id`, so a row cannot point at another workspace. Redis is the rate-limit store. MinIO is probed at boot and has no upload flow.
+
+## Still open
+
+- Issue labels, comments, subscribers, and notifications.
+- A stable issue URL. The table shows `#number`, and editing stays in the dialog.
+- Ownership transfer and leaving a workspace.
+- Email change, avatar upload, and password change.
+- Durable email outbox. A failed invitation send leaves a pending invitation that must be resent by hand.
+- Chat, schedules, and realtime.
+- Production deployment, backups, and secret management.
+
+## Infrastructure
+
+| Area       | Status            | Notes                                                              |
+| ---------- | ----------------- | ------------------------------------------------------------------ |
+| PostgreSQL | Connected at boot | Auth, workspace, project, and issue tables                         |
+| Redis      | Rate limiting     | In-memory limiter is the fallback used in tests                    |
+| MinIO      | Connected at boot | `ListBuckets` probe only                                           |
+| Logging    | Integrated        | Pretty logs locally, JSON in production, sensitive fields redacted |
+| API docs   | Integrated        | `/openapi.json` and `/docs` when `API_DOCS_ENABLED=true`           |
+| Email      | Integrated        | SMTP for verification and invitations. Required in production.     |
+
+## Quality checks
+
+Scripts:
 
 - `bun run format:check`
 - `bun run lint`
@@ -150,40 +222,34 @@ The current repository has scripts for:
 - `bun run db:migrate`
 - `bun run --cwd apps/api verify:isolation`
 
-The API foundation currently has focused tests for security headers, CORS, request IDs, root/liveness/readiness contracts, OpenAPI exposure, unexpected errors, content types, malformed JSON, validation errors, body size limits, rate-limit responses, CSRF behavior including bodyless unsafe requests, environment validation, bootstrap service failure handling, provider discovery, unauthenticated and unverified sessions, current-user contracts, member listing pagination and search, invitation and member management authorization, workspace rename and deletion authorization and confirmation, profile update validation, cookie forwarding, and native endpoint blocking, blocked native Better Auth endpoints, per-actor management rate limiting, and organization membership isolation. Shared utilities have tests for slug generation, organization roles, member-management policies, project permission policies, member and invitation contracts, project contracts, and avatar initials. Frontend tests cover the readiness gate, unauthenticated redirect, social provider rendering, workspace shell and route-aware tabs, workspace destination resolution and per-user workspace memory, sign-out success and failure, workspace creation cache updates, slug retries, the workspace limit message, workspace settings rename and deletion including role visibility and typed confirmation, profile editing including read-only email, draft preservation, and immediate account-menu refresh, project and member search debounce behavior, member table rendering and pagination, invitation management visibility, resend and cancel, member removal, project cards, project creation, and project role changes.
+Covered areas include HTTP hardening, session and profile contracts, workspace members and invitations, workspace rename and deletion, project permissions and tenant isolation, project settings, issue placement math, column and issue authorization, and the frontend workspace, project, issue-list, and issue-board screens. `verify:isolation` runs against live PostgreSQL and checks private-project hiding, cross-tenant rejection, last-lead protection, paged issue reads, anchor placement, eligible assignees, and deleting a project that already has an issue. `bun run --cwd apps/api benchmark:issues` measures a throwaway 10,000-issue dataset and a 100,000-issue dataset. It does not change existing workspace data.
 
-`bun run --cwd apps/api verify:isolation` additionally proves tenant isolation against a live PostgreSQL database: literal wildcard handling, workspace-scoped search, private project hiding, cross-tenant project role rejection, and last-lead protection.
+## Known limitations
 
-## Known Limitations
+- `MAX_ORGANIZATIONS_PER_USER` counts memberships and is not atomic, so concurrent creates can pass the cap.
+- OAuth tokens in `account` are stored unencrypted.
+- Sensitive workspace administration does not require a fresh session.
+- Ownership transfer and self-service leaving have no flow. The native leave endpoint is blocked.
+- Email, avatar, and password cannot be changed. The native update-user endpoint is blocked.
+- Avatars are display-only. Remote image URLs are not accepted, and MinIO has no upload or signed-URL flow.
+- Invitation email is not durable.
+- The board does not update live. Two people editing the same project see each other's changes after a refresh.
+- A deep issue-table page uses SQL offset. Cost grows with the number of skipped rows. The board uses keyset pages instead.
+- A column keeps a window of loaded cards. Cards that are not in the DOM are not drop targets. Dropping after the last loaded card places the issue after that card, not at the end of the unloaded column.
+- The column total is the filtered count from the first board load. A later page does not recompute it, so a concurrent write can make the count and the loaded cards differ until refresh.
+- Text search uses `position` on lowered text. The title btree does not make that search an index lookup. There is no trigram index.
+- One warm local run of 10,000 and 100,000 issues is recorded in `docs/plans/issue-pagination.md`. The 100,000-issue deep table page took 226 ms and the text search took 393 ms on that machine. That run is not a support claim.
+- Local Compose credentials are development defaults.
+- Redis rate limiting fails closed when Redis is not ready on the real server path.
+- There is no production deployment or migration runbook.
 
-- The current API is not yet a multi-tenant product surface because domain persistence beyond organizations is not implemented.
-- Organization and membership management relies on Better Auth plugin endpoints; TeamOS-specific management screens are still minimal.
-- The `MAX_ORGANIZATIONS_PER_USER` cap counts all memberships and is not atomic, so concurrent creation can exceed it.
-- OAuth access, refresh, and ID tokens are stored unencrypted in the account table; application-level encryption needs a key-management decision.
-- Sensitive organization administration does not yet require a fresh session or reauthentication.
-- Organization update and deletion now have TeamOS facades; ownership transfer and self-service leaving still await their own flows.
-- The account menu exposes a Profile link and sign-out; billing and support entries return when those flows exist.
-- Email changes are not configured and remain read-only on the profile screen; a change requires verifying the new address plus a non-enumerating confirmation flow.
-- Avatars are display-only: MinIO has no bucket, upload, signing, or object-ownership workflow, so remote image URLs are not accepted.
-- Invitations require configured SMTP credentials; without them verification and invitation email cannot be delivered.
-- Development allows authentication without OAuth credentials, but production startup requires both Google and GitHub credentials plus SMTP configuration.
-- The readiness endpoint verifies connectivity but does not replace ongoing dependency monitoring.
-- Local Compose credentials are development defaults and must not be reused in production.
-- Redis-backed rate limiting is fail-closed when Redis is not ready in the real API server path.
-- There is no production deployment or migration runbook yet.
-- The management facade covers member and invitation mutations; ownership transfer and self-service workspace leaving still need their own flows.
-- Invitation delivery is not yet durable. A failed send leaves a pending invitation behind and requires a manual resend.
-- Project roles are enforced by TeamOS services and database constraints; real-time project transports do not exist yet, so they need the same access checks when they are added.
+## Recommended next step
 
-## Recommended Next Priorities
+This is a suggestion. It is not an accepted plan, so implementation should wait until one option is chosen.
 
-1. Add the issue tables, workflow, and screens on top of the existing project authorization.
-2. Add ownership transfer and self-service workspace leaving with last-owner protection.
-3. Add a durable outbox and background worker for transactional email, including invitation resend.
-4. Add integration tests against PostgreSQL, Redis, and MinIO for real session and membership flows.
-5. Add project settings for rename, visibility, and archive.
-6. Reuse the lightweight organization access resolver for every remaining tenant-scoped query and route.
+The list can find an issue by text, status, priority, assignee, and dates, and it shows `#number`. The board can move the work. A view can save those filters and open them as a kanban. A lead can change a project's name, description, and visibility. The gap that remains is opening one issue at its own address.
 
-## Update Rule
+1. **One issue URL.** Give each issue a link such as `/issues/12`, using the number the table already shows. Project settings are implemented in `docs/plans/project-settings.md`. The issue list is the table on the issues route.
+2. Leave labels, cycles, estimates, comments, and realtime until that link is in use. They add surface area before one issue has a stable address.
 
-Update this document after each meaningful milestone. Record completed product behavior, infrastructure integration status, quality-check results, known limitations, and the next priorities. Keep this file factual and do not mark a feature complete until its persistence, authorization, tests, and user-facing flow are all in place.
+Ownership transfer and a durable invitation outbox stay on the engineering list. They are security and delivery work, separate from the Linear-style workflow.

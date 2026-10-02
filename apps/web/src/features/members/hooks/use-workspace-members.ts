@@ -92,6 +92,9 @@ function useWorkspaceMembersInvalidator(organizationSlug: string): () => Promise
       queryClient.invalidateQueries({
         queryKey: ["organization", organizationSlug, "members"],
       }),
+      queryClient.invalidateQueries({
+        queryKey: ["organization", organizationSlug, "assignees"],
+      }),
     ]);
   };
 }

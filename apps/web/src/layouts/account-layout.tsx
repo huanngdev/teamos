@@ -1,11 +1,10 @@
 import { Outlet } from "react-router";
-import { ArrowLeftIcon } from "lucide-react";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AccountMenu } from "@/features/auth";
 import { useAccountLayout } from "@/layouts/use-account-layout";
 import { Logo, ModeToggle, PageLoading } from "@/shared";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 
 /*
  * Account shell for identity-scoped pages. It is intentionally a sibling of the

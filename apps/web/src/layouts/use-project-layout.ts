@@ -1,10 +1,21 @@
-import type { OrganizationSummary, ProjectSummary } from "@teamos/shared";
+import {
+  canPerformProjectAction,
+  type OrganizationSummary,
+  type ProjectSummary,
+} from "@teamos/shared";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useMatch, useNavigate, useParams } from "react-router";
 
 import { useAuthSession, useSignOut } from "@/features/auth";
+import { projectBoardPath, projectIssuesPath } from "@/features/issues";
+import {
+  projectViewsPath,
+  useIssueViewHeaderStore,
+  useIssueViewNavigation,
+} from "@/features/views";
 import {
   projectOverviewPath,
+  projectSettingsPath,
   useCreateProjectForm,
   useProjectList,
   type CreateProjectFormState,
@@ -25,6 +36,13 @@ type ProjectLayoutState =
 
 interface ProjectLayoutView extends ProjectSidebarView {
   createForm: CreateProjectFormState;
+  viewActive: boolean;
+  viewActions: {
+    canManage: boolean;
+    onDelete: () => void;
+    onEdit: () => void;
+  } | null;
+  viewName: string | null;
   isCreateOpen: boolean;
   onCloseCreate: () => void;
   onOpenCreate: () => void;
@@ -32,6 +50,7 @@ interface ProjectLayoutView extends ProjectSidebarView {
   organizationSlug: string;
   organizations: readonly OrganizationSummary[];
   organizationsErrorMessage: string | null;
+  pageLabel: string | null;
   projectSlug: string;
   projects: readonly ProjectSummary[];
   signOutError: string | null;
@@ -45,8 +64,39 @@ function useProjectLayout(): ProjectLayoutState {
   const { organizationSlug: organizationSlugParam, projectSlug = "" } = useParams();
   const organizationSlug = organizationSlugParam ?? "";
   const navigate = useNavigate();
+  const overviewMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug",
+  });
+  const issuesMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug/issues",
+  });
+  const boardMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug/issues/board",
+  });
+  const settingsMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug/settings",
+  });
+  const viewsMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug/views",
+  });
+  const viewMatch = useMatch({
+    end: true,
+    path: "/workspaces/:organizationSlug/projects/:projectSlug/views/:viewId",
+  });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const workspace = useWorkspace(organizationSlug);
+  const viewNavigation = useIssueViewNavigation({
+    activeViewId: viewMatch?.params.viewId ?? "",
+    enabled: workspace.status === "ready",
+    organizationSlug,
+    projectSlug,
+  });
+  const viewActions = useIssueViewHeaderStore((state) => state.actions);
   const organizations = useOrganizations();
   const session = useAuthSession();
   const signOut = useSignOut();
@@ -88,8 +138,15 @@ function useProjectLayout(): ProjectLayoutState {
     return { status: "loading" };
   }
 
-  const projectName =
-    projectList.projects.find((project) => project.slug === projectSlug)?.name ?? null;
+  const currentProject =
+    projectList.projects.find((project) => project.slug === projectSlug) ?? null;
+  const showSettings =
+    currentProject !== null &&
+    canPerformProjectAction("update", {
+      organizationRole: workspace.organization.role,
+      projectRole: currentProject.role,
+      visibility: currentProject.visibility,
+    });
 
   return {
     status: "ready",
@@ -111,8 +168,43 @@ function useProjectLayout(): ProjectLayoutState {
       organizationSlug: workspace.organization.slug,
       organizations: organizations.organizations,
       organizationsErrorMessage: organizations.errorMessage,
+      activeViewId: viewNavigation.activeViewId,
+      hasMoreViews: viewNavigation.hasMore,
+      loadingMoreViews: viewNavigation.loadingMore,
+      onLoadMoreViews: viewNavigation.onLoadMore,
+      onOpenViews: () => {
+        if (viewsMatch !== null) {
+          return;
+        }
+
+        void navigate(projectViewsPath(organizationSlug, projectSlug));
+      },
+      onViewsExpandedChange: viewNavigation.onExpandedChange,
+      savedViews: viewNavigation.items,
+      viewActions: viewMatch === null ? null : viewActions,
+      viewName: viewNavigation.viewName,
+      viewsExpanded: viewNavigation.expanded,
+      pageLabel: projectPageLabel(
+        overviewMatch !== null,
+        issuesMatch !== null,
+        boardMatch !== null,
+        viewsMatch !== null,
+        viewMatch !== null,
+        settingsMatch !== null,
+      ),
+      boardActive: boardMatch !== null,
+      boardPath: projectBoardPath(organizationSlug, projectSlug),
+      viewActive: viewMatch !== null,
+      viewsActive: viewsMatch !== null || viewMatch !== null,
+      viewsPath: projectViewsPath(organizationSlug, projectSlug),
+      issuesActive: issuesMatch !== null,
+      issuesPath: projectIssuesPath(organizationSlug, projectSlug),
+      overviewActive: overviewMatch !== null,
       overviewPath: projectOverviewPath(organizationSlug, projectSlug),
-      projectName,
+      projectName: currentProject?.name ?? null,
+      settingsActive: settingsMatch !== null,
+      settingsPath: projectSettingsPath(organizationSlug, projectSlug),
+      showSettings,
       projectSlug,
       projects: projectList.projects,
       projectsPath: workspaceProjectsPath(organizationSlug),
@@ -124,6 +216,26 @@ function useProjectLayout(): ProjectLayoutState {
       },
     },
   };
+}
+
+function projectPageLabel(
+  isOverview: boolean,
+  isIssues: boolean,
+  isBoard: boolean,
+  isViews: boolean,
+  isView: boolean,
+  isSettings: boolean,
+): string | null {
+  const pages = [
+    { active: isOverview, label: "Overview" },
+    { active: isIssues, label: "Issues" },
+    { active: isBoard, label: "Board" },
+    { active: isView, label: "View" },
+    { active: isViews, label: "Views" },
+    { active: isSettings, label: "Settings" },
+  ];
+
+  return pages.find((page) => page.active)?.label ?? null;
 }
 
 export { useProjectLayout, type ProjectLayoutState, type ProjectLayoutView };

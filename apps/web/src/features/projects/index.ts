@@ -13,5 +13,11 @@ export {
 } from "./hooks/use-project-list";
 export { useProjectMembers, type ProjectMembersState } from "./hooks/use-project-members";
 export { useProjects, type ProjectsState } from "./hooks/use-projects";
-export { projectOverviewPath } from "./lib/project-paths";
+export { listEligibleAssignees, listProjectMembers } from "./api/project-api";
+export {
+  useEligibleAssigneeLookup,
+  useEligibleAssignees,
+  type EligibleAssigneePicker,
+} from "./hooks/use-eligible-assignees";
+export { projectOverviewPath, projectSettingsPath } from "./lib/project-paths";
 export { projectKeys } from "./query-keys";

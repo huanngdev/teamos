@@ -26,7 +26,10 @@ import { createLogger } from "@/logging/index.js";
 import {
   createOrganizationManagementService,
   createOrganizationMemberService,
+  createIssueService,
+  createIssueViewService,
   createProjectService,
+  createProjectStatusService,
   createReadinessService,
   createUserProfileService,
 } from "@/services/index.js";
@@ -198,6 +201,10 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
       logger,
     });
     const memberService = createOrganizationMemberService(resources.database.db);
+    const issueService = createIssueService({
+      db: resources.database.db,
+      members: memberService,
+    });
     const managementRateLimiter = createRedisRateLimiter(
       resources.redis,
       {
@@ -212,13 +219,17 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
       logger,
       managementRateLimiter,
       organization: {
+        issueViews: createIssueViewService(resources.database.db),
+        issues: issueService,
         management: createOrganizationManagementService({
+          clearAssignees: (input) => issueService.clearAssignees(input),
           gateway: createOrganizationGateway(auth),
           logger,
           members: memberService,
         }),
         members: memberService,
         organizationAccess: createOrganizationAccessService(resources.database.db),
+        projectStatuses: createProjectStatusService(resources.database.db),
         projects: createProjectService({
           db: resources.database.db,
           members: memberService,

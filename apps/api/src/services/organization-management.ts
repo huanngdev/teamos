@@ -71,6 +71,7 @@ interface OrganizationManagementService {
 }
 
 interface OrganizationManagementDependencies {
+  clearAssignees: (input: { memberId: string; organizationId: string }) => Promise<void>;
   gateway: OrganizationGateway;
   logger: ILogLayer;
   members: Pick<OrganizationMemberService, "findMember">;
@@ -291,7 +292,7 @@ function assertCanDeleteOrganization(organization: OrganizationAccess): void {
 function createOrganizationManagementService(
   dependencies: OrganizationManagementDependencies,
 ): OrganizationManagementService {
-  const { gateway, logger, members } = dependencies;
+  const { clearAssignees, gateway, logger, members } = dependencies;
 
   async function findTargetMember(memberId: string, organizationId: string) {
     const target = await members.findMember({ memberId, organizationId });
@@ -451,6 +452,16 @@ function createOrganizationManagementService(
       if (target.userId === actorUserId) {
         throw new AppError(400, "CONFLICT", "You cannot remove yourself from a row action.");
       }
+
+      /*
+       * Clear issue assignments before the member row disappears. The assignee
+       * foreign key is RESTRICT, and this write is committed before the gateway
+       * call because Better Auth uses its own connection.
+       */
+      await clearAssignees({
+        memberId,
+        organizationId: organization.organizationId,
+      });
 
       try {
         await gateway.removeMember({

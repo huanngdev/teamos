@@ -1,0 +1,404 @@
+import type { KeyboardEvent } from "react";
+import {
+  getIssuePriorityLabel,
+  getIssueStatusCategoryLabel,
+  issuePriorities,
+  issueStatusCategories,
+  type EligibleAssignee,
+} from "@teamos/shared";
+
+import { DropdownMenuCheckboxItem, DropdownMenuGroup } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { useIssueTableContext } from "../lib/issue-table-context";
+import {
+  issueTableColumnLabels,
+  unassignedAssigneeId,
+  type IssueTableRow,
+} from "../lib/issue-table-query";
+import { AssigneeSearchField } from "./assignee-menu";
+import { IssuePriorityOption } from "./issue-priority-icon";
+import { IssueStatusOption } from "./issue-status-indicator";
+
+interface FilterColumn {
+  getFilterValue: () => unknown;
+  id: string;
+  setFilterValue: (value: unknown) => void;
+}
+
+interface FilterOption {
+  count: number;
+  id: string;
+  label: string;
+}
+
+function readStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function readBound(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+function IssueColumnFilter({ column }: { column: FilterColumn }) {
+  const options = useFilterOptions(column.id);
+
+  if (column.id === "assignee" && options !== null) {
+    return <AssigneeValueFilter column={column} options={options} />;
+  }
+
+  if (options !== null) {
+    return <MultiValueFilter column={column} options={options} />;
+  }
+
+  if (column.id === "number") {
+    return <NumberRangeFilter column={column} />;
+  }
+
+  if (column.id === "createdAt" || column.id === "updatedAt") {
+    return <DateRangeFilter column={column} />;
+  }
+
+  return <TextFilter column={column} />;
+}
+
+function AssigneeValueFilter({
+  column,
+  options,
+}: {
+  column: FilterColumn;
+  options: readonly FilterOption[];
+}) {
+  const { assignees } = useIssueTableContext();
+
+  return (
+    <DropdownMenuGroup>
+      <div className="px-2 py-1.5">
+        <AssigneeSearchField onKeyDown={stopMenuKeys} picker={assignees} />
+      </div>
+      <MultiValueFilter column={column} options={options} />
+      {assignees.hasMore ? (
+        <button className="px-2 py-1.5 text-left" onClick={assignees.onLoadMore} type="button">
+          {assignees.loadingMore ? "Loading" : "Load more"}
+        </button>
+      ) : null}
+      {assignees.error === null ? null : (
+        <button className="px-2 py-1.5 text-left" onClick={assignees.onRetry} type="button">
+          Retry
+        </button>
+      )}
+    </DropdownMenuGroup>
+  );
+}
+
+function MultiValueFilter({
+  column,
+  options,
+}: {
+  column: FilterColumn;
+  options: readonly FilterOption[];
+}) {
+  const { statuses } = useIssueTableContext();
+  const selected = readStringList(column.getFilterValue());
+
+  if (options.length === 0) {
+    return <p className="px-2 py-1.5 text-muted-foreground">No values</p>;
+  }
+
+  return (
+    <DropdownMenuGroup>
+      <div className="max-h-56 overflow-y-auto">
+        {options.map((option) => (
+          <DropdownMenuCheckboxItem
+            checked={selected.includes(option.id)}
+            key={option.id}
+            onCheckedChange={(checked) => {
+              const next =
+                checked === true
+                  ? [...selected, option.id]
+                  : selected.filter((item) => item !== option.id);
+
+              column.setFilterValue(next.length > 0 ? next : undefined);
+            }}
+          >
+            <span className="min-w-0 flex-1">
+              <FilterOptionLabel columnId={column.id} option={option} statuses={statuses} />
+            </span>
+            <span className="text-muted-foreground tabular-nums group-hover/menu-item:text-foreground group-focus/menu-item:text-foreground group-data-[highlighted]/menu-item:text-foreground">
+              {option.count}
+            </span>
+          </DropdownMenuCheckboxItem>
+        ))}
+      </div>
+    </DropdownMenuGroup>
+  );
+}
+
+function FilterOptionLabel({
+  columnId,
+  option,
+  statuses,
+}: {
+  columnId: string;
+  option: FilterOption;
+  statuses: IssueTableContextStatuses;
+}) {
+  if (columnId === "priority") {
+    return <IssuePriorityOption id={option.id} label={option.label} />;
+  }
+
+  if (columnId === "status") {
+    return <IssueStatusOption label={option.label} statusId={option.id} statuses={statuses} />;
+  }
+
+  return <span className="block truncate">{option.label}</span>;
+}
+
+function TextFilter({ column }: { column: FilterColumn }) {
+  const value = column.getFilterValue();
+
+  return (
+    <div className="p-1">
+      <Input
+        aria-label={`Filter ${filterLabel(column.id)}`}
+        onChange={(event) => {
+          column.setFilterValue(event.target.value.length > 0 ? event.target.value : undefined);
+        }}
+        onKeyDown={stopMenuKeys}
+        placeholder="Contains..."
+        value={typeof value === "string" ? value : ""}
+      />
+    </div>
+  );
+}
+
+function NumberRangeFilter({ column }: { column: FilterColumn }) {
+  const value = column.getFilterValue();
+  const min = Array.isArray(value) ? readBound(value[0]) : "";
+  const max = Array.isArray(value) ? readBound(value[1]) : "";
+
+  const update = (nextMin: string, nextMax: string) => {
+    const parsedMin = parseBound(nextMin);
+    const parsedMax = parseBound(nextMax);
+
+    column.setFilterValue(
+      parsedMin === undefined && parsedMax === undefined ? undefined : [parsedMin, parsedMax],
+    );
+  };
+
+  return (
+    <div className="flex items-center gap-2 p-1">
+      <Input
+        aria-label="Minimum number"
+        min={1}
+        onChange={(event) => {
+          update(event.target.value, max);
+        }}
+        onKeyDown={stopMenuKeys}
+        placeholder="Min"
+        type="number"
+        value={min}
+      />
+      <span className="text-muted-foreground">to</span>
+      <Input
+        aria-label="Maximum number"
+        min={1}
+        onChange={(event) => {
+          update(min, event.target.value);
+        }}
+        onKeyDown={stopMenuKeys}
+        placeholder="Max"
+        type="number"
+        value={max}
+      />
+    </div>
+  );
+}
+
+function DateRangeFilter({ column }: { column: FilterColumn }) {
+  const value = column.getFilterValue();
+  const from = Array.isArray(value) && typeof value[0] === "string" ? value[0] : "";
+  const to = Array.isArray(value) && typeof value[1] === "string" ? value[1] : "";
+
+  const update = (nextFrom: string, nextTo: string) => {
+    column.setFilterValue(
+      nextFrom.length === 0 && nextTo.length === 0
+        ? undefined
+        : [nextFrom.length === 0 ? undefined : nextFrom, nextTo.length === 0 ? undefined : nextTo],
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-2 p-1">
+      <label className="flex flex-col gap-1">
+        <span className="text-muted-foreground">From</span>
+        <Input
+          aria-label="From"
+          onChange={(event) => {
+            update(event.target.value, to);
+          }}
+          onKeyDown={stopMenuKeys}
+          type="date"
+          value={from}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-muted-foreground">To</span>
+        <Input
+          aria-label="To"
+          onChange={(event) => {
+            update(from, event.target.value);
+          }}
+          onKeyDown={stopMenuKeys}
+          type="date"
+          value={to}
+        />
+      </label>
+    </div>
+  );
+}
+
+function useFilterOptions(columnId: string): FilterOption[] | null {
+  const { assignees, facets, members, rows, statuses } = useIssueTableContext();
+
+  if (!isMultiColumn(columnId)) {
+    return null;
+  }
+
+  if (columnId === "status") {
+    return statusOptions(rows, statuses, facets?.status);
+  }
+
+  if (columnId === "assignee") {
+    return assigneeOptions(rows, members, assignees.assignees, facets?.assignee);
+  }
+
+  if (columnId === "priority") {
+    return issuePriorities.map((priority) => ({
+      count: facetCount(facets?.priority, priority),
+      id: priority,
+      label: getIssuePriorityLabel(priority),
+    }));
+  }
+
+  return issueStatusCategories.map((category) => ({
+    count: facetCount(facets?.category, category),
+    id: category,
+    label: getIssueStatusCategoryLabel(category),
+  }));
+}
+
+function facetCount(facets: Record<string, number> | undefined, id: string): number {
+  return facets?.[id] ?? 0;
+}
+
+function isMultiColumn(
+  columnId: string,
+): columnId is "assignee" | "category" | "priority" | "status" {
+  return (
+    columnId === "status" ||
+    columnId === "priority" ||
+    columnId === "assignee" ||
+    columnId === "category"
+  );
+}
+
+function statusOptions(
+  rows: readonly IssueTableRow[],
+  statuses: IssueTableContextStatuses,
+  facets: Record<string, number> | undefined,
+): FilterOption[] {
+  const known = new Set(statuses.map((status) => status.id));
+  const extras = new Map<string, string>();
+
+  for (const row of rows) {
+    if (!known.has(row.statusId)) {
+      extras.set(row.statusId, row.statusName);
+    }
+  }
+
+  return [
+    ...[...statuses]
+      .sort((left, right) => left.position - right.position)
+      .map((status) => ({
+        count: facetCount(facets, status.id),
+        id: status.id,
+        label: status.name,
+      })),
+    ...[...extras].map(([id, label]) => ({
+      count: facetCount(facets, id),
+      id,
+      label,
+    })),
+  ];
+}
+
+function assigneeOptions(
+  rows: readonly IssueTableRow[],
+  members: IssueTableContextMembers,
+  eligible: readonly EligibleAssignee[],
+  facets: Record<string, number> | undefined,
+): FilterOption[] {
+  const labels = new Map<string, string>();
+
+  for (const member of members) {
+    labels.set(member.memberId, member.name);
+  }
+
+  for (const assignee of eligible) {
+    labels.set(assignee.id, assignee.name);
+  }
+
+  for (const row of rows) {
+    if (row.assigneeId !== unassignedAssigneeId && !labels.has(row.assigneeId)) {
+      labels.set(row.assigneeId, row.assigneeName);
+    }
+  }
+
+  return [
+    {
+      count: facetCount(facets, unassignedAssigneeId),
+      id: unassignedAssigneeId,
+      label: "Unassigned",
+    },
+    ...[...labels]
+      .sort((left, right) => left[1].localeCompare(right[1]))
+      .map(([id, label]) => ({
+        count: facetCount(facets, id),
+        id,
+        label,
+      })),
+  ];
+}
+
+function parseBound(value: string): number | undefined {
+  if (value.trim().length === 0) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
+function filterLabel(columnId: string): string {
+  return columnId in issueTableColumnLabels
+    ? issueTableColumnLabels[columnId as keyof typeof issueTableColumnLabels]
+    : columnId;
+}
+
+function stopMenuKeys(event: KeyboardEvent<HTMLInputElement>) {
+  event.stopPropagation();
+}
+
+type IssueTableContextMembers = ReturnType<typeof useIssueTableContext>["members"];
+type IssueTableContextStatuses = ReturnType<typeof useIssueTableContext>["statuses"];
+
+export { IssueColumnFilter, type FilterColumn };

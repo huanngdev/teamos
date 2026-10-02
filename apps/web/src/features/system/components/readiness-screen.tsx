@@ -1,4 +1,3 @@
-import { CheckCircle2Icon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
 import type { BackendReadinessState } from "../hooks/use-backend-readiness";
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { getReadinessDependencyStatusLabel } from "../lib/readiness-labels";
+import { CheckCircleIcon, ArrowsClockwiseIcon, WarningIcon } from "@phosphor-icons/react";
 
 const dependencyLabels = [
   { key: "database", label: "Database" },
@@ -66,7 +66,7 @@ function ReadinessScreen({ onRetry, state }: ReadinessScreenProps) {
         <CardHeader>
           <div className="flex items-start gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-              <TriangleAlertIcon aria-hidden="true" />
+              <WarningIcon aria-hidden="true" />
             </div>
             <div className="flex flex-col gap-1">
               <CardTitle>Backend not ready</CardTitle>
@@ -77,7 +77,7 @@ function ReadinessScreen({ onRetry, state }: ReadinessScreenProps) {
         <CardContent>
           <div className="flex flex-col gap-4">
             <Alert variant="destructive">
-              <TriangleAlertIcon aria-hidden="true" />
+              <WarningIcon aria-hidden="true" />
               <AlertTitle>Workspace access is paused</AlertTitle>
               <AlertDescription>
                 All required services must be available before TeamOS can load.
@@ -101,7 +101,7 @@ function ReadinessScreen({ onRetry, state }: ReadinessScreenProps) {
                     >
                       <span>{dependency.label}</span>
                       <Badge variant={isReady ? "secondary" : "destructive"}>
-                        {isReady ? <CheckCircle2Icon data-icon="inline-start" /> : null}
+                        {isReady ? <CheckCircleIcon data-icon="inline-start" /> : null}
                         {getReadinessDependencyStatusLabel(status)}
                       </Badge>
                     </div>
@@ -121,7 +121,7 @@ function ReadinessScreen({ onRetry, state }: ReadinessScreenProps) {
             {state.isRetrying ? (
               <Spinner data-icon="inline-start" aria-hidden="true" />
             ) : (
-              <RefreshCwIcon data-icon="inline-start" />
+              <ArrowsClockwiseIcon data-icon="inline-start" />
             )}
             {state.isRetrying ? "Retrying" : "Try again"}
           </Button>

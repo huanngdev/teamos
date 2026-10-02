@@ -17,6 +17,7 @@ Every agent or contributor must read this file before writing or modifying code 
 - Consider algorithmic cost, database access, network round trips, payload size, rendering work, memory use, and expected scale before implementation.
 - Prefer the simplest approach that meets measured or reasonably expected performance requirements.
 - Avoid premature micro-optimization. Optimize important paths using evidence, profiling, query plans, or benchmarks when available.
+- When optimizing, measure first, name the bottleneck, change that path, measure again, and report whether the change helped. Do not claim an optimization without a before-and-after comparison.
 - Prevent N+1 database queries, unbounded reads, unnecessary polling, duplicate requests, and avoidable React re-renders.
 - Paginate potentially large collections and select only the database fields needed by the caller.
 - Add indexes for demonstrated query patterns and verify important queries rather than guessing.
@@ -92,8 +93,27 @@ Every repository follows the shadcn/ui naming convention, which its generated pr
 
 ## 9. Validate Before Completion
 
+- A task is not complete because code was written. Complete it only after the checks below pass.
 - Run the available formatter, linter, type checker, relevant tests, and production build.
 - Test authorization and organization isolation for protected features.
 - Test shared contracts from both frontend and backend usage when they change.
-- For performance-sensitive work, record how the chosen approach was evaluated.
+- For performance-sensitive work, record the before-and-after evidence required by section 2.
+- Do not mark a feature complete in `docs/progress.md` until its persistence, authorization, tests, and user-facing flow are in place.
 - If a required check cannot run, report exactly which check was skipped and why.
+
+## 10. Review Security on Protected Changes
+
+- Enforce membership and permissions on the server. A hidden frontend control is not an authorization boundary.
+- Report an inaccessible tenant-scoped resource as `404`. Reserve `403` for an action denied on a resource the caller can see.
+- Send organization member and invitation mutations through the TeamOS facade. Do not expose or call the blocked native Better Auth browser endpoints for those mutations.
+- Never grant the owner role through an invite or a generic member update.
+- Projects are a TeamOS domain concept, not Better Auth teams. Do not model them with the organization plugin's teams feature.
+- Preserve origin checks, CSRF protection, rate limits, and secret redaction.
+- Validate untrusted input at the boundary. Do not log secrets, tokens, or raw credentials.
+
+## 11. Keep Third-Party Skills Inside TeamOS Boundaries
+
+- `CODE_RULES.md` and the `teamos-engineering` skill override marketplace skills when they conflict.
+- Use Postgres query, index, locking, and connection guidance. Do not add row-level security or a Supabase client. Tenant isolation stays in services and composite foreign keys.
+- Do not replace Vite, Hono, Drizzle, or TanStack Query because a skill assumes Next.js, Prisma, SWR, or Supabase.
+- Do not install another skill unless the user has accepted it. The approved stack and rejected list are in `docs/agent-system.md`.

@@ -1,0 +1,81 @@
+import { describe, expect, test } from "bun:test";
+
+import {
+  createIssueRequestSchema,
+  createProjectStatusRequestSchema,
+  deleteIssuesRequestSchema,
+  updateIssueRequestSchema,
+  updateProjectStatusRequestSchema,
+} from "./issue.js";
+
+describe("createIssueRequestSchema", () => {
+  test("accepts a title without a status", () => {
+    const parsed = createIssueRequestSchema.parse({ title: "  Fix the gate  " });
+
+    expect(parsed.title).toBe("Fix the gate");
+    expect(parsed.statusId).toBeUndefined();
+  });
+
+  test("rejects a blank title and a title past 140 characters", () => {
+    expect(createIssueRequestSchema.safeParse({ title: " " }).success).toBe(false);
+    expect(createIssueRequestSchema.safeParse({ title: "a".repeat(141) }).success).toBe(false);
+  });
+});
+
+describe("updateIssueRequestSchema", () => {
+  test("allows clearing the description without changing order", () => {
+    const parsed = updateIssueRequestSchema.parse({ description: null });
+
+    expect(parsed.description).toBeNull();
+    expect(parsed.placement).toBeUndefined();
+  });
+
+  test("accepts an anchor placement and strips a raw position", () => {
+    const anchorIssueId = "11111111-1111-4111-8111-111111111111";
+    const parsed = updateIssueRequestSchema.parse({
+      placement: { anchorIssueId, type: "after" },
+      position: 4000,
+    });
+
+    expect(parsed).toEqual({ placement: { anchorIssueId, type: "after" } });
+  });
+
+  test("rejects a placement without an anchor", () => {
+    expect(updateIssueRequestSchema.safeParse({ placement: { type: "before" } }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("deleteIssuesRequestSchema", () => {
+  test("dedupes ids and rejects an empty list", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+
+    expect(deleteIssuesRequestSchema.parse({ issueIds: [id, id] }).issueIds).toEqual([id]);
+    expect(deleteIssuesRequestSchema.safeParse({ issueIds: [] }).success).toBe(false);
+    expect(deleteIssuesRequestSchema.safeParse({ issueIds: ["not-a-uuid"] }).success).toBe(false);
+  });
+});
+
+describe("createProjectStatusRequestSchema", () => {
+  test("rejects an unknown category and a name past 40 characters", () => {
+    expect(
+      createProjectStatusRequestSchema.safeParse({ category: "review", name: "Review" }).success,
+    ).toBe(false);
+    expect(
+      createProjectStatusRequestSchema.safeParse({ category: "started", name: "a".repeat(41) })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("updateProjectStatusRequestSchema", () => {
+  test("does not accept a category change", () => {
+    const parsed = updateProjectStatusRequestSchema.parse({
+      category: "completed",
+      name: "Done",
+    });
+
+    expect(parsed).toEqual({ name: "Done" });
+  });
+});

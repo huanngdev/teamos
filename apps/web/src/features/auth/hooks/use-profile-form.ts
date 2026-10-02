@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { profileNameSchema, type AuthenticatedUser } from "@teamos/shared";
 
-import { notify } from "@/shared";
+import { notify, useShellStore } from "@/shared";
 import { ApiClientError } from "@/shared/api/api-client";
 import { updateCurrentUser } from "../api/authentication-api";
 import { CURRENT_USER_QUERY_KEY } from "../query-keys";
@@ -64,6 +64,8 @@ function useProfileForm(user: AuthenticatedUser): ProfileView {
     },
     onSuccess: (response) => {
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, response);
+      useShellStore.getState().setSession(response);
+      useShellStore.setState({ members: {}, projects: {} });
       /*
        * Member and project lists embed the user's name, so the shared
        * `organization` cache namespace is refreshed rather than only the

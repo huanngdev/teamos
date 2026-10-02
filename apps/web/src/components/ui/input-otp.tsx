@@ -1,7 +1,8 @@
+/* eslint-disable shadcn/no-unknown-classes -- upstream input-otp slot class */
 import * as React from "react";
 import { cn } from "cn";
 import { OTPInput, OTPInputContext } from "input-otp";
-import { MinusIcon } from "lucide-react";
+import { MinusIcon } from "@phosphor-icons/react";
 
 function InputOTP({
   className,
@@ -13,7 +14,10 @@ function InputOTP({
   return (
     <OTPInput
       data-slot="input-otp"
-      containerClassName={cn("flex items-center has-disabled:opacity-50", containerClassName)}
+      containerClassName={cn(
+        "cn-input-otp flex items-center has-disabled:opacity-50",
+        containerClassName,
+      )}
       spellCheck={false}
       className={cn("disabled:cursor-not-allowed", className)}
       {...props}

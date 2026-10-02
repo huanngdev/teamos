@@ -1,3 +1,6 @@
+/* eslint-disable shadcn/no-inline-styles -- chart colors come from the series config */
+"use client";
+
 import * as React from "react";
 import { cn } from "cn";
 import * as RechartsPrimitive from "recharts";
@@ -81,7 +84,6 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
-  /* eslint-disable shadcn/no-inline-styles -- Chart config requires dynamic CSS variables per series. */
   return (
     <style
       dangerouslySetInnerHTML={{
@@ -102,7 +104,6 @@ ${colorConfig
       }}
     />
   );
-  /* eslint-enable shadcn/no-inline-styles */
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
@@ -264,7 +265,6 @@ function ChartLegendContent({
     return null;
   }
 
-  /* eslint-disable shadcn/no-inline-styles -- Recharts supplies each legend color at runtime. */
   return (
     <div
       className={cn(
@@ -302,7 +302,6 @@ function ChartLegendContent({
         })}
     </div>
   );
-  /* eslint-enable shadcn/no-inline-styles */
 }
 
 function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key: string) {

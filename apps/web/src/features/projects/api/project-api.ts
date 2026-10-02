@@ -1,8 +1,11 @@
 import {
+  eligibleAssigneeListResponseSchema,
   projectDetailResponseSchema,
   projectListResponseSchema,
   projectMemberListResponseSchema,
   type CreateProjectRequest,
+  type DeleteProjectRequest,
+  type EligibleAssigneeListResponse,
   type ProjectMember,
   type ProjectRole,
   type ProjectSummary,
@@ -56,10 +59,32 @@ async function updateProject(
   return response.project;
 }
 
-async function deleteProject(slug: string, projectId: string): Promise<void> {
+async function deleteProject(
+  slug: string,
+  projectId: string,
+  request: DeleteProjectRequest,
+): Promise<void> {
   await requestVoid({
+    data: request,
     method: "DELETE",
     url: projectPath(slug, `/${encodeURIComponent(projectId)}`),
+  });
+}
+
+async function listEligibleAssignees(
+  slug: string,
+  projectId: string,
+  params: { cursor?: string; ids?: string; limit?: number; q?: string },
+): Promise<EligibleAssigneeListResponse> {
+  return requestParsed(eligibleAssigneeListResponseSchema, {
+    method: "GET",
+    params: {
+      ...(params.cursor === undefined ? {} : { cursor: params.cursor }),
+      ...(params.ids === undefined ? {} : { ids: params.ids }),
+      ...(params.limit === undefined ? {} : { limit: params.limit }),
+      ...(params.q === undefined || params.q.length === 0 ? {} : { q: params.q }),
+    },
+    url: projectPath(slug, `/${encodeURIComponent(projectId)}/assignees`),
   });
 }
 
@@ -105,6 +130,7 @@ async function removeProjectMember(
 export {
   createProject,
   deleteProject,
+  listEligibleAssignees,
   listProjectMembers,
   listProjects,
   removeProjectMember,

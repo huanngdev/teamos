@@ -1,4 +1,4 @@
-import { Trash2Icon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
+import { ArrowUUpLeftIcon } from "@phosphor-icons/react";
 
 import {
   AlertDialog,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { TrashIcon, WarningIcon } from "@phosphor-icons/react";
 
 interface WorkspaceDangerZoneProps {
   confirmation: string;
@@ -49,7 +50,7 @@ function WorkspaceDangerZone({
       <div className="flex flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
         <div className="flex items-start gap-3">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/15 text-destructive">
-            <TriangleAlertIcon className="size-4" />
+            <WarningIcon className="size-4" />
           </span>
           <div className="flex flex-col gap-0.5">
             <p className="font-medium">Deleting this workspace will also remove its projects</p>
@@ -63,9 +64,9 @@ function WorkspaceDangerZone({
           onClick={() => {
             onDeleteDialogOpenChange(true);
           }}
-          variant="outline-destructive"
+          variant="destructive"
         >
-          <Trash2Icon data-icon="inline-start" />
+          <TrashIcon data-icon="inline-start" />
           Delete workspace
         </Button>
       </div>
@@ -102,7 +103,7 @@ function WorkspaceDangerZone({
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>
-              <Undo2Icon data-icon="inline-start" />
+              <ArrowUUpLeftIcon data-icon="inline-start" />
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -113,7 +114,7 @@ function WorkspaceDangerZone({
               {isDeleting ? (
                 <Spinner data-icon="inline-start" />
               ) : (
-                <Trash2Icon data-icon="inline-start" />
+                <TrashIcon data-icon="inline-start" />
               )}
               Delete workspace
             </AlertDialogAction>

@@ -21,9 +21,12 @@ import {
   rootRoutes,
 } from "@/routes/index.js";
 import type {
+  IssueService,
+  IssueViewService,
   OrganizationManagementService,
   OrganizationMemberService,
   ProjectService,
+  ProjectStatusService,
   ReadinessService,
   UserProfileService,
 } from "@/services/index.js";
@@ -34,9 +37,12 @@ import {
 import type { AppEnv } from "@/types.js";
 
 interface OrganizationServices {
+  issueViews: IssueViewService;
+  issues: IssueService;
   management: OrganizationManagementService;
   members: OrganizationMemberService;
   organizationAccess: OrganizationAccessService;
+  projectStatuses: ProjectStatusService;
   projects: ProjectService;
 }
 

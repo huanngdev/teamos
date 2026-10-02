@@ -18,8 +18,11 @@ import {
   createFakeAuthService,
   createFakeOrganizationAccessService,
   createFakeOrganizationGateway,
+  createFakeIssueService,
+  createFakeIssueViewService,
   createFakeOrganizationMemberService,
   createFakeProjectService,
+  createFakeProjectStatusService,
   createTestLogger,
 } from "@/testing/organization.js";
 
@@ -64,9 +67,17 @@ function createTestApp(options: TestAppOptions = {}) {
     ...options.gateway,
   };
   const organization: OrganizationServices = {
-    management: createOrganizationManagementService({ gateway, logger, members }),
+    issueViews: createFakeIssueViewService(),
+    issues: createFakeIssueService(),
+    management: createOrganizationManagementService({
+      clearAssignees: async () => {},
+      gateway,
+      logger,
+      members,
+    }),
     members,
     organizationAccess: createFakeOrganizationAccessService([actorAccess]),
+    projectStatuses: createFakeProjectStatusService(),
     projects: createFakeProjectService(),
   };
 

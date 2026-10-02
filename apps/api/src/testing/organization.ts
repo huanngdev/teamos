@@ -11,9 +11,12 @@ import type {
   UserGateway,
 } from "@/auth/index.js";
 import type {
+  IssueService,
+  IssueViewService,
   OrganizationManagementService,
   OrganizationMemberService,
   ProjectService,
+  ProjectStatusService,
   UserProfileService,
 } from "@/services/index.js";
 import type { ProjectSummary } from "@teamos/shared";
@@ -191,6 +194,52 @@ function createFakeOrganizationManagementService(): OrganizationManagementServic
   };
 }
 
+function rejectFakeMutation(): never {
+  throw new Error("Fake issue service does not mutate.");
+}
+
+function createFakeIssueService(): IssueService {
+  return {
+    clearAssignees: async () => {},
+    create: rejectFakeMutation,
+    get: rejectFakeMutation,
+    list: async ({ page = 1, pageSize = 20 }) => ({
+      issues: [],
+      page,
+      pageCount: 0,
+      pageSize,
+      total: 0,
+    }),
+    listBoard: async () => ({ columns: [] }),
+    listColumn: async () => ({ hasMore: false, issues: [], nextCursor: null }),
+    remove: async () => {},
+    removeMany: async () => {},
+    update: rejectFakeMutation,
+  };
+}
+
+function createFakeIssueViewService(): IssueViewService {
+  return {
+    create: rejectFakeMutation,
+    get: rejectFakeMutation,
+    list: async ({ limit, offset }) => ({
+      pagination: { limit, offset, total: 0 },
+      views: [],
+    }),
+    remove: async () => {},
+    update: rejectFakeMutation,
+  };
+}
+
+function createFakeProjectStatusService(): ProjectStatusService {
+  return {
+    create: rejectFakeMutation,
+    list: async () => [],
+    remove: async () => {},
+    update: rejectFakeMutation,
+  };
+}
+
 function createFakeProjectService(projects: readonly ProjectSummary[] = []): ProjectService {
   return {
     create: async ({ request }) => ({
@@ -212,6 +261,7 @@ function createFakeProjectService(projects: readonly ProjectSummary[] = []): Pro
 
       return [...matched];
     },
+    listEligibleAssignees: async () => ({ assignees: [], nextCursor: null }),
     listMembers: async () => [],
     remove: async () => {},
     removeMember: async () => {},
@@ -292,11 +342,14 @@ export {
   buildOrganizationAccess,
   buildSession,
   createFakeAuthService,
+  createFakeIssueService,
+  createFakeIssueViewService,
   createFakeOrganizationAccessService,
   createFakeOrganizationGateway,
   createFakeOrganizationManagementService,
   createFakeOrganizationMemberService,
   createFakeProjectService,
+  createFakeProjectStatusService,
   createFakeUserGateway,
   createFakeUserProfileService,
   createTestLogger,
