@@ -1,7 +1,24 @@
 import { z } from "zod";
 
+import { issueNumberSchema, parseIssueNumberBound } from "../utilities/issue-code.js";
 import { searchTermSchema } from "../utilities/search.js";
 import { issuePrioritySchema, issueStatusCategorySchema } from "../utilities/issue-workflow.js";
+
+/*
+ * Saved views already store these bounds as JSON numbers. New writes use
+ * decimal strings. Both become the canonical decimal before the view is used.
+ */
+const issueViewNumberSchema = z.preprocess((value) => {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 1) {
+    return String(value);
+  }
+
+  if (typeof value === "string") {
+    return parseIssueNumberBound(value) ?? value;
+  }
+
+  return value;
+}, issueNumberSchema);
 
 const ISSUE_VIEW_LIST_DEFAULT_LIMIT = 50;
 const ISSUE_VIEW_LIST_MAX_LIMIT = 100;
@@ -24,9 +41,9 @@ const issueViewFiltersSchema = z.strictObject({
   categories: z.array(issueStatusCategorySchema).max(5).optional(),
   createdFrom: issueViewDateSchema.optional(),
   createdTo: issueViewDateSchema.optional(),
-  description: z.string().trim().min(1).max(200).optional(),
-  numberMax: z.number().int().min(1).optional(),
-  numberMin: z.number().int().min(1).optional(),
+  content: z.string().trim().min(1).max(200).optional(),
+  numberMax: issueViewNumberSchema.optional(),
+  numberMin: issueViewNumberSchema.optional(),
   priorities: z.array(issuePrioritySchema).max(5).optional(),
   q: z.string().trim().min(1).max(140).optional(),
   statusIds: z.array(z.uuid()).max(50).optional(),
@@ -36,10 +53,33 @@ const issueViewFiltersSchema = z.strictObject({
   updatedTo: issueViewDateSchema.optional(),
 });
 
-const issueViewDefinitionSchema = z.strictObject({
-  filters: issueViewFiltersSchema,
-  version: z.literal(1),
-});
+const issueViewDefinitionSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "object" || value === null || !("filters" in value)) {
+      return value;
+    }
+
+    const filters = value.filters;
+
+    if (typeof filters !== "object" || filters === null || !("description" in filters)) {
+      return value;
+    }
+
+    const record = { ...(filters as Record<string, unknown>) };
+
+    if (record.content === undefined && typeof record.description === "string") {
+      record.content = record.description;
+    }
+
+    delete record.description;
+
+    return { ...value, filters: record };
+  },
+  z.strictObject({
+    filters: issueViewFiltersSchema,
+    version: z.literal(1),
+  }),
+);
 
 const issueViewSummarySchema = z.object({
   createdAt: z.iso.datetime(),

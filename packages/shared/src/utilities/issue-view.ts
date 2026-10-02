@@ -16,6 +16,7 @@ import {
   unassignedAssigneeId,
   type IssueListFilters,
 } from "./issue-list-query.js";
+import { compareIssueNumbers, formatIssueCode } from "./issue-code.js";
 import {
   getIssuePriorityLabel,
   getIssueStatusCategoryLabel,
@@ -198,7 +199,7 @@ function canonicalizeFilters(filters: IssueViewFilters): IssueViewFilters {
     ...(categories.length === 0 ? {} : { categories }),
     ...(filters.createdFrom === undefined ? {} : { createdFrom: filters.createdFrom }),
     ...(filters.createdTo === undefined ? {} : { createdTo: filters.createdTo }),
-    ...(filters.description === undefined ? {} : { description: filters.description }),
+    ...(filters.content === undefined ? {} : { content: filters.content }),
     ...(filters.numberMax === undefined ? {} : { numberMax: filters.numberMax }),
     ...(filters.numberMin === undefined ? {} : { numberMin: filters.numberMin }),
     ...(priorities.length === 0 ? {} : { priorities }),
@@ -238,7 +239,7 @@ function normalizeIssueViewDefinition(input: unknown): IssueViewDefinition {
       if (
         definition.filters.numberMin !== undefined &&
         definition.filters.numberMax !== undefined &&
-        definition.filters.numberMin > definition.filters.numberMax
+        compareIssueNumbers(definition.filters.numberMin, definition.filters.numberMax) > 0
       ) {
         context.addIssue({
           code: "custom",
@@ -269,7 +270,7 @@ function issueViewToListQuery(definition: IssueViewDefinition): IssueListQuery {
     assignee: assigneeTokens(filters.assignee),
     category: filters.categories?.join(","),
     created: range(filters.createdFrom, filters.createdTo),
-    description: filters.description,
+    content: filters.content,
     number: range(filters.numberMin, filters.numberMax),
     priority: filters.priorities?.join(","),
     q: filters.q,
@@ -296,7 +297,7 @@ function issueViewDefinitionFromFilters(filters: IssueListFilters): IssueViewDef
       categories: filters.categories,
       createdFrom: filters.createdFrom,
       createdTo: filters.createdTo,
-      description: filters.description,
+      content: filters.content,
       numberMax: filters.numberMax,
       numberMin: filters.numberMin,
       priorities: filters.priorities,
@@ -381,12 +382,14 @@ function describeIssueViewFilters(
     summary.push(`Title: ${filters.title}`);
   }
 
-  if (filters.description !== undefined) {
-    summary.push(`Description: ${filters.description}`);
+  if (filters.content !== undefined) {
+    summary.push(`Content: ${filters.content}`);
   }
 
   if (filters.numberMin !== undefined || filters.numberMax !== undefined) {
-    summary.push(`Number: ${filters.numberMin ?? ""}–${filters.numberMax ?? ""}`);
+    summary.push(
+      `Number: ${filters.numberMin === undefined ? "" : formatIssueCode(filters.numberMin)}–${filters.numberMax === undefined ? "" : formatIssueCode(filters.numberMax)}`,
+    );
   }
 
   if (filters.createdFrom !== undefined || filters.createdTo !== undefined) {

@@ -1,6 +1,13 @@
 import { z } from "zod";
 
+import { issueNumberSchema } from "../utilities/issue-code.js";
 import {
+  ISSUE_CONTENT_EXCERPT_MAX,
+  ISSUE_CONTENT_TEXT_MAX,
+  issueContentDocumentSchema,
+} from "../utilities/issue-content.js";
+import {
+  ISSUE_ASSIGNEE_MAX,
   ISSUE_BULK_DELETE_MAX,
   ISSUE_COLUMN_PAGE_MAX,
   ISSUE_COLUMN_PAGE_SIZE,
@@ -14,21 +21,25 @@ import {
 
 const issueStatusNameSchema = z.string().trim().min(1).max(40);
 const issueTitleSchema = z.string().trim().min(1).max(140);
-const issueDescriptionSchema = z.string().trim().max(5000);
 const projectStatusIndexSchema = z.number().int().min(0).max(PROJECT_STATUS_MAX);
 
 const issueAssigneeSchema = z.object({
   email: z.email(),
+  id: z.string().min(1),
   image: z.string().nullable(),
   name: z.string(),
 });
 
+const issueAssigneeIdsSchema = z
+  .array(z.string().min(1))
+  .transform((ids) => [...new Set(ids)])
+  .pipe(z.array(z.string().min(1)).max(ISSUE_ASSIGNEE_MAX));
+
 const issueCardSchema = z.object({
-  assignee: issueAssigneeSchema.nullable(),
-  assigneeMemberId: z.string().min(1).nullable(),
+  assignees: z.array(issueAssigneeSchema).max(ISSUE_ASSIGNEE_MAX),
   createdAt: z.iso.datetime(),
   id: z.string().min(1),
-  number: z.number().int().min(1),
+  number: issueNumberSchema,
   position: z.number().int(),
   priority: issuePrioritySchema,
   statusId: z.uuid(),
@@ -37,7 +48,12 @@ const issueCardSchema = z.object({
 });
 
 const issueSummarySchema = issueCardSchema.extend({
-  description: z.string().nullable(),
+  contentText: z.string().max(ISSUE_CONTENT_EXCERPT_MAX),
+});
+
+const issueDetailSchema = issueCardSchema.extend({
+  content: issueContentDocumentSchema.nullable(),
+  contentText: z.string().max(ISSUE_CONTENT_TEXT_MAX),
 });
 
 const projectStatusSummarySchema = z.object({
@@ -72,6 +88,7 @@ const issueListFacetsSchema = z.object({
 const issueListQuerySchema = z.object({
   assignee: z.string().max(4_000).optional(),
   category: z.string().max(200).optional(),
+  content: z.string().max(200).optional(),
   created: z.string().max(40).optional(),
   description: z.string().max(200).optional(),
   facets: z.literal("1").optional(),
@@ -87,8 +104,8 @@ const issueListQuerySchema = z.object({
 const issueTableSortSchema = z.enum([
   "assignee",
   "category",
+  "content",
   "createdAt",
-  "description",
   "number",
   "priority",
   "status",
@@ -107,7 +124,9 @@ const issueTableQuerySchema = issueListQuerySchema.extend({
     .min(1)
     .max(ISSUE_TABLE_PAGE_SIZE_MAX)
     .default(ISSUE_TABLE_PAGE_SIZE_DEFAULT),
-  sort: issueTableSortSchema.default("createdAt"),
+  sort: z
+    .preprocess((value) => (value === "description" ? "content" : value), issueTableSortSchema)
+    .default("createdAt"),
 });
 
 const issueListResponseSchema = z.object({
@@ -145,12 +164,12 @@ const issueColumnPageResponseSchema = z.object({
 });
 
 const issueResponseSchema = z.object({
-  issue: issueSummarySchema,
+  issue: issueDetailSchema,
 });
 
 const createIssueRequestSchema = z.object({
-  assigneeMemberId: z.string().min(1).nullable().optional(),
-  description: issueDescriptionSchema.optional(),
+  assigneeMemberIds: issueAssigneeIdsSchema.optional(),
+  content: issueContentDocumentSchema.nullable().optional(),
   priority: issuePrioritySchema.optional(),
   statusId: z.uuid().optional(),
   title: issueTitleSchema,
@@ -172,8 +191,8 @@ const deleteIssuesRequestSchema = z
   }));
 
 const updateIssueRequestSchema = z.object({
-  assigneeMemberId: z.string().min(1).nullable().optional(),
-  description: issueDescriptionSchema.nullable().optional(),
+  assigneeMemberIds: issueAssigneeIdsSchema.optional(),
+  content: issueContentDocumentSchema.nullable().optional(),
   expectedUpdatedAt: z.iso.datetime().optional(),
   placement: issuePlacementSchema.optional(),
   priority: issuePrioritySchema.optional(),
@@ -196,6 +215,7 @@ type CreateIssueRequest = z.infer<typeof createIssueRequestSchema>;
 type CreateProjectStatusRequest = z.infer<typeof createProjectStatusRequestSchema>;
 type IssueBoardResponse = z.infer<typeof issueBoardResponseSchema>;
 type IssueCardSummary = z.infer<typeof issueCardSchema>;
+type IssueDetail = z.infer<typeof issueDetailSchema>;
 type IssueColumnPageResponse = z.infer<typeof issueColumnPageResponseSchema>;
 type IssueColumnQuery = z.infer<typeof issueColumnQuerySchema>;
 type IssueListFacets = z.infer<typeof issueListFacetsSchema>;
@@ -219,6 +239,8 @@ export {
   createProjectStatusRequestSchema,
   issueBoardResponseSchema,
   issueCardSchema,
+  issueDetailSchema,
+  issueNumberSchema,
   issueColumnPageResponseSchema,
   issueColumnQuerySchema,
   issueListFacetsSchema,
@@ -238,6 +260,7 @@ export {
   type CreateProjectStatusRequest,
   type IssueBoardResponse,
   type IssueCardSummary,
+  type IssueDetail,
   type IssueColumnPageResponse,
   type IssueColumnQuery,
   type IssueListFacets,
