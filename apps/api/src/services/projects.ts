@@ -1,5 +1,12 @@
 import type { Database } from "@teamos/db";
-import { issue, member, project, projectMembership, user } from "@teamos/db/schema";
+import {
+  issue,
+  member,
+  project,
+  projectIssueCounter,
+  projectMembership,
+  user,
+} from "@teamos/db/schema";
 import {
   canPerformProjectAction,
   isOrganizationAdministrator,
@@ -283,6 +290,12 @@ function createProjectService(dependencies: ProjectServiceDependencies): Project
           if (record === undefined) {
             throw new AppError(500, "INTERNAL_SERVER_ERROR", "The project could not be created.");
           }
+
+          await transaction.insert(projectIssueCounter).values({
+            lastNumber: 0n,
+            organizationId: organization.organizationId,
+            projectId: record.id,
+          });
 
           /*
            * Every workspace member may create a project and becomes its lead,
