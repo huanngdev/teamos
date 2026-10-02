@@ -41,7 +41,7 @@ function IssueTitleInput({
           aria-describedby={described.length > 0 ? described.join(" ") : undefined}
           aria-invalid={error === null ? undefined : true}
           aria-label={label}
-          className="peer field-sizing-content w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-2xl font-semibold wrap-break-word tracking-tight text-foreground shadow-none outline-none ring-0 placeholder:text-muted-foreground focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0 focus-visible:border-0 focus-visible:bg-transparent focus-visible:shadow-none focus-visible:outline-none focus-visible:ring-0 disabled:opacity-100 sm:text-3xl"
+          className="peer field-sizing-content w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-2xl font-medium wrap-break-word tracking-tight text-foreground shadow-none outline-none ring-0 placeholder:text-muted-foreground focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0 focus-visible:border-0 focus-visible:bg-transparent focus-visible:shadow-none focus-visible:outline-none focus-visible:ring-0 disabled:opacity-100 sm:text-3xl"
           disabled={disabled}
           id={id}
           maxLength={140}
