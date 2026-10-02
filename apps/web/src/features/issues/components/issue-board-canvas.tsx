@@ -110,10 +110,14 @@ function IssueBoardCanvas({
                 />
               ))}
               {canUpdateProject ? (
-                <div className="flex shrink-0 items-start p-3">
-                  <Button onClick={onCreateColumn} type="button" variant="outline">
-                    <PlusIcon data-icon="inline-start" />
-                    Add column
+                <div className="flex shrink-0 items-start ">
+                  <Button
+                    onClick={onCreateColumn}
+                    type="button"
+                    variant="outline"
+                    className="h-full"
+                  >
+                    <PlusIcon className="text-muted-foreground" />
                   </Button>
                 </div>
               ) : null}
