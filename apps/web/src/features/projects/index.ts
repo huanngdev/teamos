@@ -19,5 +19,11 @@ export {
   useEligibleAssignees,
   type EligibleAssigneePicker,
 } from "./hooks/use-eligible-assignees";
-export { projectOverviewPath, projectSettingsPath } from "./lib/project-paths";
+export {
+  projectOverviewPath,
+  projectRoutePattern,
+  projectSettingsPath,
+  projectSettingsRoutePattern,
+  projectSettingsSegment,
+} from "./lib/project-paths";
 export { projectKeys } from "./query-keys";

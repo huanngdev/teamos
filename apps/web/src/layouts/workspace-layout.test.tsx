@@ -58,7 +58,7 @@ test("routes between the projects and members tabs", async () => {
 
 test("refreshes the members route directly", async () => {
   useWorkspaceHandlers();
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   expect(await screen.findByRole("tab", { name: "Members 2", selected: true })).toBeInTheDocument();
   expect(await screen.findByText("Charles Babbage")).toBeInTheDocument();
@@ -133,7 +133,7 @@ test("shows a not-found state when the user cannot access the workspace", async 
     ),
   );
 
-  renderWorkspace("/workspaces/missing/projects");
+  renderWorkspace("/w/missing/projects");
 
   expect(await screen.findByText("Workspace not found")).toBeInTheDocument();
 });

@@ -9,7 +9,7 @@ import { server } from "@/test/server";
 
 test("shows member names, emails, and roles in the members table", async () => {
   useWorkspaceHandlers();
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   expect(await screen.findByText("Charles Babbage")).toBeInTheDocument();
   expect(screen.getByText("charles@example.com")).toBeInTheDocument();
@@ -25,7 +25,7 @@ test("searches members only after the user stops typing", async () => {
   const memberRequests: { search: string | null }[] = [];
 
   useWorkspaceHandlers({ memberRequests });
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   await screen.findByText("Charles Babbage");
 
@@ -47,7 +47,7 @@ test("shows an empty result state for a member search with no matches", async ()
   useWorkspaceHandlers({
     memberPages: () => ({ members: [], pagination: { limit: 25, offset: 0, total: 0 } }),
   });
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   const input = await screen.findByLabelText("Search members");
 
@@ -89,7 +89,7 @@ test("invites a member and refreshes the pending invitations", async () => {
     }),
   );
 
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   await userEvent.click(await screen.findByRole("button", { name: "Invite member" }));
 
@@ -138,7 +138,7 @@ test("lists pending invitations and cancels one from its action menu", async () 
     }),
   );
 
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   expect(await screen.findByText("Pending invitations")).toBeInTheDocument();
   expect(screen.getByText("invited@example.com")).toBeInTheDocument();
@@ -188,7 +188,7 @@ test("resends a pending invitation from its action menu", async () => {
     }),
   );
 
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   await screen.findByText("Pending invitations");
 
@@ -217,7 +217,7 @@ test("hides invitation management from an ordinary member", async () => {
     ],
     role: "member",
   });
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   await screen.findByText("Charles Babbage");
 
@@ -237,7 +237,7 @@ test("removes another member after confirmation", async () => {
     }),
   );
 
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   await userEvent.click(await screen.findByRole("button", { name: "Actions for Charles Babbage" }));
   await userEvent.click(await screen.findByRole("menuitem", { name: "Remove from workspace" }));
@@ -250,7 +250,7 @@ test("removes another member after confirmation", async () => {
 
 test("offers row actions only for manageable members", async () => {
   useWorkspaceHandlers();
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   await screen.findByText("Charles Babbage");
 
@@ -289,7 +289,7 @@ test("paginates the member table", async () => {
       };
     },
   });
-  renderWorkspace("/workspaces/acme/members");
+  renderWorkspace("/w/acme/members");
 
   expect(await screen.findByText("Page 1 of 2")).toBeInTheDocument();
 

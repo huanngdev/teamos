@@ -23,9 +23,14 @@ export {
   type WorkspaceDestination,
 } from "./lib/resolve-workspace-destination";
 export {
+  createWorkspacePath,
   workspaceMembersPath,
+  workspaceMembersSegment,
   workspaceProjectsPath,
+  workspaceProjectsSegment,
+  workspaceRoutePattern,
   workspaceSettingsPath,
+  workspaceSettingsSegment,
   workspacesNewPath,
 } from "./lib/workspace-paths";
 export { ORGANIZATIONS_QUERY_KEY, workspaceKeys } from "./query-keys";

@@ -1,17 +1,33 @@
+const createWorkspacePath = "/w/new";
+const workspaceRoutePattern = "/w/:organizationSlug";
+const workspaceMembersSegment = "members";
+const workspaceProjectsSegment = "projects";
+const workspaceSettingsSegment = "settings";
+
 function workspacesNewPath(): string {
-  return "/workspaces/new";
+  return createWorkspacePath;
 }
 
 function workspaceProjectsPath(slug: string): string {
-  return `/workspaces/${encodeURIComponent(slug)}/projects`;
+  return `/w/${encodeURIComponent(slug)}/${workspaceProjectsSegment}`;
 }
 
 function workspaceMembersPath(slug: string): string {
-  return `/workspaces/${encodeURIComponent(slug)}/members`;
+  return `/w/${encodeURIComponent(slug)}/${workspaceMembersSegment}`;
 }
 
 function workspaceSettingsPath(slug: string): string {
-  return `/workspaces/${encodeURIComponent(slug)}/settings`;
+  return `/w/${encodeURIComponent(slug)}/${workspaceSettingsSegment}`;
 }
 
-export { workspaceMembersPath, workspaceProjectsPath, workspaceSettingsPath, workspacesNewPath };
+export {
+  createWorkspacePath,
+  workspaceMembersPath,
+  workspaceMembersSegment,
+  workspaceProjectsPath,
+  workspaceProjectsSegment,
+  workspaceRoutePattern,
+  workspaceSettingsPath,
+  workspaceSettingsSegment,
+  workspacesNewPath,
+};

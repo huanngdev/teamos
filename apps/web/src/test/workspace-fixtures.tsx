@@ -1,6 +1,16 @@
 import { http, HttpResponse } from "msw";
 import { Navigate, Route, Routes } from "react-router";
 
+import { projectBoardSegment, projectIssuesSegment } from "@/features/issues";
+import { projectRoutePattern, projectSettingsSegment } from "@/features/projects";
+import { projectViewSegment, projectViewsSegment } from "@/features/views";
+import {
+  createWorkspacePath,
+  workspaceMembersSegment,
+  workspaceProjectsSegment,
+  workspaceRoutePattern,
+  workspaceSettingsSegment,
+} from "@/features/workspaces";
 import { ProjectLayout } from "@/layouts/project-layout";
 import { WorkspaceLayout } from "@/layouts/workspace-layout";
 import { WorkspaceMembersRoute } from "@/routes/workspace-members-route";
@@ -274,28 +284,28 @@ function useWorkspaceHandlers(options: WorkspaceHandlerOptions = {}) {
 }
 
 /*
- * Renders the real workspace route tree so tab navigation, redirects, and
- * feature routes behave exactly as they do in the app.
+ * Renders the same workspace and project route tree as `AppRoutes`, without
+ * the protected-session gate, so feature tests can open a page directly.
  */
-function renderWorkspace(route = "/workspaces/acme/projects") {
+function renderWorkspace(route = "/w/acme/projects") {
   return renderWithProviders(
     <Routes>
-      <Route element={<ProjectLayout />} path="/workspaces/:organizationSlug/projects/:projectSlug">
+      <Route element={<ProjectLayout />} path={projectRoutePattern}>
         <Route element={<ProjectOverviewRoute />} index />
-        <Route element={<ProjectBoardRoute />} path="issues/board" />
-        <Route element={<ProjectIssuesRoute />} path="issues" />
-        <Route element={<ProjectViewRoute />} path="views/:viewId" />
-        <Route element={<ProjectViewsRoute />} path="views" />
-        <Route element={<ProjectSettingsRoute />} path="settings" />
+        <Route element={<ProjectBoardRoute />} path={projectBoardSegment} />
+        <Route element={<ProjectIssuesRoute />} path={projectIssuesSegment} />
+        <Route element={<ProjectViewRoute />} path={projectViewSegment} />
+        <Route element={<ProjectViewsRoute />} path={projectViewsSegment} />
+        <Route element={<ProjectSettingsRoute />} path={projectSettingsSegment} />
       </Route>
-      <Route element={<WorkspaceLayout />} path="/workspaces/:organizationSlug">
-        <Route element={<Navigate replace to="projects" />} index />
-        <Route element={<WorkspaceProjectsRoute />} path="projects" />
-        <Route element={<WorkspaceMembersRoute />} path="members" />
-        <Route element={<WorkspaceSettingsRoute />} path="settings" />
+      <Route element={<WorkspaceLayout />} path={workspaceRoutePattern}>
+        <Route element={<Navigate replace to={workspaceProjectsSegment} />} index />
+        <Route element={<WorkspaceProjectsRoute />} path={workspaceProjectsSegment} />
+        <Route element={<WorkspaceMembersRoute />} path={workspaceMembersSegment} />
+        <Route element={<WorkspaceSettingsRoute />} path={workspaceSettingsSegment} />
       </Route>
       <Route element={<p>Sign in to TeamOS</p>} path="/login" />
-      <Route element={<p>New workspace form</p>} path="/workspaces/new" />
+      <Route element={<p>New workspace form</p>} path={createWorkspacePath} />
     </Routes>,
     { route },
   );

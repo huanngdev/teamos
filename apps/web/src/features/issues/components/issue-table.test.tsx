@@ -90,7 +90,7 @@ test("lists issues newest first and links to the board", async () => {
     issue(1, "Alpha gate", "2026-01-01T12:00:00.000Z"),
     issue(2, "Orbit gate", "2026-06-01T12:00:00.000Z"),
   ]);
-  renderWorkspace("/workspaces/acme/projects/apollo/issues");
+  renderWorkspace("/w/acme/p/apollo/issues");
 
   const titles = await screen.findAllByRole("button", { name: /gate$/ });
 
@@ -101,9 +101,7 @@ test("lists issues newest first and links to the board", async () => {
   expect(
     screen
       .getAllByRole("link", { name: "Board" })
-      .some(
-        (link) => link.getAttribute("href") === "/workspaces/acme/projects/apollo/issues/board",
-      ),
+      .some((link) => link.getAttribute("href") === "/w/acme/p/apollo/board"),
   ).toBe(true);
   expect(
     screen
@@ -120,7 +118,7 @@ test("searches issues from the toolbar", async () => {
     issue(1, "Alpha gate", "2026-01-01T12:00:00.000Z"),
     issue(2, "Orbit gate", "2026-06-01T12:00:00.000Z"),
   ]);
-  renderWorkspace("/workspaces/acme/projects/apollo/issues");
+  renderWorkspace("/w/acme/p/apollo/issues");
 
   await screen.findByRole("button", { name: "Alpha gate" });
   await user.type(screen.getByRole("textbox", { name: "Search issues" }), "orbit");
@@ -146,7 +144,7 @@ test("pages the loaded issues", async () => {
       );
     }),
   );
-  renderWorkspace("/workspaces/acme/projects/apollo/issues?pageSize=10");
+  renderWorkspace("/w/acme/p/apollo/issues?pageSize=10");
 
   expect(await screen.findByRole("button", { name: "Issue 11" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Issue 01" })).not.toBeInTheDocument();
@@ -178,7 +176,7 @@ test("applies a priority filter from the URL", async () => {
       );
     }),
   );
-  renderWorkspace("/workspaces/acme/projects/apollo/issues?priority=urgent");
+  renderWorkspace("/w/acme/p/apollo/issues?priority=urgent");
 
   expect(await screen.findByRole("button", { name: "Urgent gate" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Quiet gate" })).not.toBeInTheDocument();
@@ -208,7 +206,7 @@ test("deletes selected issues with one request and keeps the selection across pa
       },
     ),
   );
-  renderWorkspace("/workspaces/acme/projects/apollo/issues?pageSize=1");
+  renderWorkspace("/w/acme/p/apollo/issues?pageSize=1");
 
   await user.click(await screen.findByRole("checkbox", { name: "Select issue 2" }));
   await user.click(screen.getByRole("button", { name: "Next page" }));
@@ -249,7 +247,7 @@ test("opens an issue and hides creation from a viewer", async () => {
       ),
     ),
   );
-  renderWorkspace("/workspaces/acme/projects/apollo/issues");
+  renderWorkspace("/w/acme/p/apollo/issues");
 
   expect(await screen.findByRole("button", { name: "Alpha gate" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "New issue" })).not.toBeInTheDocument();
@@ -263,7 +261,7 @@ test("opens an issue and hides creation from a viewer", async () => {
 test("shows an empty state when the project has no issues", async () => {
   useBoardStore.getState().clear();
   useWorkspaceHandlers();
-  renderWorkspace("/workspaces/acme/projects/apollo/issues");
+  renderWorkspace("/w/acme/p/apollo/issues");
 
   expect(await screen.findByText("No issues yet")).toBeInTheDocument();
 });

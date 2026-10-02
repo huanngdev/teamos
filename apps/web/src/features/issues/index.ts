@@ -17,5 +17,12 @@ export { useColumnPages } from "./hooks/use-column-pages";
 export { useIssueForm, type IssueFormState } from "./hooks/use-issue-form";
 export { applyColumnMove, groupBoardColumns, type BoardColumn } from "./lib/board-columns";
 export { readIssueError } from "./lib/issue-errors";
-export { projectBoardPath, projectIssuesPath } from "./lib/issue-paths";
+export {
+  projectBoardPath,
+  projectBoardRoutePattern,
+  projectBoardSegment,
+  projectIssuesPath,
+  projectIssuesRoutePattern,
+  projectIssuesSegment,
+} from "./lib/issue-paths";
 export { issueKeys } from "./query-keys";

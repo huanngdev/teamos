@@ -24,16 +24,13 @@ test("opens a project overview from its card", async () => {
   expect(screen.getAllByText("charles@example.com")).toHaveLength(2);
   expect(screen.getByRole("link", { name: "Workspace members" })).toHaveAttribute(
     "href",
-    "/workspaces/acme/members",
+    "/w/acme/members",
   );
-  expect(screen.getByRole("link", { name: "TeamOS" })).toHaveAttribute(
-    "href",
-    "/workspaces/acme/projects",
-  );
+  expect(screen.getByRole("link", { name: "TeamOS" })).toHaveAttribute("href", "/w/acme/projects");
   expect(
     screen
       .getAllByRole("link", { name: "Overview" })
-      .some((link) => link.getAttribute("href") === "/workspaces/acme/projects/apollo"),
+      .some((link) => link.getAttribute("href") === "/w/acme/p/apollo"),
   ).toBe(true);
   expect(screen.queryByRole("link", { name: /^Members$/ })).not.toBeInTheDocument();
   expect(
@@ -47,7 +44,7 @@ test("opens a project overview from its card", async () => {
 
 test("opens the project list from the breadcrumb", async () => {
   useWorkspaceHandlers();
-  renderWorkspace("/workspaces/acme/projects/apollo");
+  renderWorkspace("/w/acme/p/apollo");
 
   await userEvent.click(
     await screen.findByRole("button", { name: "Switch project, current project Apollo" }),
@@ -60,7 +57,7 @@ test("opens the project list from the breadcrumb", async () => {
 
 test("reports an unknown project as not found", async () => {
   useWorkspaceHandlers();
-  renderWorkspace("/workspaces/acme/projects/missing");
+  renderWorkspace("/w/acme/p/missing");
 
   expect(await screen.findByText("Project not found")).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Apollo" })).not.toBeInTheDocument();
@@ -89,7 +86,7 @@ test("shows only the first five project members", async () => {
         }),
     ),
   );
-  renderWorkspace("/workspaces/acme/projects/apollo");
+  renderWorkspace("/w/acme/p/apollo");
 
   expect(await screen.findByText("Showing 5 of 6 project roles")).toBeInTheDocument();
   expect(screen.getByText("grace@example.com")).toBeInTheDocument();

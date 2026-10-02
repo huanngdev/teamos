@@ -23,7 +23,7 @@ test("renames the workspace and updates the switcher", async () => {
     }),
   );
 
-  renderWorkspace("/workspaces/acme/settings");
+  renderWorkspace("/w/acme/settings");
 
   const input = await screen.findByLabelText("Name");
   const save = screen.getByRole("button", { name: "Save changes" });
@@ -65,7 +65,7 @@ test("keeps the draft and reports a failed rename", async () => {
     ),
   );
 
-  renderWorkspace("/workspaces/acme/settings");
+  renderWorkspace("/w/acme/settings");
 
   const input = await screen.findByLabelText("Name");
 
@@ -84,7 +84,7 @@ test("keeps the draft and reports a failed rename", async () => {
 
 test("shows rename to an admin but not the danger zone", async () => {
   useWorkspaceHandlers({ role: "admin" });
-  renderWorkspace("/workspaces/acme/settings");
+  renderWorkspace("/w/acme/settings");
 
   expect(await screen.findByRole("button", { name: "Save changes" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Delete workspace" })).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ test("shows rename to an admin but not the danger zone", async () => {
 
 test("redirects a member away from settings and hides the tab", async () => {
   useWorkspaceHandlers({ role: "member" });
-  renderWorkspace("/workspaces/acme/settings");
+  renderWorkspace("/w/acme/settings");
 
   expect(await screen.findByRole("heading", { name: "Apollo" })).toBeInTheDocument();
   expect(screen.queryByRole("tab", { name: "Settings" })).not.toBeInTheDocument();
@@ -151,7 +151,7 @@ test("requires the exact workspace name before deleting", async () => {
     ),
   );
 
-  renderWorkspace("/workspaces/acme/settings");
+  renderWorkspace("/w/acme/settings");
 
   await userEvent.click(await screen.findByRole("button", { name: "Delete workspace" }));
 
@@ -198,7 +198,7 @@ test("keeps the delete dialog open and shows an error on failure", async () => {
     ),
   );
 
-  renderWorkspace("/workspaces/acme/settings");
+  renderWorkspace("/w/acme/settings");
 
   await userEvent.click(await screen.findByRole("button", { name: "Delete workspace" }));
 
