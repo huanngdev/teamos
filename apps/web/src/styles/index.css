@@ -238,6 +238,19 @@
   }
 }
 
+/* Pinned issue cells stay opaque on hover so row text cannot paint through them. */
+.issue-table-pin {
+  background-color: var(--background);
+}
+
+.group:hover > .issue-table-pin {
+  background-color: color-mix(in oklab, var(--muted) 50%, var(--background));
+}
+
+.group[data-state="selected"] > .issue-table-pin {
+  background-color: var(--muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -4,13 +4,14 @@ import {
   FunnelIcon,
   GearIcon,
   KanbanIcon,
-  ListChecksIcon,
   SquaresFourIcon,
+  TableIcon,
+  type Icon,
 } from "@phosphor-icons/react";
-import { Link, NavLink } from "react-router";
+import type { ReactNode } from "react";
+import { Link } from "react-router";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { AccountMenu, type AccountMenuUser } from "@/features/auth";
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +28,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { AccountMenu, type AccountMenuUser } from "@/features/auth";
 import { Logo } from "@/shared";
 
 interface ProjectSidebarViewLink {
@@ -66,6 +68,23 @@ interface ProjectSidebarProps {
   view: ProjectSidebarView;
 }
 
+function ProjectNavIcon({ active, icon: NavIcon }: { active: boolean; icon: Icon }) {
+  return (
+    <NavIcon
+      className="text-muted-foreground group-hover/menu-button:text-sidebar-accent-foreground group-data-active/menu-button:text-sidebar-accent-foreground"
+      weight={active ? "fill" : "regular"}
+    />
+  );
+}
+
+function ProjectNavLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className="text-muted-foreground group-hover/menu-button:text-sidebar-accent-foreground group-data-active/menu-button:text-sidebar-accent-foreground">
+      {children}
+    </span>
+  );
+}
+
 function ProjectSidebar({ view }: ProjectSidebarProps) {
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -93,31 +112,46 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
               <SidebarMenuItem className="not-first:mt-1">
                 <SidebarMenuButton
                   isActive={view.overviewActive}
-                  render={<NavLink end to={view.overviewPath} />}
+                  render={
+                    <Link
+                      aria-current={view.overviewActive ? "page" : undefined}
+                      to={view.overviewPath}
+                    />
+                  }
                   tooltip="Overview"
                 >
-                  <SquaresFourIcon className="text-muted-foreground" />
-                  <span>Overview</span>
+                  <ProjectNavIcon active={view.overviewActive} icon={SquaresFourIcon} />
+                  <ProjectNavLabel>Overview</ProjectNavLabel>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem className="not-first:mt-1">
                 <SidebarMenuButton
                   isActive={view.issuesActive}
-                  render={<NavLink end to={view.issuesPath} />}
+                  render={
+                    <Link
+                      aria-current={view.issuesActive ? "page" : undefined}
+                      to={view.issuesPath}
+                    />
+                  }
                   tooltip="Issues"
                 >
-                  <ListChecksIcon className="text-muted-foreground" />
-                  <span>Issues</span>
+                  <ProjectNavIcon active={view.issuesActive} icon={TableIcon} />
+                  <ProjectNavLabel>Issues</ProjectNavLabel>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem className="not-first:mt-1">
                 <SidebarMenuButton
                   isActive={view.boardActive}
-                  render={<NavLink end to={view.boardPath} />}
+                  render={
+                    <Link
+                      aria-current={view.boardActive ? "page" : undefined}
+                      to={view.boardPath}
+                    />
+                  }
                   tooltip="Board"
                 >
-                  <KanbanIcon className="text-muted-foreground" />
-                  <span>Board</span>
+                  <ProjectNavIcon active={view.boardActive} icon={KanbanIcon} />
+                  <ProjectNavLabel>Board</ProjectNavLabel>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <Collapsible
@@ -136,9 +170,9 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
                   render={<CollapsibleTrigger />}
                   tooltip="Views"
                 >
-                  <FunnelIcon className="text-muted-foreground" />
-                  <span>Views</span>
-                  <CaretRightIcon className="ml-auto transition-transform group-data-open/collapsible:rotate-90 motion-reduce:transition-none" />
+                  <ProjectNavIcon active={view.viewsActive} icon={FunnelIcon} />
+                  <ProjectNavLabel>Views</ProjectNavLabel>
+                  <CaretRightIcon className="ml-auto text-muted-foreground transition-transform group-hover/menu-button:text-sidebar-accent-foreground group-data-open/collapsible:rotate-90 group-data-active/menu-button:text-sidebar-accent-foreground motion-reduce:transition-none" />
                 </SidebarMenuButton>
                 <CollapsibleContent>
                   <SidebarMenuSub>
@@ -150,10 +184,18 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
                       view.savedViews.map((item) => (
                         <SidebarMenuSubItem key={item.id}>
                           <SidebarMenuSubButton
+                            className="group/view-link"
                             isActive={view.activeViewId === item.id}
-                            render={<NavLink to={item.path} />}
+                            render={
+                              <Link
+                                aria-current={view.activeViewId === item.id ? "page" : undefined}
+                                to={item.path}
+                              />
+                            }
                           >
-                            <span>{item.name}</span>
+                            <span className="text-muted-foreground group-hover/view-link:text-sidebar-accent-foreground group-data-active/view-link:text-sidebar-accent-foreground">
+                              {item.name}
+                            </span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))
@@ -176,11 +218,16 @@ function ProjectSidebar({ view }: ProjectSidebarProps) {
                 <SidebarMenuItem className="not-first:mt-1">
                   <SidebarMenuButton
                     isActive={view.settingsActive}
-                    render={<NavLink end to={view.settingsPath} />}
+                    render={
+                      <Link
+                        aria-current={view.settingsActive ? "page" : undefined}
+                        to={view.settingsPath}
+                      />
+                    }
                     tooltip="Settings"
                   >
-                    <GearIcon className="text-muted-foreground" />
-                    <span>Settings</span>
+                    <ProjectNavIcon active={view.settingsActive} icon={GearIcon} />
+                    <ProjectNavLabel>Settings</ProjectNavLabel>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ) : null}

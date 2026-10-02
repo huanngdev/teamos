@@ -1,11 +1,13 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
+  formatIssueCode,
   getIssuePriorityLabel,
   getIssueStatusCategoryLabel,
+  isCanonicalIssueDecimal,
   issuePriorities,
   issueStatusCategories,
-  unassignedAssigneeId,
+  parseIssueNumberBound,
   type EligibleAssignee,
 } from "@teamos/shared";
 
@@ -37,10 +39,6 @@ function readStringList(value: unknown): string[] {
   }
 
   return value.filter((item): item is string => typeof item === "string");
-}
-
-function readBound(value: unknown): string {
-  return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
 function IssueColumnFilter({ column }: { column: FilterColumn }) {
@@ -121,13 +119,8 @@ function knownTableAssignees(
   }
 
   for (const row of rows) {
-    if (row.assigneeId !== unassignedAssigneeId) {
-      known.set(row.assigneeId, {
-        email: row.assigneeEmail,
-        id: row.assigneeId,
-        image: row.assigneeImage,
-        name: row.assigneeName,
-      });
+    for (const person of row.assignees) {
+      known.set(person.id, person);
     }
   }
 
@@ -229,8 +222,8 @@ function TextFilter({ column }: { column: FilterColumn }) {
 
 function NumberRangeFilter({ column }: { column: FilterColumn }) {
   const value = column.getFilterValue();
-  const appliedMin = Array.isArray(value) ? readBound(value[0]) : "";
-  const appliedMax = Array.isArray(value) ? readBound(value[1]) : "";
+  const appliedMin = Array.isArray(value) ? displayIssueBound(value[0]) : "";
+  const appliedMax = Array.isArray(value) ? displayIssueBound(value[1]) : "";
   const maxRef = useRef(appliedMax);
   const minRef = useRef(appliedMin);
   const [min, setMin] = useDebouncedCommit(appliedMin, (next) => {
@@ -246,25 +239,23 @@ function NumberRangeFilter({ column }: { column: FilterColumn }) {
     <div className="flex items-center gap-2 p-1">
       <Input
         aria-label="Minimum number"
-        min={1}
+        inputMode="numeric"
         onChange={(event) => {
           setMin(event.target.value);
         }}
         onKeyDown={stopMenuKeys}
         placeholder="Min"
-        type="number"
         value={min}
       />
       <span className="text-muted-foreground">to</span>
       <Input
         aria-label="Maximum number"
-        min={1}
+        inputMode="numeric"
         onChange={(event) => {
           setMax(event.target.value);
         }}
         onKeyDown={stopMenuKeys}
         placeholder="Max"
-        type="number"
         value={max}
       />
     </div>
@@ -368,18 +359,16 @@ function statusOptions(
   ];
 }
 
-function parseBound(value: string): number | undefined {
-  if (value.trim().length === 0) {
-    return undefined;
+function parseBound(value: string): string | undefined {
+  return parseIssueNumberBound(value);
+}
+
+function displayIssueBound(value: unknown): string {
+  if (typeof value !== "string" || !isCanonicalIssueDecimal(value)) {
+    return "";
   }
 
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    return undefined;
-  }
-
-  return parsed;
+  return formatIssueCode(value);
 }
 
 function filterLabel(columnId: string): string {

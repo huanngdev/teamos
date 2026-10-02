@@ -63,7 +63,7 @@ function IssueBoardReady({
         canReorderColumns={view.canUpdateProject}
         canUpdateProject={view.canUpdateProject}
         drag={drag}
-        members={view.members}
+        highlightedIssueId={view.highlightedIssueId}
         onCreateColumn={view.onCreateColumn}
         onCreateIssue={view.onCreateIssue}
         onDeleteColumn={view.onDeleteColumn}
@@ -73,6 +73,9 @@ function IssueBoardReady({
         onRenameColumn={view.onRenameColumn}
         truncated={view.truncated}
       />
+      <p aria-live="polite" className="sr-only">
+        {view.createdMessage}
+      </p>
       <IssueFormDialog
         assignees={view.assignees}
         form={view.issueForm}

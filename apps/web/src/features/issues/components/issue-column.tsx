@@ -1,11 +1,10 @@
 /* eslint-disable shadcn/no-arbitrary-values -- the issue viewport fills the column below its fixed 3rem header */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import type { ProjectMember } from "@teamos/shared";
 import {
   DotsSixVerticalIcon,
   DotsThreeIcon,
-  PencilIcon,
   PlusIcon,
+  TextTIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 
@@ -29,7 +28,7 @@ interface IssueColumnProps {
   canReorderColumns: boolean;
   canUpdateProject: boolean;
   column: BoardColumn;
-  members: readonly ProjectMember[];
+  highlightedIssueId?: string | null;
   onCreateIssue: () => void;
   onDelete: () => void;
   onEditIssue: (issueId: string) => void;
@@ -51,7 +50,7 @@ function IssueColumn({
   canReorderColumns,
   canUpdateProject,
   column,
-  members,
+  highlightedIssueId = null,
   onCreateIssue,
   onDelete,
   onEditIssue,
@@ -66,6 +65,36 @@ function IssueColumn({
   const armedBefore = useRef(true);
   const [range, setRange] = useState({ end: 12, start: 0 });
   const visibleIssues = column.issues.slice(range.start, range.end);
+
+  useEffect(() => {
+    if (highlightedIssueId === null) {
+      return;
+    }
+
+    const index = column.issues.findIndex((issue) => issue.id === highlightedIssueId);
+
+    if (index < 0) {
+      return;
+    }
+
+    const viewport = rootRef.current?.querySelector("[data-slot='scroll-area-viewport']");
+
+    if (!(viewport instanceof HTMLElement)) {
+      return;
+    }
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const card = viewport.querySelector(`[data-issue-id="${CSS.escape(highlightedIssueId)}"]`);
+
+    if (card instanceof HTMLElement && typeof card.scrollIntoView === "function") {
+      card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+      return;
+    }
+
+    if (typeof viewport.scrollTo === "function") {
+      viewport.scrollTo({ behavior: "auto", top: index * CARD_HEIGHT });
+    }
+  }, [column.issues, highlightedIssueId]);
 
   useEffect(() => {
     const viewport = rootRef.current?.querySelector("[data-slot='scroll-area-viewport']");
@@ -231,7 +260,7 @@ function IssueColumn({
                 <DropdownMenuContent align="end">
                   <DropdownMenuGroup>
                     <DropdownMenuItem onClick={onRename}>
-                      <PencilIcon data-icon="inline-start" />
+                      <TextTIcon data-icon="inline-start" />
                       Rename
                     </DropdownMenuItem>
                     {column.status.isDefault ? null : (
@@ -259,9 +288,9 @@ function IssueColumn({
                 {visibleIssues.map((issue) => (
                   <IssueCard
                     canDrag={canDragCards}
+                    highlighted={issue.id === highlightedIssueId}
                     issue={issue}
                     key={issue.id}
-                    member={members.find((member) => member.memberId === issue.assigneeMemberId)}
                     onEdit={() => {
                       onEditIssue(issue.id);
                     }}

@@ -1,8 +1,14 @@
 import {
+  compareIssueNumbers,
+  formatIssueCode,
   getIssuePriorityLabel,
   getIssueStatusCategoryLabel,
+  isCanonicalIssueDecimal,
+  issueNumberSearchDecimal,
   issuePrioritySchema,
   issueStatusCategorySchema,
+  needleMatchesIssueCodeText,
+  parseIssueNumberBound,
   unassignedAssigneeId,
   type IssuePriority,
   type IssueStatusCategory,
@@ -20,7 +26,7 @@ const issueTableColumnIds = [
   "category",
   "createdAt",
   "updatedAt",
-  "description",
+  "content",
 ] as const;
 
 type IssueTableColumnId = (typeof issueTableColumnIds)[number];
@@ -29,8 +35,8 @@ const issueTableColumnLabels: Record<IssueTableColumnId, string> = {
   assignee: "Assignee",
   category: "Category",
   createdAt: "Created",
-  description: "Description",
-  number: "Number",
+  content: "Content",
+  number: "ID",
   priority: "Priority",
   status: "Status",
   title: "Title",
@@ -43,7 +49,7 @@ type IssueTablePageSize = (typeof issueTablePageSizes)[number];
 
 const defaultIssueTablePageSize: IssueTablePageSize = 20;
 
-const defaultHiddenIssueColumns: readonly IssueTableColumnId[] = ["category", "description"];
+const defaultHiddenIssueColumns: readonly IssueTableColumnId[] = ["category", "content"];
 
 const defaultIssueTableSort = { desc: true, id: "createdAt" } as const;
 
@@ -75,17 +81,24 @@ interface IssueTableQuery {
   sorting: IssueTableSort[];
 }
 
+interface IssueTableAssignee {
+  email: string;
+  id: string;
+  image: string | null;
+  name: string;
+}
+
 interface IssueTableRow {
   assigneeEmail: string;
-  assigneeId: string;
-  assigneeImage: string | null;
+  assigneeIds: string[];
   assigneeName: string;
+  assignees: IssueTableAssignee[];
   category: IssueStatusCategory | null;
   createdAt: string;
-  description: string;
+  contentText: string;
   id: string;
   issue: IssueSummary;
-  number: number;
+  number: string;
   priority: IssuePriority;
   statusId: string;
   statusName: string;
@@ -96,6 +109,10 @@ interface IssueTableRow {
 
 interface FilterRow {
   getValue: (columnId: string) => unknown;
+}
+
+function columnToken(value: string): string {
+  return value === "description" ? "content" : value;
 }
 
 function isIssueTableColumnId(value: string): value is IssueTableColumnId {
@@ -215,21 +232,21 @@ function parsePositiveInteger(value: string): number | undefined {
   return parsed;
 }
 
-function parseNumberRange(value: string | null): [number?, number?] | undefined {
-  const range = parseRange(value, (bound) => parsePositiveInteger(bound) !== undefined);
+function parseNumberRange(value: string | null): [string?, string?] | undefined {
+  const range = parseRange(value, (bound) => parseIssueNumberBound(bound) !== undefined);
 
   if (range === undefined) {
     return undefined;
   }
 
   return [
-    range[0] === undefined ? undefined : Number(range[0]),
-    range[1] === undefined ? undefined : Number(range[1]),
+    range[0] === undefined ? undefined : parseIssueNumberBound(range[0]),
+    range[1] === undefined ? undefined : parseIssueNumberBound(range[1]),
   ];
 }
 
 function parseColumnOrder(value: string | null): IssueTableColumnId[] {
-  const requested = parseList(value).filter(isIssueTableColumnId);
+  const requested = parseList(value).map(columnToken).filter(isIssueTableColumnId);
   const rest = issueTableColumnIds.filter((columnId) => !requested.includes(columnId));
 
   return [...requested, ...rest];
@@ -240,10 +257,12 @@ function parseHidden(params: URLSearchParams): IssueTableColumnId[] {
     return [...defaultHiddenIssueColumns];
   }
 
-  return parseList(params.get("hide")).filter(
-    (columnId): columnId is IssueTableColumnId =>
-      isIssueTableColumnId(columnId) && columnId !== "title",
-  );
+  return parseList(params.get("hide"))
+    .map(columnToken)
+    .filter(
+      (columnId): columnId is IssueTableColumnId =>
+        isIssueTableColumnId(columnId) && columnId !== "title",
+    );
 }
 
 function parseSort(value: string | null): IssueTableSort[] {
@@ -251,7 +270,8 @@ function parseSort(value: string | null): IssueTableSort[] {
     return [{ ...defaultIssueTableSort }];
   }
 
-  const [id, direction] = value.split(".");
+  const [rawId, direction] = value.split(".");
+  const id = rawId === undefined ? undefined : columnToken(rawId);
 
   if (
     id === undefined ||
@@ -324,10 +344,10 @@ function parseIssueTableSearch(params: URLSearchParams): IssueTableQuery {
     filters.push({ id: "title", value: title.slice(0, 140) });
   }
 
-  const description = params.get("description")?.trim() ?? "";
+  const content = (params.get("content") ?? params.get("description"))?.trim() ?? "";
 
-  if (description.length > 0) {
-    filters.push({ id: "description", value: description.slice(0, 200) });
+  if (content.length > 0) {
+    filters.push({ id: "content", value: content.slice(0, 200) });
   }
 
   const number = parseNumberRange(params.get("number"));
@@ -421,7 +441,7 @@ function serializeIssueTableSearch(query: IssueTableQuery): URLSearchParams {
       }
     }
 
-    if (filter.id === "title" || filter.id === "description") {
+    if (filter.id === "title" || filter.id === "content") {
       if (typeof filter.value === "string" && filter.value.trim().length > 0) {
         params.set(filter.id, filter.value.trim());
       }
@@ -430,8 +450,8 @@ function serializeIssueTableSearch(query: IssueTableQuery): URLSearchParams {
     if (filter.id === "number") {
       const range = readRange(filter.value);
       const formatted = formatRange(
-        typeof range?.[0] === "number" ? range[0] : undefined,
-        typeof range?.[1] === "number" ? range[1] : undefined,
+        typeof range?.[0] === "string" ? range[0] : undefined,
+        typeof range?.[1] === "string" ? range[1] : undefined,
       );
 
       if (formatted !== undefined) {
@@ -475,21 +495,33 @@ function buildIssueTableRows(
 
   return issues.map((issue) => {
     const status = statusById.get(issue.statusId);
-    const member =
-      issue.assigneeMemberId === null ? undefined : memberById.get(issue.assigneeMemberId);
-    const assignee = issue.assignee;
+    const people = issue.assignees.map((person) => {
+      const member = memberById.get(person.id);
+      const name = person.name.length > 0 ? person.name : (member?.name ?? "Unknown member");
+
+      return {
+        email: person.email.length > 0 ? person.email : (member?.email ?? ""),
+        id: person.id,
+        image: person.image ?? member?.image ?? null,
+        name,
+      };
+    });
+    const sortedNames = [...people].sort((left, right) => left.name.localeCompare(right.name));
 
     return {
-      assigneeEmail: assignee?.email ?? member?.email ?? "",
-      assigneeId: issue.assigneeMemberId ?? unassignedAssigneeId,
-      assigneeImage: assignee?.image ?? member?.image ?? null,
+      assigneeEmail: people
+        .map((person) => person.email)
+        .filter((email) => email.length > 0)
+        .join("\n"),
+      assigneeIds: people.length === 0 ? [unassignedAssigneeId] : people.map((person) => person.id),
       assigneeName:
-        issue.assigneeMemberId === null
+        sortedNames.length === 0
           ? "Unassigned"
-          : (assignee?.name ?? member?.name ?? "Unknown member"),
+          : sortedNames.map((person) => person.name).join(", "),
+      assignees: people,
       category: status?.category ?? null,
       createdAt: issue.createdAt,
-      description: issue.description ?? "",
+      contentText: issue.contentText,
       id: issue.id,
       issue,
       number: issue.number,
@@ -513,8 +545,8 @@ function matchesIssueSearch(row: IssueTableRow, query: string): boolean {
   const category = row.category === null ? "" : getIssueStatusCategoryLabel(row.category);
   const haystack = [
     row.title,
-    row.description,
-    String(row.number),
+    row.contentText,
+    row.number,
     `#${row.number}`,
     row.statusName,
     getIssuePriorityLabel(row.priority),
@@ -525,7 +557,21 @@ function matchesIssueSearch(row: IssueTableRow, query: string): boolean {
     .join("\n")
     .toLowerCase();
 
-  return haystack.includes(needle);
+  if (haystack.includes(needle)) {
+    return true;
+  }
+
+  const decimal = issueNumberSearchDecimal(needle);
+
+  if (decimal !== undefined && decimal === row.number) {
+    return true;
+  }
+
+  if (!needleMatchesIssueCodeText(needle) || !isCanonicalIssueDecimal(row.number)) {
+    return false;
+  }
+
+  return formatIssueCode(row.number).toLowerCase().includes(needle);
 }
 
 function matchesMultiValue(value: unknown, selected: unknown): boolean {
@@ -553,19 +599,21 @@ function matchesNumberRange(value: unknown, range: unknown): boolean {
     return true;
   }
 
-  const number = typeof value === "number" ? value : Number.NaN;
-  const min = typeof bounds[0] === "number" ? bounds[0] : undefined;
-  const max = typeof bounds[1] === "number" ? bounds[1] : undefined;
+  const number = typeof value === "string" && isCanonicalIssueDecimal(value) ? value : undefined;
+  const min =
+    typeof bounds[0] === "string" && isCanonicalIssueDecimal(bounds[0]) ? bounds[0] : undefined;
+  const max =
+    typeof bounds[1] === "string" && isCanonicalIssueDecimal(bounds[1]) ? bounds[1] : undefined;
 
-  if (!Number.isFinite(number)) {
+  if (number === undefined) {
     return false;
   }
 
-  if (min !== undefined && number < min) {
+  if (min !== undefined && compareIssueNumbers(number, min) < 0) {
     return false;
   }
 
-  if (max !== undefined && number > max) {
+  if (max !== undefined && compareIssueNumbers(number, max) > 0) {
     return false;
   }
 
@@ -616,6 +664,23 @@ function multiValueColumnFilter(row: FilterRow, columnId: string, filterValue: u
   return matchesMultiValue(row.getValue(columnId), filterValue);
 }
 
+function assigneeColumnFilter(row: FilterRow, columnId: string, filterValue: unknown): boolean {
+  if (!Array.isArray(filterValue) || filterValue.length === 0) {
+    return true;
+  }
+
+  const value = row.getValue(columnId);
+
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.some((id) => filterValue.includes(id));
+}
+
+assigneeColumnFilter.autoRemove = (filterValue: unknown) =>
+  !Array.isArray(filterValue) || filterValue.length === 0;
+
 multiValueColumnFilter.autoRemove = (filterValue: unknown) =>
   !Array.isArray(filterValue) || filterValue.length === 0;
 
@@ -633,7 +698,7 @@ function numberRangeColumnFilter(row: FilterRow, columnId: string, filterValue: 
 numberRangeColumnFilter.autoRemove = (filterValue: unknown) => {
   const range = readRange(filterValue);
 
-  return range === undefined || (typeof range[0] !== "number" && typeof range[1] !== "number");
+  return range === undefined || (typeof range[0] !== "string" && typeof range[1] !== "string");
 };
 
 function dateRangeColumnFilter(row: FilterRow, columnId: string, filterValue: unknown): boolean {
@@ -717,7 +782,7 @@ const issueListFilterKeys = [
   "assignee",
   "category",
   "created",
-  "description",
+  "content",
   "number",
   "priority",
   "q",
@@ -764,6 +829,7 @@ function countRowsBy(
 }
 
 export {
+  assigneeColumnFilter,
   buildIssueTableRows,
   comparePriority,
   countRowsBy,

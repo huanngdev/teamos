@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+const issueActionsColumnId = "actions";
 const issueSelectColumnId = "select";
 
 interface PinningState {
@@ -17,8 +18,14 @@ interface PinColumn {
 
 function withSelectColumnPinned(pinning: PinningState): PinningState {
   return {
-    end: pinning.end.filter((id) => id !== issueSelectColumnId),
-    start: [issueSelectColumnId, ...pinning.start.filter((id) => id !== issueSelectColumnId)],
+    end: [
+      ...pinning.end.filter((id) => id !== issueSelectColumnId && id !== issueActionsColumnId),
+      issueActionsColumnId,
+    ],
+    start: [
+      issueSelectColumnId,
+      ...pinning.start.filter((id) => id !== issueSelectColumnId && id !== issueActionsColumnId),
+    ],
   };
 }
 
