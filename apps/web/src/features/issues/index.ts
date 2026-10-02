@@ -21,6 +21,8 @@ export {
   projectBoardPath,
   projectBoardRoutePattern,
   projectBoardSegment,
+  projectIssuePath,
+  projectIssueRoutePattern,
   projectIssuesPath,
   projectIssuesRoutePattern,
   projectIssuesSegment,

@@ -33,6 +33,7 @@ import {
   WorkspaceProjectsRoute,
   WorkspaceSettingsRoute,
 } from "@/routes";
+import { ProjectIssueRoute } from "@/routes/project-issue-route";
 
 function AppRoutes() {
   return (
@@ -60,6 +61,7 @@ function AppRoutes() {
           <Route element={<ProjectOverviewRoute />} index />
           <Route element={<ProjectBoardRoute />} path={projectBoardSegment} />
           <Route element={<ProjectIssuesRoute />} path={projectIssuesSegment} />
+          <Route element={<ProjectIssueRoute />} path={`${projectIssuesSegment}/:issueCode`} />
           <Route element={<ProjectViewRoute />} path={projectViewSegment} />
           <Route element={<ProjectViewsRoute />} path={projectViewsSegment} />
           <Route element={<ProjectSettingsRoute />} path={projectSettingsSegment} />

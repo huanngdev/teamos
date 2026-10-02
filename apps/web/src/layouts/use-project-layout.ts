@@ -4,12 +4,12 @@ import {
   type ProjectSummary,
 } from "@teamos/shared";
 import { useState } from "react";
-import { useMatch, useNavigate, useParams } from "react-router";
-
+import { matchPath, useLocation, useNavigate, useParams } from "react-router";
 import { useAuthSession, useSignOut } from "@/features/auth";
 import {
   projectBoardPath,
   projectBoardRoutePattern,
+  projectIssueRoutePattern,
   projectIssuesPath,
   projectIssuesRoutePattern,
 } from "@/features/issues";
@@ -73,30 +73,14 @@ function useProjectLayout(): ProjectLayoutState {
   const { organizationSlug: organizationSlugParam, projectSlug = "" } = useParams();
   const organizationSlug = organizationSlugParam ?? "";
   const navigate = useNavigate();
-  const overviewMatch = useMatch({
-    end: true,
-    path: projectRoutePattern,
-  });
-  const issuesMatch = useMatch({
-    end: true,
-    path: projectIssuesRoutePattern,
-  });
-  const boardMatch = useMatch({
-    end: true,
-    path: projectBoardRoutePattern,
-  });
-  const settingsMatch = useMatch({
-    end: true,
-    path: projectSettingsRoutePattern,
-  });
-  const viewsMatch = useMatch({
-    end: true,
-    path: projectViewsRoutePattern,
-  });
-  const viewMatch = useMatch({
-    end: true,
-    path: projectViewRoutePattern,
-  });
+  const pathname = useLocation().pathname;
+  const overviewMatch = matchPath({ end: true, path: projectRoutePattern }, pathname);
+  const issuesMatch = matchPath({ end: true, path: projectIssuesRoutePattern }, pathname);
+  const issueDetailMatch = matchPath({ end: true, path: projectIssueRoutePattern }, pathname);
+  const boardMatch = matchPath({ end: true, path: projectBoardRoutePattern }, pathname);
+  const settingsMatch = matchPath({ end: true, path: projectSettingsRoutePattern }, pathname);
+  const viewsMatch = matchPath({ end: true, path: projectViewsRoutePattern }, pathname);
+  const viewMatch = matchPath({ end: true, path: projectViewRoutePattern }, pathname);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const workspace = useWorkspace(organizationSlug);
   const viewNavigation = useIssueViewNavigation({
@@ -195,7 +179,7 @@ function useProjectLayout(): ProjectLayoutState {
       viewsExpanded: viewNavigation.expanded,
       pageLabel: projectPageLabel(
         overviewMatch !== null,
-        issuesMatch !== null,
+        issuesMatch !== null || issueDetailMatch !== null,
         boardMatch !== null,
         viewsMatch !== null,
         viewMatch !== null,
@@ -206,7 +190,7 @@ function useProjectLayout(): ProjectLayoutState {
       viewActive: viewMatch !== null,
       viewsActive: viewsMatch !== null || viewMatch !== null,
       viewsPath: projectViewsPath(organizationSlug, projectSlug),
-      issuesActive: issuesMatch !== null,
+      issuesActive: issuesMatch !== null || issueDetailMatch !== null,
       issuesPath: projectIssuesPath(organizationSlug, projectSlug),
       overviewActive: overviewMatch !== null,
       overviewPath: projectOverviewPath(organizationSlug, projectSlug),

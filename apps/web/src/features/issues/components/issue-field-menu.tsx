@@ -27,7 +27,9 @@ function IssueFieldMenu({
   options,
   renderOption,
   selected,
+  size = "default",
   trigger,
+  variant = "outline",
 }: {
   accessibleName?: string;
   disabled?: boolean;
@@ -39,7 +41,9 @@ function IssueFieldMenu({
   options: readonly IssueFieldOption[];
   renderOption?: (option: IssueFieldOption) => ReactNode;
   selected: readonly string[];
+  size?: "default" | "sm";
   trigger?: ReactNode;
+  variant?: "ghost" | "outline";
 }) {
   const optionContent = (option: IssueFieldOption) =>
     renderOption === undefined ? option.label : renderOption(option);
@@ -49,7 +53,13 @@ function IssueFieldMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button aria-label={accessibleName} disabled={disabled} type="button" variant="outline">
+          <Button
+            aria-label={accessibleName}
+            disabled={disabled}
+            size={size}
+            type="button"
+            variant={variant}
+          >
             {trigger ?? (
               <>
                 {icon}
@@ -59,7 +69,7 @@ function IssueFieldMenu({
           </Button>
         }
       />
-      <DropdownMenuContent align="start" className="min-w-64">
+      <DropdownMenuContent align="start" className="min-w-fit">
         <DropdownMenuGroup>
           {mode === "single" ? (
             <DropdownMenuRadioGroup

@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
  */
 function NotFoundRoute() {
   const { "*": splat } = useParams();
-  const path = splat === undefined || splat.length === 0 ? "/" : `/${splat}`;
+  const { pathname } = useLocation();
+  const path = splat === undefined || splat.length === 0 ? pathname : `/${splat}`;
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-background p-4 sm:p-6">

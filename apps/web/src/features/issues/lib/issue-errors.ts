@@ -16,6 +16,12 @@ function readIssueError(error: unknown, fallback: string): string | null {
       return "You are not allowed to do that.";
     case "ISSUE_NOT_FOUND":
       return "That issue is no longer on the board.";
+    case "ISSUE_REVISION_CONFLICT":
+      return "The issue changed. Refresh and try again.";
+    case "ISSUE_NUMBER_CONFLICT":
+      return "The issue number was already used. Try again.";
+    case "ISSUE_NUMBER_EXHAUSTED":
+      return "This project has used every available issue number.";
     case "MEMBER_NOT_FOUND":
       return "That member cannot be assigned to this project.";
     case "PROJECT_NOT_FOUND":
