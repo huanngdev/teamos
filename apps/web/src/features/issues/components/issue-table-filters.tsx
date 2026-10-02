@@ -1,23 +1,23 @@
-import type { KeyboardEvent } from "react";
+import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getIssuePriorityLabel,
   getIssueStatusCategoryLabel,
   issuePriorities,
   issueStatusCategories,
+  unassignedAssigneeId,
   type EligibleAssignee,
 } from "@teamos/shared";
 
 import { DropdownMenuCheckboxItem, DropdownMenuGroup } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { DateRangeCalendar } from "@/shared";
 import { useIssueTableContext } from "../lib/issue-table-context";
-import {
-  issueTableColumnLabels,
-  unassignedAssigneeId,
-  type IssueTableRow,
-} from "../lib/issue-table-query";
-import { AssigneeSearchField } from "./assignee-menu";
+import { buildMemberChoices, selectedMemberChoices } from "../lib/member-choices";
+import { issueTableColumnLabels, type IssueTableRow } from "../lib/issue-table-query";
+import { MemberSelect } from "./member-select";
 import { IssuePriorityOption } from "./issue-priority-icon";
-import { IssueStatusOption } from "./issue-status-indicator";
+import { IssueStatusIndicator, IssueStatusOption } from "./issue-status-indicator";
 
 interface FilterColumn {
   getFilterValue: () => unknown;
@@ -46,8 +46,8 @@ function readBound(value: unknown): string {
 function IssueColumnFilter({ column }: { column: FilterColumn }) {
   const options = useFilterOptions(column.id);
 
-  if (column.id === "assignee" && options !== null) {
-    return <AssigneeValueFilter column={column} options={options} />;
+  if (column.id === "assignee") {
+    return <AssigneeValueFilter column={column} />;
   }
 
   if (options !== null) {
@@ -65,33 +65,73 @@ function IssueColumnFilter({ column }: { column: FilterColumn }) {
   return <TextFilter column={column} />;
 }
 
-function AssigneeValueFilter({
-  column,
-  options,
-}: {
-  column: FilterColumn;
-  options: readonly FilterOption[];
-}) {
-  const { assignees } = useIssueTableContext();
+function AssigneeValueFilter({ column }: { column: FilterColumn }) {
+  const { assignees, members, rows } = useIssueTableContext();
+  const { onSearch } = assignees;
+  const selected = readStringList(column.getFilterValue());
+  const choices = buildMemberChoices({
+    assignees: assignees.assignees,
+    includeCurrentUser: true,
+    includeUnassigned: true,
+    known: knownTableAssignees(members, rows),
+    selectedIds: selected,
+  });
+
+  useEffect(() => {
+    return () => {
+      onSearch("");
+    };
+  }, [onSearch]);
 
   return (
-    <DropdownMenuGroup>
-      <div className="px-2 py-1.5">
-        <AssigneeSearchField onKeyDown={stopMenuKeys} picker={assignees} />
-      </div>
-      <MultiValueFilter column={column} options={options} />
-      {assignees.hasMore ? (
-        <button className="px-2 py-1.5 text-left" onClick={assignees.onLoadMore} type="button">
-          {assignees.loadingMore ? "Loading" : "Load more"}
-        </button>
-      ) : null}
-      {assignees.error === null ? null : (
-        <button className="px-2 py-1.5 text-left" onClick={assignees.onRetry} type="button">
-          Retry
-        </button>
-      )}
-    </DropdownMenuGroup>
+    <MemberSelect
+      choices={choices}
+      error={assignees.error}
+      hasMore={assignees.hasMore}
+      inline
+      loading={assignees.loading}
+      loadingMore={assignees.loadingMore}
+      mode="multiple"
+      onLoadMore={assignees.onLoadMore}
+      onRetry={assignees.onRetry}
+      onSearch={assignees.onSearch}
+      onValueChange={(next) => {
+        const ids = next.map((choice) => choice.id);
+
+        column.setFilterValue(ids.length > 0 ? ids : undefined);
+      }}
+      value={selectedMemberChoices(selected, choices)}
+    />
   );
+}
+
+function knownTableAssignees(
+  members: ReturnType<typeof useIssueTableContext>["members"],
+  rows: readonly IssueTableRow[],
+): EligibleAssignee[] {
+  const known = new Map<string, EligibleAssignee>();
+
+  for (const member of members) {
+    known.set(member.memberId, {
+      email: member.email,
+      id: member.memberId,
+      image: member.image,
+      name: member.name,
+    });
+  }
+
+  for (const row of rows) {
+    if (row.assigneeId !== unassignedAssigneeId) {
+      known.set(row.assigneeId, {
+        email: row.assigneeEmail,
+        id: row.assigneeId,
+        image: row.assigneeImage,
+        name: row.assigneeName,
+      });
+    }
+  }
+
+  return [...known.values()];
 }
 
 function MultiValueFilter({
@@ -154,22 +194,34 @@ function FilterOptionLabel({
     return <IssueStatusOption label={option.label} statusId={option.id} statuses={statuses} />;
   }
 
+  if (columnId === "category") {
+    const category = issueStatusCategories.find((item) => item === option.id);
+
+    if (category !== undefined) {
+      return <IssueStatusIndicator category={category} name={option.label} />;
+    }
+  }
+
   return <span className="block truncate">{option.label}</span>;
 }
 
 function TextFilter({ column }: { column: FilterColumn }) {
   const value = column.getFilterValue();
+  const applied = typeof value === "string" ? value : "";
+  const [draft, setDraft] = useDebouncedCommit(applied, (next) => {
+    column.setFilterValue(next.length > 0 ? next : undefined);
+  });
 
   return (
     <div className="p-1">
       <Input
         aria-label={`Filter ${filterLabel(column.id)}`}
         onChange={(event) => {
-          column.setFilterValue(event.target.value.length > 0 ? event.target.value : undefined);
+          setDraft(event.target.value);
         }}
         onKeyDown={stopMenuKeys}
         placeholder="Contains..."
-        value={typeof value === "string" ? value : ""}
+        value={draft}
       />
     </div>
   );
@@ -177,17 +229,18 @@ function TextFilter({ column }: { column: FilterColumn }) {
 
 function NumberRangeFilter({ column }: { column: FilterColumn }) {
   const value = column.getFilterValue();
-  const min = Array.isArray(value) ? readBound(value[0]) : "";
-  const max = Array.isArray(value) ? readBound(value[1]) : "";
-
-  const update = (nextMin: string, nextMax: string) => {
-    const parsedMin = parseBound(nextMin);
-    const parsedMax = parseBound(nextMax);
-
-    column.setFilterValue(
-      parsedMin === undefined && parsedMax === undefined ? undefined : [parsedMin, parsedMax],
-    );
-  };
+  const appliedMin = Array.isArray(value) ? readBound(value[0]) : "";
+  const appliedMax = Array.isArray(value) ? readBound(value[1]) : "";
+  const maxRef = useRef(appliedMax);
+  const minRef = useRef(appliedMin);
+  const [min, setMin] = useDebouncedCommit(appliedMin, (next) => {
+    writeNumberRange(column, next, maxRef.current);
+  });
+  const [max, setMax] = useDebouncedCommit(appliedMax, (next) => {
+    writeNumberRange(column, minRef.current, next);
+  });
+  minRef.current = min;
+  maxRef.current = max;
 
   return (
     <div className="flex items-center gap-2 p-1">
@@ -195,7 +248,7 @@ function NumberRangeFilter({ column }: { column: FilterColumn }) {
         aria-label="Minimum number"
         min={1}
         onChange={(event) => {
-          update(event.target.value, max);
+          setMin(event.target.value);
         }}
         onKeyDown={stopMenuKeys}
         placeholder="Min"
@@ -207,7 +260,7 @@ function NumberRangeFilter({ column }: { column: FilterColumn }) {
         aria-label="Maximum number"
         min={1}
         onChange={(event) => {
-          update(min, event.target.value);
+          setMax(event.target.value);
         }}
         onKeyDown={stopMenuKeys}
         placeholder="Max"
@@ -232,48 +285,27 @@ function DateRangeFilter({ column }: { column: FilterColumn }) {
   };
 
   return (
-    <div className="flex flex-col gap-2 p-1">
-      <label className="flex flex-col gap-1">
-        <span className="text-muted-foreground">From</span>
-        <Input
-          aria-label="From"
-          onChange={(event) => {
-            update(event.target.value, to);
-          }}
-          onKeyDown={stopMenuKeys}
-          type="date"
-          value={from}
-        />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-muted-foreground">To</span>
-        <Input
-          aria-label="To"
-          onChange={(event) => {
-            update(from, event.target.value);
-          }}
-          onKeyDown={stopMenuKeys}
-          type="date"
-          value={to}
-        />
-      </label>
+    <div className="w-fit">
+      <DateRangeCalendar
+        from={from}
+        onChange={(nextFrom, nextTo) => {
+          update(nextFrom, nextTo);
+        }}
+        to={to}
+      />
     </div>
   );
 }
 
 function useFilterOptions(columnId: string): FilterOption[] | null {
-  const { assignees, facets, members, rows, statuses } = useIssueTableContext();
+  const { facets, rows, statuses } = useIssueTableContext();
 
-  if (!isMultiColumn(columnId)) {
+  if (!isMultiColumn(columnId) || columnId === "assignee") {
     return null;
   }
 
   if (columnId === "status") {
     return statusOptions(rows, statuses, facets?.status);
-  }
-
-  if (columnId === "assignee") {
-    return assigneeOptions(rows, members, assignees.assignees, facets?.assignee);
   }
 
   if (columnId === "priority") {
@@ -336,44 +368,6 @@ function statusOptions(
   ];
 }
 
-function assigneeOptions(
-  rows: readonly IssueTableRow[],
-  members: IssueTableContextMembers,
-  eligible: readonly EligibleAssignee[],
-  facets: Record<string, number> | undefined,
-): FilterOption[] {
-  const labels = new Map<string, string>();
-
-  for (const member of members) {
-    labels.set(member.memberId, member.name);
-  }
-
-  for (const assignee of eligible) {
-    labels.set(assignee.id, assignee.name);
-  }
-
-  for (const row of rows) {
-    if (row.assigneeId !== unassignedAssigneeId && !labels.has(row.assigneeId)) {
-      labels.set(row.assigneeId, row.assigneeName);
-    }
-  }
-
-  return [
-    {
-      count: facetCount(facets, unassignedAssigneeId),
-      id: unassignedAssigneeId,
-      label: "Unassigned",
-    },
-    ...[...labels]
-      .sort((left, right) => left[1].localeCompare(right[1]))
-      .map(([id, label]) => ({
-        count: facetCount(facets, id),
-        id,
-        label,
-      })),
-  ];
-}
-
 function parseBound(value: string): number | undefined {
   if (value.trim().length === 0) {
     return undefined;
@@ -394,11 +388,72 @@ function filterLabel(columnId: string): string {
     : columnId;
 }
 
+function writeNumberRange(column: FilterColumn, min: string, max: string) {
+  const parsedMin = parseBound(min);
+  const parsedMax = parseBound(max);
+
+  column.setFilterValue(
+    parsedMin === undefined && parsedMax === undefined ? undefined : [parsedMin, parsedMax],
+  );
+}
+
+const filterInputDelayMs = 300;
+
+function useDebouncedCommit(
+  value: string,
+  commit: (next: string) => void,
+): [string, Dispatch<SetStateAction<string>>] {
+  const [draft, setDraft] = useState(value);
+  const committed = useRef(value);
+  const commitRef = useRef(commit);
+  const draftRef = useRef(draft);
+  commitRef.current = commit;
+  draftRef.current = draft;
+
+  useEffect(() => {
+    if (value === committed.current) {
+      return;
+    }
+
+    committed.current = value;
+    // The draft state updates on the next render. Keep the ref in step so
+    // unmount cannot commit the previous keystrokes over this value.
+    draftRef.current = value;
+    setDraft(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (draft === committed.current) {
+      return;
+    }
+
+    const handle = window.setTimeout(() => {
+      committed.current = draft;
+      commitRef.current(draft);
+    }, filterInputDelayMs);
+
+    return () => {
+      window.clearTimeout(handle);
+    };
+  }, [draft]);
+
+  useEffect(() => {
+    return () => {
+      if (draftRef.current !== committed.current) {
+        const next = draftRef.current;
+        committed.current = next;
+        commitRef.current(next);
+      }
+    };
+  }, []);
+
+  return [draft, setDraft];
+}
+
 function stopMenuKeys(event: KeyboardEvent<HTMLInputElement>) {
   event.stopPropagation();
 }
 
-type IssueTableContextMembers = ReturnType<typeof useIssueTableContext>["members"];
 type IssueTableContextStatuses = ReturnType<typeof useIssueTableContext>["statuses"];
 
 export { IssueColumnFilter, type FilterColumn };

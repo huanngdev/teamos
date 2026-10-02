@@ -3,18 +3,14 @@ import {
   canPerformProjectAction,
   findStaleIssueViewReferences,
   type OrganizationRole,
-  type ProjectStatusSummary,
 } from "@teamos/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import {
-  applyColumnMove,
   issueKeys,
-  readIssueError,
   useColumnPages,
-  updateProjectStatus,
   useColumnForm,
   useIssueForm,
   type BoardColumn,
@@ -33,7 +29,7 @@ import { deleteIssueView, getIssueView, updateIssueView } from "../api/issue-vie
 import { removeCachedIssueView } from "../lib/issue-view-cache";
 import { issueViewListParams } from "../lib/issue-view-draft";
 import { isMissingIssueView, readIssueViewError } from "../lib/issue-view-errors";
-import { issueMatchesViewColumns } from "../lib/issue-view-move";
+import { issueMatchesViewColumns, issueViewMoveRequest } from "../lib/issue-view-move";
 import { projectViewsPath } from "../lib/issue-view-paths";
 import { issueViewKeys } from "../query-keys";
 import { useIssueViewHeaderStore } from "../stores/issue-view-header-store";
@@ -69,8 +65,7 @@ interface IssueViewBoardReady {
   onEditIssue: (issueId: string) => void;
   onLoadMore: (statusId: string) => void;
   onLoadPrevious: (statusId: string) => void;
-  onMoveColumn: (statusId: string, index: number) => void;
-  onMoveStatus: (issueId: string, statusId: string) => void;
+  onMoveIssue: (issueId: string, statusId: string, index: number) => void;
   onRenameColumn: (statusId: string) => void;
   stale: boolean;
   truncated: { shown: number; total: number } | null;
@@ -160,6 +155,7 @@ function useIssueViewBoard(options: {
         definition: input.definition,
         expectedRevision: input.expectedRevision,
         name: input.name,
+        visibility: input.visibility,
       });
     },
     onSuccess: async (updated) => {
@@ -235,31 +231,6 @@ function useIssueViewBoard(options: {
       await navigate(projectViewsPath(options.organizationSlug, options.projectSlug));
     },
   });
-  const moveColumn = useMutation({
-    mutationFn: (input: { index: number; previous: ProjectStatusSummary[]; statusId: string }) => {
-      if (projectId === null) {
-        throw new Error("Project is not ready.");
-      }
-
-      return updateProjectStatus(options.organizationSlug, projectId, input.statusId, {
-        index: input.index,
-      });
-    },
-    onError: (error, variables) => {
-      if (projectId === null) {
-        return;
-      }
-
-      queryClient.setQueryData(
-        issueKeys(options.organizationSlug, projectId).statuses(),
-        variables.previous,
-      );
-      notify.error(
-        readIssueError(error, "The column could not be moved.") ?? "The column could not be moved.",
-      );
-    },
-  });
-
   useEffect(() => {
     return () => {
       useIssueViewHeaderStore.getState().clear();
@@ -348,8 +319,6 @@ function useIssueViewBoard(options: {
   const stale =
     staleReferences.statusIds.length > 0 ||
     (knownAssigneeQuery.isSuccess && staleReferences.memberIds.length > 0);
-  const statusKey =
-    projectId === null ? null : issueKeys(options.organizationSlug, projectId).statuses();
 
   return {
     status: "ready",
@@ -401,45 +370,51 @@ function useIssueViewBoard(options: {
       },
       onLoadMore: pages.loadMore,
       onLoadPrevious: pages.loadPrevious,
-      onMoveColumn: (statusId, index) => {
-        if (!canUpdateProject || projectId === null || statusKey === null) {
-          return;
-        }
-
-        const previous =
-          queryClient.getQueryData<ProjectStatusSummary[]>(statusKey) ?? catalog.statuses;
-        const currentIndex = [...previous]
-          .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
-          .findIndex((status) => status.id === statusId);
-
-        if (currentIndex === index) {
-          return;
-        }
-
-        queryClient.setQueryData(statusKey, applyColumnMove(previous, statusId, index));
-        moveColumn.mutate({ index, previous, statusId });
-      },
-      onMoveStatus: (issueId, statusId) => {
+      onMoveIssue: (issueId, statusId, index) => {
         if (!canUpdateIssue || projectId === null) {
           return;
         }
 
-        const moving = columns
-          .flatMap((column) => column.issues)
-          .find((issue) => issue.id === issueId);
+        const source = columns.find((column) =>
+          column.issues.some((issue) => issue.id === issueId),
+        );
+        const destination = columns.find((column) => column.status.id === statusId);
+        const moving = source?.issues.find((issue) => issue.id === issueId);
+        const sourceIndex = source?.issues.findIndex((issue) => issue.id === issueId) ?? -1;
 
-        if (moving === undefined || moving.statusId === statusId) {
+        if (moving === undefined || destination === undefined) {
           return;
         }
 
-        if (!issueMatchesViewColumns({ statusId }, saved.definition, catalog.statuses)) {
+        const request = issueViewMoveRequest({
+          currentStatusId: moving.statusId,
+          destinationIssues: destination.issues,
+          destinationStatusId: statusId,
+          index,
+          movingId: issueId,
+          skippedBefore: destination.skippedBefore,
+          sourceIndex,
+        });
+
+        if (request === null) {
+          return;
+        }
+
+        if (
+          moving.statusId !== statusId &&
+          !issueMatchesViewColumns({ statusId }, saved.definition, catalog.statuses)
+        ) {
           notify.success("Moved. It no longer matches this view.");
         }
 
         void pages.moveIssue({
-          index: 0,
+          index,
           issueId,
-          request: { statusId },
+          request: {
+            expectedUpdatedAt: moving.updatedAt,
+            placement: request.placement,
+            statusId: request.statusId,
+          },
           retain: (issue) => issueMatchesViewColumns(issue, saved.definition, catalog.statuses),
           statusId,
         });

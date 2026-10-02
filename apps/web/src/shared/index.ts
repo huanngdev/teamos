@@ -6,6 +6,7 @@ export {
   requestVoid,
   toApiClientError,
 } from "./api/api-client";
+export { DateRangeCalendar, DateRangePicker } from "./components/date-range-picker";
 export { ErrorBoundary } from "./components/error-boundary";
 export { Logo, type LogoProps, type LogoVariant } from "./components/logo";
 export { PersonIdentity } from "./components/person-identity";

@@ -15,10 +15,10 @@ import { useState } from "react";
 import {
   browserTimeZone,
   selectedAssigneeIds,
+  setAssignees,
   setFilterDate,
   setFilterNumber,
   setFilterText,
-  toggleAssignee,
   toggleFilterValue,
 } from "../lib/issue-view-draft";
 
@@ -37,6 +37,7 @@ type IssueViewFormSubmit =
       id: string;
       mode: "edit";
       name: string;
+      visibility: IssueViewVisibility;
     };
 
 interface IssueViewFormState {
@@ -46,7 +47,6 @@ interface IssueViewFormState {
   isValid: boolean;
   mode: IssueViewFormMode;
   name: string;
-  onClearAssignees: () => void;
   onClearCategories: () => void;
   onClearPriorities: () => void;
   onClearStatuses: () => void;
@@ -55,9 +55,10 @@ interface IssueViewFormState {
     field: "createdFrom" | "createdTo" | "updatedFrom" | "updatedTo",
     value: string,
   ) => void;
+  onSetDateRange: (field: "created" | "updated", from: string, to: string) => void;
   onSetNumber: (bound: "max" | "min", value: string) => void;
+  onSetAssignees: (tokens: readonly string[]) => void;
   onSetText: (field: "description" | "q" | "title", value: string) => void;
-  onToggleAssignee: (token: string) => void;
   onToggleCategory: (category: string) => void;
   onTogglePriority: (priority: string) => void;
   onToggleStatus: (statusId: string) => void;
@@ -126,9 +127,6 @@ function useIssueViewForm(options: {
     isValid: name.trim().length > 0 && name.trim().length <= 80,
     mode,
     name,
-    onClearAssignees: () => {
-      setFilters((current) => ({ ...current, assignee: undefined }));
-    },
     onClearCategories: () => {
       setFilters((current) => ({ ...current, categories: undefined }));
     },
@@ -144,14 +142,23 @@ function useIssueViewForm(options: {
     onSetDate: (field, value) => {
       setFilters((current) => setFilterDate(current, field, value));
     },
+    onSetDateRange: (field, from, to) => {
+      setFilters((current) =>
+        setFilterDate(
+          setFilterDate(current, field === "created" ? "createdFrom" : "updatedFrom", from),
+          field === "created" ? "createdTo" : "updatedTo",
+          to,
+        ),
+      );
+    },
     onSetNumber: (bound, value) => {
       setFilters((current) => setFilterNumber(current, bound, value));
     },
+    onSetAssignees: (tokens) => {
+      setFilters((current) => setAssignees(current, tokens));
+    },
     onSetText: (field, value) => {
       setFilters((current) => setFilterText(current, field, value));
-    },
-    onToggleAssignee: (token) => {
-      setFilters((current) => toggleAssignee(current, token));
     },
     onToggleCategory: (category) => {
       const parsed = issueStatusCategories.find((item) => item === category);
@@ -199,7 +206,7 @@ function useIssueViewForm(options: {
         setVisibilityState(parsed.data);
       }
     },
-    showVisibility: options.canCreateProjectView && mode === "create",
+    showVisibility: options.canCreateProjectView,
     submit: () => {
       if (mode === "closed" || name.trim().length === 0 || options.isPending) {
         return;
@@ -234,6 +241,7 @@ function useIssueViewForm(options: {
         id: viewId,
         mode,
         name: name.trim(),
+        visibility,
       });
     },
     visibility,

@@ -26,6 +26,7 @@ import { IssueStatusIndicator } from "./issue-status-indicator";
 interface IssueColumnProps {
   canCreateIssue: boolean;
   canDragCards: boolean;
+  canReorderColumns: boolean;
   canUpdateProject: boolean;
   column: BoardColumn;
   members: readonly ProjectMember[];
@@ -47,6 +48,7 @@ const CARD_OVERSCAN = 4;
 function IssueColumn({
   canCreateIssue,
   canDragCards,
+  canReorderColumns,
   canUpdateProject,
   column,
   members,
@@ -180,7 +182,7 @@ function IssueColumn({
     >
       <div className="relative flex h-full flex-col rounded-lg border bg-background" ref={rootRef}>
         <div className="flex h-12 shrink-0 items-center gap-2 px-3 py-2">
-          {canUpdateProject ? (
+          {canReorderColumns ? (
             <KanbanColumnHandle
               className="opacity-100"
               render={(props) => (

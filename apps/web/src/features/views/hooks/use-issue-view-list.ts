@@ -172,6 +172,7 @@ function useIssueViewList(options: {
           definition: input.definition,
           expectedRevision: input.expectedRevision,
           name: input.name,
+          visibility: input.visibility,
         });
       }
 

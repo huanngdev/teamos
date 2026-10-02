@@ -1,12 +1,8 @@
-import type { EligibleAssignee } from "@teamos/shared";
-import { UserCircleIcon } from "@phosphor-icons/react";
+import { unassignedAssigneeId, type EligibleAssignee } from "@teamos/shared";
 
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { EligibleAssigneePicker } from "@/features/projects";
-import { PersonIdentity } from "@/shared";
-import { AssigneeMenuList, AssigneeSearchField, type AssigneeMenuRow } from "./assignee-menu";
-import { IssueIconLabel } from "./issue-field-label";
+import { buildMemberChoices, unassignedMemberChoice } from "../lib/member-choices";
+import { MemberSelect } from "./member-select";
 
 function IssueAssigneePicker({
   disabled,
@@ -19,46 +15,44 @@ function IssueAssigneePicker({
   picker: EligibleAssigneePicker;
   selected: EligibleAssignee | null;
 }) {
-  const people: AssigneeMenuRow[] = picker.assignees.map((assignee) => ({
-    content: <PersonIdentity email={assignee.email} image={assignee.image} name={assignee.name} />,
-    id: assignee.id,
-    onSelect: () => {
-      onSelect(assignee);
-    },
-    pressed: assignee.id === selected?.id,
-  }));
+  const selectedIds = selected === null ? [unassignedAssigneeId] : [selected.id];
+  const choices = buildMemberChoices({
+    assignees: picker.assignees,
+    includeCurrentUser: false,
+    includeUnassigned: true,
+    known: selected === null ? [] : [selected],
+    selectedIds,
+  });
+  const value = choices.find((choice) => choice.id === selectedIds[0]) ?? unassignedMemberChoice;
 
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button aria-label="Assignee" disabled={disabled} type="button" variant="outline">
-            {selected === null ? (
-              <IssueIconLabel icon={UserCircleIcon} label="Unassigned" />
-            ) : (
-              <PersonIdentity image={selected.image} name={selected.name} />
-            )}
-          </Button>
+    <MemberSelect
+      choices={choices}
+      disabled={disabled}
+      error={picker.error}
+      hasMore={picker.hasMore}
+      loading={picker.loading}
+      loadingMore={picker.loadingMore}
+      mode="single"
+      onLoadMore={picker.onLoadMore}
+      onRetry={picker.onRetry}
+      onSearch={picker.onSearch}
+      onValueChange={(choice) => {
+        if (choice === null || choice.id === unassignedAssigneeId) {
+          onSelect(null);
+          return;
         }
-      />
-      <PopoverContent align="start" className="w-80">
-        <AssigneeSearchField picker={picker} />
-        <AssigneeMenuList
-          leading={[
-            {
-              content: <IssueIconLabel icon={UserCircleIcon} label="Unassigned" />,
-              id: "unassigned",
-              onSelect: () => {
-                onSelect(null);
-              },
-              pressed: selected === null,
-            },
-          ]}
-          people={people}
-          picker={picker}
-        />
-      </PopoverContent>
-    </Popover>
+
+        const match =
+          picker.assignees.find((assignee) => assignee.id === choice.id) ??
+          (selected?.id === choice.id ? selected : null);
+
+        if (match !== null) {
+          onSelect(match);
+        }
+      }}
+      value={value}
+    />
   );
 }
 

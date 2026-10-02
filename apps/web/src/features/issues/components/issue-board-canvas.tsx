@@ -29,6 +29,7 @@ interface IssueBoardDragState {
 
 interface IssueBoardCanvasProps {
   canCreateIssue: boolean;
+  canReorderColumns: boolean;
   canUpdateIssue: boolean;
   canUpdateProject: boolean;
   drag: IssueBoardDragState;
@@ -45,6 +46,7 @@ interface IssueBoardCanvasProps {
 
 function IssueBoardCanvas({
   canCreateIssue,
+  canReorderColumns,
   canUpdateIssue,
   canUpdateProject,
   drag,
@@ -84,6 +86,7 @@ function IssueBoardCanvas({
                 <IssueColumn
                   canCreateIssue={canCreateIssue}
                   canDragCards={canUpdateIssue}
+                  canReorderColumns={canReorderColumns}
                   canUpdateProject={canUpdateProject}
                   column={column}
                   key={column.status.id}

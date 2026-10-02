@@ -53,8 +53,7 @@ function IssueViewBoardReady({
 }) {
   const drag = useIssueViewDrag({
     columns: view.columns,
-    onMoveColumn: view.onMoveColumn,
-    onMoveStatus: view.onMoveStatus,
+    onMoveIssue: view.onMoveIssue,
   });
 
   return (
@@ -73,6 +72,7 @@ function IssueViewBoardReady({
           <IssueBoardCanvas
             canCreateIssue={view.canCreateIssue}
             canUpdateIssue={view.canUpdateIssue}
+            canReorderColumns={false}
             canUpdateProject={view.canUpdateProject}
             drag={drag}
             members={view.catalog.members}

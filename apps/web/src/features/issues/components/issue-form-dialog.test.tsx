@@ -43,12 +43,12 @@ test("lists a workspace member who has no project role in the issue assignee she
   expect(within(dialog).getByLabelText("Description")).toBeEnabled();
   expect(within(dialog).getByRole("button", { name: "Create issue" })).toBeDisabled();
 
-  await user.click(within(dialog).getByRole("button", { name: "Assignee" }));
-  expect(await screen.findByRole("button", { name: /Grace Hopper/ })).toBeInTheDocument();
-  expect(screen.getByText("grace@example.com")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Unassigned" })).toBeInTheDocument();
+  await user.click(within(dialog).getByRole("combobox", { name: "Assignee" }));
+  expect(await screen.findByRole("option", { name: "Grace Hopper" })).toBeInTheDocument();
+  expect(screen.queryByText("grace@example.com")).not.toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Unassigned" })).toBeInTheDocument();
 
-  await user.click(screen.getByRole("button", { name: /Grace Hopper/ }));
+  await user.click(screen.getByRole("option", { name: "Grace Hopper" }));
   await user.type(within(dialog).getByLabelText("Title"), "Gate review");
   await user.click(within(dialog).getByRole("button", { name: "Create issue" }));
 

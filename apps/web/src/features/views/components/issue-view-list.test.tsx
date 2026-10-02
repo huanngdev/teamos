@@ -112,8 +112,14 @@ test("does not offer project sharing to a viewer", async () => {
   await user.click(await screen.findByRole("button", { name: "New view" }));
 
   expect(screen.queryByLabelText("Sharing")).not.toBeInTheDocument();
-  expect(await screen.findByRole("button", { name: "Assignee" })).toBeInTheDocument();
+  expect(await screen.findByRole("combobox", { name: "Assignee" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Priority" })).toBeInTheDocument();
+  await user.keyboard("{Escape}");
+  await user.click(await screen.findByRole("button", { name: "My issues actions" }));
+  await user.click(screen.getByRole("menuitem", { name: "Edit view" }));
+  const editDialog = await screen.findByRole("dialog", { name: "Edit view" });
+  expect(within(editDialog).queryByRole("combobox", { name: "Sharing" })).not.toBeInTheDocument();
+  expect(within(editDialog).getByText("Personal")).toBeInTheDocument();
 });
 
 test("creates a view with the selected filters", async () => {
@@ -170,11 +176,11 @@ test("keeps advanced filters when resetting and saving a multi-select assignee",
   const dialog = await screen.findByRole("dialog", { name: "New view" });
 
   await user.type(within(dialog).getByLabelText("Name"), "Roster");
-  await user.click(within(dialog).getByRole("button", { name: "Assignee" }));
-  await user.click(await screen.findByRole("button", { name: "Me" }));
-  await user.click(screen.getByRole("button", { name: "Unassigned" }));
-  await user.click(screen.getByRole("button", { name: /Grace Hopper/ }));
-  expect(screen.getByText("grace@example.com")).toBeInTheDocument();
+  await user.click(within(dialog).getByRole("combobox", { name: "Assignee" }));
+  await user.click(await screen.findByRole("option", { name: "Me" }));
+  await user.click(screen.getByRole("option", { name: "Unassigned" }));
+  await user.click(screen.getByRole("option", { name: "Grace Hopper" }));
+  expect(screen.queryByText("grace@example.com")).not.toBeInTheDocument();
   await user.click(within(dialog).getByLabelText("Name"));
 
   await user.click(within(dialog).getByRole("button", { name: "More filters" }));
@@ -186,10 +192,10 @@ test("keeps advanced filters when resetting and saving a multi-select assignee",
   expect(within(dialog).getByLabelText("Search")).toHaveValue("");
   expect(within(dialog).getByRole("button", { name: "More filters" })).toBeInTheDocument();
 
-  await user.click(within(dialog).getByRole("button", { name: "Assignee" }));
-  await user.click(await screen.findByRole("button", { name: "Me" }));
-  await user.click(screen.getByRole("button", { name: "Unassigned" }));
-  await user.click(screen.getByRole("button", { name: /Grace Hopper/ }));
+  await user.click(within(dialog).getByRole("combobox", { name: "Assignee" }));
+  await user.click(await screen.findByRole("option", { name: "Me" }));
+  await user.click(screen.getByRole("option", { name: "Unassigned" }));
+  await user.click(screen.getByRole("option", { name: "Grace Hopper" }));
   await user.click(within(dialog).getByLabelText("Name"));
   await user.type(within(dialog).getByLabelText("Search"), "gate");
   await user.click(within(dialog).getByRole("button", { name: "Create view" }));
@@ -288,6 +294,8 @@ test("opens a saved view on the default board and edits its filters", async () =
   await user.click(screen.getByRole("button", { name: "View actions" }));
   await user.click(screen.getByRole("menuitem", { name: "Edit view" }));
   expect(screen.getByLabelText("Name")).toHaveValue("My issues");
+  await user.click(screen.getByRole("combobox", { name: "Sharing" }));
+  await user.click(await screen.findByRole("option", { name: "Project" }));
   await user.clear(screen.getByLabelText("Name"));
   await user.type(screen.getByLabelText("Name"), "Release watch");
   await user.click(screen.getByRole("button", { name: "Priority" }));
@@ -307,6 +315,7 @@ test("opens a saved view on the default board and edits its filters", async () =
         },
         expectedRevision: 1,
         name: "Release watch",
+        visibility: "project",
       }),
     ]);
   });
