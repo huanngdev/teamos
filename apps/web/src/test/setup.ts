@@ -1,7 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach } from "vitest";
+
+// GitHub-hosted runners share the machine with the rest of `bun run check`.
+// A 300 ms search debounce plus a refetch can miss the 1 s Testing Library default.
+configure({ asyncUtilTimeout: 5_000 });
 
 import { useShellStore } from "@/shared/stores/shell-store";
 import { server } from "./server";
