@@ -49,6 +49,7 @@ Do not replace these technologies without an explicit architectural decision fro
 
 ```text
 .
+├── .github/                 # Actions workflows and Dependabot
 ├── apps/
 │   ├── web/                 # Vite React frontend
 │   │   ├── src/             # App, pages, components, hooks, lib, and styles
@@ -249,6 +250,8 @@ bun run db:generate                       # review generated SQL before committi
 Review generated migrations for statement ordering. A composite unique constraint used as a foreign-key target must be created before the foreign key, and Drizzle Kit does not always emit them in that order.
 
 Before considering work complete, run the repository's available formatting, linting, type-checking, test, and build scripts. For UI changes, verify responsive layout, keyboard behavior, light and dark themes, and reduced motion. For infrastructure changes, validate the Docker Compose configuration and service health.
+
+Pull requests to `main` and pushes to `main` run `bun run check`, TruffleHog, and CodeQL through `.github/workflows`. Dependabot updates Bun and GitHub Actions weekly. The details are in `docs/infra-guide.md`.
 
 ## Change Discipline
 
