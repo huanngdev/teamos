@@ -2,7 +2,7 @@
 
 Date: 2026-10-02
 
-Status: product direction agreed by the user. M1 is next. Each later milestone still needs its own implementation pass before coding.
+Status: product direction agreed by the user. M2 is next. M1 is recorded in `docs/progress.md` and `docs/plans/issue-detail.md`. Each later milestone still needs its own implementation pass before coding.
 
 ## 1. Goal and Implementation Order
 
@@ -10,8 +10,7 @@ Complete the issue workflow first, then add collaboration and progress visibilit
 
 | Milestone | User-facing outcome                                             | Dependencies                         |
 | --------- | --------------------------------------------------------------- | ------------------------------------ |
-| M1        | Stable issue codes, shareable URLs, and issue detail            | Existing foundation                  |
-| M2        | Issue activity history and workspace audit log                  | M1                                   |
+| M2        | Issue activity history and workspace audit log                  | Issue codes and detail               |
 | M3        | Blocks/blocked-by relationships and enforced status transitions | M1–M2                                |
 | M4        | Rich descriptions, images/files, and comments                   | M1–M2                                |
 | M5        | Realtime board/detail updates and notifications                 | M2–M4                                |
@@ -19,23 +18,11 @@ Complete the issue workflow first, then add collaboration and progress visibilit
 | M7        | Project chat                                                    | M4–M5                                |
 | M8        | Production readiness                                            | Required before a production release |
 
-**Start with M1. Do not begin all milestones at once.**
+**Start with M2. Do not begin all milestones at once.**
 
 Schedules and dedicated HR functionality are outside this roadmap. For now, employee management means workspace/project membership, roles, assignments, and workload visibility.
 
 ## 2. Milestones and Subtasks
-
-### M1 — Issue Identity and Detail
-
-- [ ] **M1.1 — Allocate numbers without reuse.** Replace `max(number) + 1` with a project-owned counter incremented atomically inside a transaction. Initialize it from the highest existing issue number and preserve existing numbers.
-- [ ] **M1.2 — Display issue codes.** Use the fixed `I-` prefix with a minimum of four digits: `I-0001`, `I-9999`, `I-10000`. Codes are unique within a project, not across the workspace.
-- [ ] **M1.3 — Number capacity.** Use PostgreSQL `bigint` and decimal strings in API contracts to avoid JavaScript precision loss. Update affected filters and sorting, and return a clear error at the storage limit. Do not impose a four-digit limit.
-- [ ] **M1.4 — Stable URLs.** Add `/w/:organizationSlug/p/:projectSlug/issues/:issueCode`, for example `/w/acme/p/website/issues/I-0001`. Validate the `I-` code and resolve its decimal number within the project; redirect alternate padding to the canonical minimum-four-digit code. Keep UUIDs as internal identifiers. Renaming a project must not change issue codes.
-- [ ] **M1.5 — Two detail entry paths.** Clicking an issue in a list, board, or saved view opens a wide overlay and updates the URL. Opening the link directly or refreshing renders a full detail page. Closing the overlay or navigating back restores filters, pagination, and scroll position.
-- [ ] **M1.6 — Initial detail content.** Show code, title, existing description, status, priority, assignee, and timestamps. Reuse existing mutations and permissions, with loading, not-found, retry, and read-only states.
-- [ ] **M1.7 — Sharing and search.** Add Copy link. Display the same issue code on lists, cards, and detail. Search accepts codes such as `I-0001`.
-
-**Acceptance:** links can be shared and opened directly; concurrent creates cannot duplicate codes; deleting the highest-numbered issue never causes its number to be reused.
 
 ### M2 — Change History and Audit Log
 
@@ -66,7 +53,7 @@ Convention: **A blocks B** means B must wait for A to finish.
 
 ### M4 — Rich Content, Files, and Comments
 
-Target a visual editor with Markdown shortcuts, following the writing experience described in [Linear's editor documentation](https://linear.app/docs/editor). Use [Tiptap](https://tiptap.dev/docs) with the necessary core/extensions; do not add an editor cloud service. Tiptap is the proposed implementation choice, not a claim about Linear's internal stack.
+Target a visual editor with Markdown shortcuts, following the writing experience described in [Linear's editor documentation](https://linear.app/docs/editor). Issue content already stores versioned JSON and renders through the vendored shadcn-editor recorded in `docs/plans/issue-detail.md`. M4 stays open for strikethrough, autosave, files, comments, and the rest of this list. Do not replace that editor unless a later plan says so.
 
 - [ ] **M4.1 — Editor foundation.** Support paragraphs, headings, bold/italic/strikethrough, lists/checklists, quotes, links, inline code, and code blocks, with selection-based formatting and Markdown shortcuts.
 - [ ] **M4.2 — Content persistence.** Versioned JSON is the source of truth; maintain a plain-text projection for search. Convert existing descriptions into paragraphs without changing their text. Validate nodes/marks, limit payload size, and render safely.
@@ -136,16 +123,17 @@ The user explicitly selected:
 - Browser routes stay on `/w/:organizationSlug` and `/w/:organizationSlug/p/:projectSlug`. Old `/workspaces` routes stay unregistered.
 - Audit captures data changes; workspace audit access belongs to owners/admins.
 - Issue codes use `I-`, are unique within a project, and must keep increasing beyond four digits.
-- Detail opens as an overlay with a URL; direct navigation opens a full page.
+- Issue detail is always the page at `/w/:organizationSlug/p/:projectSlug/issues/:issueCode`. Create and quick edit use a dialog. The earlier overlay decision is superseded by `docs/plans/issue-detail.md`.
 - Blockers stay within one project and prevent starting/completing dependent work. Reopening a blocker preserves the dependent issue's existing status.
 - The editor should feel like Linear.
 - Analytics focuses on progress and workload.
 
 Implementation defaults proposed in this roadmap:
 
-- Leave HTTP API routes and existing slugs unchanged. Issue detail is M1 and is not started.
+- Leave HTTP API routes and existing slugs unchanged.
+- Issue codes, the issue URL, and the detail page are implemented. The record is `docs/plans/issue-detail.md`.
 - Never reuse allocated issue numbers; use a project counter with `bigint` storage and decimal-string contracts.
-- Use Tiptap for the visual editor, private MinIO storage for attachments, SSE for initial realtime delivery, and the existing Recharts library for analytics.
+- Issue content uses the vendored shadcn-editor (Lexical 0.50.0) recorded in `docs/plans/issue-detail.md`. Images, files, and comments stay in M4. Private MinIO storage, SSE, and Recharts stay the defaults for those later milestones.
 - Preserve the TeamOS stack and architecture boundaries. Keep chat and schedules out of the initial issue-completion milestones.
 
 These defaults are planning recommendations, not evidence of implemented functionality or permission to introduce unrelated product changes.
