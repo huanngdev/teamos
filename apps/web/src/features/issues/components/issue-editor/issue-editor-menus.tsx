@@ -606,6 +606,11 @@ function isImeKey(event: KeyboardEvent, editor: LexicalEditor): boolean {
   return event.isComposing || event.keyCode === 229 || editor.isComposing();
 }
 
+// Phosphor icons omit width and height unless a size is passed. A bare SVG
+// then uses the browser default of 300×150, which is the unstyled slash row.
+const caretMenuClass =
+  "fixed top-(--issue-menu-top) left-(--issue-menu-left) z-50 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+
 interface MenuPositionStyle extends CSSProperties {
   "--issue-menu-left"?: string;
   "--issue-menu-top"?: string;
@@ -638,8 +643,8 @@ function CaretMenu({
       aria-label={label}
       className={
         wide
-          ? "fixed top-(--issue-menu-top) left-(--issue-menu-left) z-50 max-h-72 w-56 overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
-          : "fixed top-(--issue-menu-top) left-(--issue-menu-left) z-50 flex items-center gap-0.5 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+          ? `${caretMenuClass} max-h-72 w-56 overflow-x-hidden overflow-y-auto`
+          : `${caretMenuClass} flex items-center gap-0.5`
       }
       onMouseDown={(event) => {
         event.preventDefault();
