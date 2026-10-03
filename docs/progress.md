@@ -10,6 +10,8 @@ The issue list, the issue board, and project views are implemented. The list is 
 
 Issue codes and the issue page are implemented. Each project keeps the next number in `project_issue_counter`. Create allocates it inside the project transaction, and a deleted number is never reused. The screen shows `I-0001`, with at least four digits. The list, the board, and a saved view open `/w/:organizationSlug/p/:projectSlug/issues/:issueCode` as a page. Create and quick edit stay in a dialog on the current view. Issue content is a versioned document with a plain-text projection. The behavior is specified in `docs/plans/issue-detail.md`. An issue stores up to 20 assignees. Focused web tests and `verify:isolation` cover codes, content, and assignees. Closing the create dialog or leaving the page does not ask with a browser confirm. A draft stays in this browser until reload or a successful save.
 
+Selecting text and pressing Bold, Italic, or Inline code keeps the format toolbar open (DEV-54).
+
 Labels, comments, and realtime are still open. The next roadmap milestone is M2 in `docs/plans/product-roadmap.md`.
 
 ## What is finished

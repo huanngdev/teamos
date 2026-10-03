@@ -28,13 +28,14 @@ import {
   type LexicalNode,
   type RangeSelection,
 } from "lexical";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Toggle } from "@/components/ui/toggle";
+import { useFormatMenuPointer } from "./use-format-menu-pointer";
 import { useIssueEditorCommands, type IssueEditorBlock } from "./use-issue-editor-commands";
 
 interface SlashCommand {
@@ -49,6 +50,7 @@ interface SlashCommand {
 function IssueEditorMenus({ editable }: { editable: boolean }) {
   const [editor] = useLexicalComposerContext();
   const commands = useIssueEditorCommands();
+  const formatPointer = useFormatMenuPointer(editor);
   const [selectionBox, setSelectionBox] = useState<{ left: number; top: number } | null>(null);
   const [slash, setSlash] = useState<{ left: number; query: string; top: number } | null>(null);
   const [index, setIndex] = useState(0);
@@ -200,7 +202,11 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
   return createPortal(
     <>
       {selectionBox === null || !editable ? null : (
-        <CaretMenu left={selectionBox.left} top={selectionBox.top}>
+        <CaretMenu
+          left={selectionBox.left}
+          pointerRef={formatPointer.pointerRef}
+          top={selectionBox.top}
+        >
           <Toggle aria-label="Bold" onPressedChange={commands.toggleBold} pressed={commands.bold}>
             <TextBIcon />
           </Toggle>
@@ -226,7 +232,7 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
                 </Button>
               }
             />
-            <PopoverContent>
+            <PopoverContent data-issue-format-link="">
               <form
                 className="flex flex-col gap-2"
                 onSubmit={(event) => {
@@ -255,13 +261,7 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
         </CaretMenu>
       )}
       {slash === null || !editable || visible.length === 0 ? null : (
-        <CaretMenu
-          label="Insert"
-          left={slash.left}
-          role="listbox"
-          top={slash.top}
-          wide
-        >
+        <CaretMenu label="Insert" left={slash.left} role="listbox" top={slash.top} wide>
           {visible.map((command) => {
             const selected = command.id === active?.id;
 
@@ -434,6 +434,7 @@ function CaretMenu({
   children,
   label,
   left,
+  pointerRef,
   role,
   top,
   wide = false,
@@ -441,6 +442,7 @@ function CaretMenu({
   children: ReactNode;
   label?: string;
   left: number;
+  pointerRef?: Ref<HTMLDivElement>;
   role?: "listbox";
   top: number;
   wide?: boolean;
@@ -461,6 +463,7 @@ function CaretMenu({
       onMouseDown={(event) => {
         event.preventDefault();
       }}
+      ref={pointerRef}
       role={role}
       style={style}
     >
