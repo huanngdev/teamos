@@ -131,6 +131,7 @@ test("opens the insert menu for a slash in an empty paragraph, after a space, an
 
   await typeSlash(editor, "/");
 
+  expect(menu()?.className).toContain("[&_svg:not([class*='size-'])]:size-4");
   expect(optionNames()).toEqual([
     "Text",
     "Heading 1",
