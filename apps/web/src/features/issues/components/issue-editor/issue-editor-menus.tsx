@@ -16,7 +16,9 @@ import {
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
 import {
+  $getNodeByKey,
   $getSelection,
+  $isElementNode,
   $isRangeSelection,
   $isTextNode,
   COMMAND_PRIORITY_HIGH,
@@ -25,8 +27,10 @@ import {
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
   KEY_TAB_COMMAND,
+  type LexicalEditor,
   type LexicalNode,
   type RangeSelection,
+  type TextNode,
 } from "lexical";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -46,6 +50,13 @@ interface SlashCommand {
   run?: () => void;
 }
 
+interface SlashMatch {
+  nodeKey: string;
+  query: string;
+  slashOffset: number;
+  token: string;
+}
+
 function IssueEditorMenus({ editable }: { editable: boolean }) {
   const [editor] = useLexicalComposerContext();
   const commands = useIssueEditorCommands();
@@ -63,22 +74,26 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
     count: 0,
     open: false,
   });
+  const dismissedRef = useRef<string | null>(null);
+  const tokenRef = useRef<SlashMatch | null>(null);
+  const touchHandled = useRef<string | null>(null);
 
   editableRef.current = editable;
-  menuRef.current.open = slash !== null && enabled.length > 0;
+  menuRef.current.open = slash !== null;
   menuRef.current.count = enabled.length;
   menuRef.current.choose = () => {
     const command = enabled[index];
+    const token = tokenRef.current;
 
-    if (command?.run === undefined) {
+    if (command?.run === undefined || command.disabled === true || token === null) {
       return;
     }
 
-    removeSlashToken(editor);
-    command.run();
+    commitSlash(editor, token, command.run);
   };
   menuRef.current.close = () => {
-    removeSlashToken(editor);
+    dismissedRef.current = tokenRef.current === null ? null : slashIdentity(tokenRef.current);
+    setSlash(null);
   };
 
   useEffect(() => {
@@ -94,46 +109,62 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
           return;
         }
 
-        let query: string | null = null;
-        let selected = false;
-
-        editorState.read(() => {
+        const reading = editorState.read((): { selected: boolean; token: SlashMatch | null } => {
           const selection = $getSelection();
 
           if (!$isRangeSelection(selection)) {
-            return;
+            return { selected: false, token: null };
           }
 
-          const token = readSlashToken(selection);
+          const nextToken = readSlashToken(selection);
 
-          if (token !== null) {
-            query = token.query;
-            return;
-          }
-
-          selected = !selection.isCollapsed() && selection.getTextContent().length > 0;
+          return {
+            selected:
+              nextToken === null &&
+              !selection.isCollapsed() &&
+              selection.getTextContent().length > 0,
+            token: nextToken,
+          };
         });
+        const activeToken = reading.token;
 
-        const rect = caretRect();
+        if (activeToken !== null) {
+          const id = slashIdentity(activeToken);
 
-        if (rect === null) {
-          setSelectionBox(null);
-          setSlash(null);
-          return;
-        }
+          if (dismissedRef.current !== null && dismissedRef.current !== id) {
+            dismissedRef.current = null;
+          }
 
-        if (query !== null) {
-          const next = { left: rect.left, query, top: rect.bottom + 4 };
+          tokenRef.current = activeToken;
+
+          if (dismissedRef.current === id || editor.isComposing()) {
+            setSlash(null);
+            setSelectionBox(null);
+            return;
+          }
+
+          const position = slashPosition(editor, activeToken.nodeKey);
+          const next = { left: position.left, query: activeToken.query, top: position.top };
           setSlash((current) =>
-            sameBox(current, next) && current?.query === query ? current : next,
+            sameBox(current, next) && current?.query === activeToken.query ? current : next,
           );
           setSelectionBox(null);
           return;
         }
 
+        dismissedRef.current = null;
+        tokenRef.current = null;
         setSlash(null);
+
+        const rect = caretRect();
+
+        if (rect === null) {
+          setSelectionBox(null);
+          return;
+        }
+
         setSelectionBox(
-          selected
+          reading.selected
             ? { left: rect.left, top: rect.top < 48 ? rect.bottom + 4 : rect.top - 44 }
             : null,
         );
@@ -146,49 +177,50 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
       mergeRegister(
         editor.registerCommand(
           KEY_ARROW_DOWN_COMMAND,
-          (event) => moveSlash(event, menuRef.current, 1, setIndex),
+          (event) =>
+            guardSlashKey(event, editor, menuRef.current, (keyEvent) =>
+              moveSlash(keyEvent, menuRef.current, 1, setIndex),
+            ),
           COMMAND_PRIORITY_HIGH,
         ),
         editor.registerCommand(
           KEY_ARROW_UP_COMMAND,
-          (event) => moveSlash(event, menuRef.current, -1, setIndex),
+          (event) =>
+            guardSlashKey(event, editor, menuRef.current, (keyEvent) =>
+              moveSlash(keyEvent, menuRef.current, -1, setIndex),
+            ),
           COMMAND_PRIORITY_HIGH,
         ),
         editor.registerCommand(
           KEY_TAB_COMMAND,
-          (event) => {
-            if (event === null) {
-              return false;
-            }
-
-            return moveSlash(event, menuRef.current, event.shiftKey ? -1 : 1, setIndex);
-          },
+          (event) =>
+            guardSlashKey(event, editor, menuRef.current, (keyEvent) =>
+              moveSlash(keyEvent, menuRef.current, keyEvent.shiftKey ? -1 : 1, setIndex),
+            ),
           COMMAND_PRIORITY_HIGH,
         ),
         editor.registerCommand(
           KEY_ENTER_COMMAND,
-          (event) => {
-            if (event === null || !menuRef.current.open) {
-              return false;
-            }
+          (event) =>
+            guardSlashKey(event, editor, menuRef.current, (keyEvent) => {
+              keyEvent.preventDefault();
 
-            event.preventDefault();
-            menuRef.current.choose();
-            return true;
-          },
+              if (menuRef.current.count > 0) {
+                menuRef.current.choose();
+              }
+
+              return true;
+            }),
           COMMAND_PRIORITY_HIGH,
         ),
         editor.registerCommand(
           KEY_ESCAPE_COMMAND,
-          (event) => {
-            if (event === null || !menuRef.current.open) {
-              return false;
-            }
-
-            event.preventDefault();
-            menuRef.current.close();
-            return true;
-          },
+          (event) =>
+            guardSlashKey(event, editor, menuRef.current, (keyEvent) => {
+              keyEvent.preventDefault();
+              menuRef.current.close();
+              return true;
+            }),
           COMMAND_PRIORITY_HIGH,
         ),
       ),
@@ -254,20 +286,20 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
           </Popover>
         </CaretMenu>
       )}
-      {slash === null || !editable || visible.length === 0 ? null : (
-        <CaretMenu
-          label="Insert"
-          left={slash.left}
-          role="listbox"
-          top={slash.top}
-          wide
-        >
+      {slash === null || !editable ? null : (
+        <CaretMenu label="Insert" left={slash.left} role="listbox" top={slash.top} wide>
+          {visible.length === 0 ? (
+            <p className="px-2 py-1.5 text-sm text-muted-foreground">No results</p>
+          ) : null}
           {visible.map((command) => {
             const selected = command.id === active?.id;
 
             return (
               <button
                 aria-disabled={command.disabled === true}
+                aria-label={
+                  command.disabled === true ? `${command.label} Unavailable` : command.label
+                }
                 aria-selected={selected}
                 className={
                   selected
@@ -278,12 +310,21 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
                 id={`issue-slash-${command.id}`}
                 key={command.id}
                 onClick={() => {
-                  if (command.run === undefined) {
+                  if (touchHandled.current === command.id) {
+                    touchHandled.current = null;
                     return;
                   }
 
-                  removeSlashToken(editor);
-                  command.run();
+                  touchHandled.current = null;
+                  activateSlash(command, editor, tokenRef.current);
+                }}
+                onPointerUp={(event) => {
+                  if (event.pointerType !== "touch") {
+                    return;
+                  }
+
+                  touchHandled.current = command.id;
+                  activateSlash(command, editor, tokenRef.current);
                 }}
                 role="option"
                 type="button"
@@ -380,49 +421,183 @@ function matchesSlash(command: SlashCommand, query: string): boolean {
   return `${command.label} ${command.keywords}`.toLowerCase().includes(query.toLowerCase());
 }
 
-function readSlashToken(selection: RangeSelection): { query: string } | null {
+function slashIdentity(token: SlashMatch): string {
+  return `${token.nodeKey}:${token.slashOffset}`;
+}
+
+function matchSlash(before: string): { query: string; token: string } | null {
+  const match = /(?:^|\s)(\/([^\s/]*))$/.exec(before);
+  const token = match?.[1];
+  const query = match?.[2];
+
+  if (token === undefined || query === undefined) {
+    return null;
+  }
+
+  return { query, token };
+}
+
+// Firefox can leave the caret on the parent element at a child boundary.
+// Resolve that to the text point Lexical would normalize to, without writing
+// the selection during a read.
+function slashTextPoint(selection: RangeSelection): { node: TextNode; offset: number } | null {
+  let node: LexicalNode = selection.anchor.getNode();
+  let offset = selection.anchor.offset;
+  let type = selection.anchor.type;
+
+  while (type === "element") {
+    if (!$isElementNode(node)) {
+      return null;
+    }
+
+    const atEnd = offset === node.getChildrenSize();
+    const child = node.getChildAtIndex(atEnd ? offset - 1 : offset);
+
+    if ($isTextNode(child)) {
+      node = child;
+      offset = atEnd ? child.getTextContentSize() : 0;
+      type = "text";
+      break;
+    }
+
+    if (!$isElementNode(child)) {
+      return null;
+    }
+
+    node = child;
+    offset = atEnd ? child.getChildrenSize() : 0;
+  }
+
+  if (!$isTextNode(node) || !node.isSimpleText()) {
+    return null;
+  }
+
+  return { node, offset };
+}
+
+function readSlashToken(selection: RangeSelection): SlashMatch | null {
   if (!selection.isCollapsed()) {
     return null;
   }
 
-  const node: LexicalNode = selection.anchor.getNode();
+  const point = slashTextPoint(selection);
 
-  if (!$isTextNode(node)) {
+  if (point === null) {
     return null;
   }
 
-  const before = node.getTextContent().slice(0, selection.anchor.offset);
-  const match = /(?:^|\s)\/([^\s/]*)$/.exec(before);
-  const query = match?.[1];
+  const match = matchSlash(point.node.getTextContent().slice(0, point.offset));
 
-  return query === undefined ? null : { query };
+  if (match === null) {
+    return null;
+  }
+
+  return {
+    nodeKey: point.node.getKey(),
+    query: match.query,
+    slashOffset: point.offset - match.token.length,
+    token: match.token,
+  };
 }
 
-function removeSlashToken(editor: ReturnType<typeof useLexicalComposerContext>[0]): void {
-  editor.update(() => {
-    const selection = $getSelection();
+function commitSlash(editor: LexicalEditor, token: SlashMatch, run: () => void): void {
+  // A click handler is not already inside an update, so a plain editor.update
+  // waits for a microtask before it commits. discrete applies the caret, the
+  // command, and the token removal before the handler returns. Inside a key
+  // command the same calls are queued and still run in this order.
+  editor.update(
+    () => {
+      const node = $getNodeByKey(token.nodeKey);
 
-    if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-      return;
-    }
+      if (!$isTextNode(node)) {
+        return;
+      }
 
-    const node = selection.anchor.getNode();
+      node.select(token.slashOffset + token.token.length, token.slashOffset + token.token.length);
+    },
+    { discrete: true },
+  );
 
-    if (!$isTextNode(node)) {
-      return;
-    }
+  try {
+    run();
+  } catch {
+    return;
+  }
 
-    const offset = selection.anchor.offset;
-    const before = node.getTextContent().slice(0, offset);
-    const match = /(?:^|\s)(\/[^\s/]*)$/.exec(before);
-    const token = match?.[1];
+  editor.update(
+    () => {
+      const node = $getNodeByKey(token.nodeKey);
 
-    if (token === undefined) {
-      return;
-    }
+      if (!$isTextNode(node)) {
+        return;
+      }
 
-    node.spliceText(offset - token.length, token.length, "", true);
-  });
+      const slice = node
+        .getTextContent()
+        .slice(token.slashOffset, token.slashOffset + token.token.length);
+
+      if (slice !== token.token) {
+        return;
+      }
+
+      node.spliceText(token.slashOffset, token.token.length, "", true);
+    },
+    { discrete: true },
+  );
+}
+
+// An open menu owns Enter, Escape, and movement keys. An IME confirmation
+// still has to reach the browser, so claim the command without preventDefault.
+function guardSlashKey(
+  event: KeyboardEvent | null,
+  editor: LexicalEditor,
+  menu: { open: boolean },
+  run: (event: KeyboardEvent) => boolean,
+): boolean {
+  if (event === null || !menu.open) {
+    return false;
+  }
+
+  if (isImeKey(event, editor)) {
+    return true;
+  }
+
+  return run(event);
+}
+
+function activateSlash(
+  command: SlashCommand,
+  editor: LexicalEditor,
+  token: SlashMatch | null,
+): void {
+  if (command.disabled === true || command.run === undefined || token === null) {
+    return;
+  }
+
+  commitSlash(editor, token, command.run);
+}
+
+// A collapsed caret often has an empty client rect. The menu still opens,
+// anchored to the block when the caret itself has no box.
+function slashPosition(editor: LexicalEditor, nodeKey: string): { left: number; top: number } {
+  const caret = caretRect();
+
+  if (caret !== null) {
+    return { left: caret.left, top: caret.bottom + 4 };
+  }
+
+  const element = editor.getElementByKey(nodeKey) ?? editor.getRootElement();
+
+  if (element === null) {
+    return { left: 0, top: 0 };
+  }
+
+  const box = element.getBoundingClientRect();
+  return { left: box.left, top: box.bottom + 4 };
+}
+
+function isImeKey(event: KeyboardEvent, editor: LexicalEditor): boolean {
+  return event.isComposing || event.keyCode === 229 || editor.isComposing();
 }
 
 interface MenuPositionStyle extends CSSProperties {
