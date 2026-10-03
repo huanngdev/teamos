@@ -58,7 +58,7 @@ interface IssueViewFormState {
   onSetDateRange: (field: "created" | "updated", from: string, to: string) => void;
   onSetNumber: (bound: "max" | "min", value: string) => void;
   onSetAssignees: (tokens: readonly string[]) => void;
-  onSetText: (field: "description" | "q" | "title", value: string) => void;
+  onSetText: (field: "content" | "q" | "title", value: string) => void;
   onToggleCategory: (category: string) => void;
   onTogglePriority: (priority: string) => void;
   onToggleStatus: (statusId: string) => void;

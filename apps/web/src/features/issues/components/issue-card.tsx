@@ -1,33 +1,40 @@
-import { getInitials, type IssueCardSummary, type ProjectMember } from "@teamos/shared";
-import { UserCircleIcon } from "@phosphor-icons/react";
+import { formatIssueCode, type IssueCardSummary } from "@teamos/shared";
 
 import { KanbanItem, KanbanItemHandle } from "@/components/reui/kanban";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { AssigneeFaces } from "./issue-assignee-faces";
+import { CreatedIssueHighlight } from "./created-issue-highlight";
 import { IssuePriorityIcon } from "./issue-priority-icon";
 
 interface IssueCardProps {
   canDrag: boolean;
+  highlighted?: boolean;
   issue: IssueCardSummary;
-  member: ProjectMember | undefined;
   onEdit: () => void;
 }
 
-function IssueCard({ canDrag, issue, member, onEdit }: IssueCardProps) {
-  const assigneeName = issue.assignee?.name ?? member?.name;
+function IssueCard({ canDrag, highlighted = false, issue, onEdit }: IssueCardProps) {
+  const names = issue.assignees.map((person) => person.name);
+  const code = formatIssueCode(issue.number);
   const body = (
-    <button
-      aria-label={assigneeName === undefined ? issue.title : `${issue.title}, ${assigneeName}`}
-      className="w-full text-left"
-      onClick={onEdit}
-      type="button"
-    >
-      <IssueCardBody
-        assigneeName={assigneeName}
-        image={issue.assignee?.image ?? member?.image}
-        issue={issue}
-      />
-    </button>
+    <div className="relative" data-issue-id={issue.id}>
+      <CreatedIssueHighlight active={highlighted} />
+      <div className="flex items-start gap-1">
+        <button
+          aria-label={
+            names.length === 0
+              ? `${code}, ${issue.title}`
+              : `${code}, ${issue.title}, ${names.join(", ")}`
+          }
+          className="min-w-0 flex-1 text-left"
+          data-issue-path={code}
+          onClick={onEdit}
+          type="button"
+        >
+          <IssueCardBody issue={issue} />
+        </button>
+      </div>
+    </div>
   );
 
   return (
@@ -41,54 +48,21 @@ function IssueCard({ canDrag, issue, member, onEdit }: IssueCardProps) {
   );
 }
 
-function IssueAssignee({
-  image,
-  name,
-}: {
-  image: string | null | undefined;
-  name: string | undefined;
-}) {
-  if (name === undefined) {
-    return (
-      <span aria-label="Unassigned" className="shrink-0 text-muted-foreground" role="img">
-        <UserCircleIcon className="size-4" />
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex min-w-0 items-center gap-1">
-      <Avatar className="size-4">
-        <AvatarImage alt="" src={image ?? undefined} />
-        <AvatarFallback>{getInitials(name)}</AvatarFallback>
-      </Avatar>
-      <span className="line-clamp-1 min-w-0 text-xs text-muted-foreground" title={name}>
-        {name}
-      </span>
-    </span>
-  );
-}
-
-function IssueCardBody({
-  assigneeName,
-  image,
-  issue,
-}: {
-  assigneeName: string | undefined;
-  image: string | null | undefined;
-  issue: IssueCardSummary;
-}) {
+function IssueCardBody({ issue }: { issue: IssueCardSummary }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border">
       <Card>
         <CardContent>
           <div className="flex flex-col gap-2">
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+              {formatIssueCode(issue.number)}
+            </span>
             <span className="line-clamp-2 h-10 font-medium leading-5">{issue.title}</span>
             <div className="flex items-center justify-between gap-2">
               <div className="shrink-0">
                 <IssuePriorityIcon priority={issue.priority} />
               </div>
-              <IssueAssignee image={image} name={assigneeName} />
+              <AssigneeFaces density="card" emptyLabel="Unassigned" people={issue.assignees} />
             </div>
           </div>
         </CardContent>

@@ -2,6 +2,7 @@ import { createDatabase } from "@teamos/db";
 import {
   decodeIssueColumnCursor,
   ISSUE_COLUMN_PAGE_SIZE,
+  issueContentFromPlainText,
   parseIssueListQuery,
 } from "@teamos/shared";
 import { sql } from "drizzle-orm";
@@ -87,7 +88,7 @@ async function cleanup() {
    * organization cascade removes the member rows.
    */
   await db.execute(
-    sql`update issue set assignee_member_id = null where organization_id in (${ids.orgA}, ${ids.orgB})`,
+    sql`delete from issue_assignee where organization_id in (${ids.orgA}, ${ids.orgB})`,
   );
   await db.execute(sql`delete from organization where id in (${ids.orgA}, ${ids.orgB})`);
   await db.execute(
@@ -164,7 +165,8 @@ async function verifyPagedIssues(input: {
       status_id,
       number,
       title,
-      description,
+      content,
+      content_text,
       priority,
       position,
       created_by_member_id,
@@ -180,12 +182,43 @@ async function verifyPagedIssues(input: {
         when g = 2 then 'Alder'
         else 'Paged ' || g::text
       end,
+      jsonb_build_object(
+        'version', 1,
+        'root', jsonb_build_object(
+          'type', 'root',
+          'version', 1,
+          'direction', null,
+          'format', '',
+          'indent', 0,
+          'children', jsonb_build_array(jsonb_build_object(
+            'type', 'paragraph',
+            'version', 1,
+            'direction', null,
+            'format', '',
+            'indent', 0,
+            'children', jsonb_build_array(jsonb_build_object(
+              'type', 'text',
+              'version', 1,
+              'detail', 0,
+              'format', 0,
+              'mode', 'normal',
+              'style', '',
+              'text', 'Flight notes ' || g::text
+            ))
+          ))
+        )
+      ),
       'Flight notes ' || g::text,
       'none',
       (g * 1000)::int,
       ${memberA},
       ${memberA}
     from generate_series(1, 53) as g
+  `);
+  await db.execute(sql`
+    update project_issue_counter
+    set last_number = greatest(last_number, 53)
+    where project_id = ${project.id}::uuid
   `);
 
   const board = await issues.listBoard({ organization: orgA, projectId: project.id });
@@ -202,7 +235,10 @@ async function verifyPagedIssues(input: {
       thin.issues.length === 3 &&
       !thin.hasMore,
   );
-  check("a board card omits the description", fatCard !== undefined && !("description" in fatCard));
+  check(
+    "a board card omits the content document",
+    fatCard !== undefined && !("content" in fatCard),
+  );
 
   const detail = await issues.get({
     issueId: fat?.issues[0]?.id ?? "",
@@ -211,8 +247,8 @@ async function verifyPagedIssues(input: {
   });
 
   check(
-    "issue detail still returns the description",
-    detail.description?.startsWith("Flight notes") === true,
+    "issue detail returns the stored content",
+    detail.contentText.startsWith("Flight notes") && detail.content !== null,
   );
 
   const firstPage = await issues.list({
@@ -502,6 +538,11 @@ async function verifyPagedIssues(input: {
       (${orgA.organizationId}, ${project.id}::uuid, ${todo.id}::uuid, 301, 'Packed B', 'none', 11, ${memberA}, ${memberA}),
       (${orgA.organizationId}, ${project.id}::uuid, ${todo.id}::uuid, 302, 'Packed C', 'none', 12, ${memberA}, ${memberA})
   `);
+  await db.execute(sql`
+    update project_issue_counter
+    set last_number = greatest(last_number, 302)
+    where project_id = ${project.id}::uuid
+  `);
   const packed = await issues.listColumn({
     before: false,
     cursor: undefined,
@@ -566,7 +607,7 @@ async function verifyPagedIssues(input: {
       issueId: detail.id,
       organization: orgA,
       projectId: project.id,
-      request: { assigneeMemberId: memberD },
+      request: { assigneeMemberIds: [memberD] },
     }),
   );
   const privateAssignees = await projects.listEligibleAssignees({
@@ -599,7 +640,7 @@ async function verifyPagedIssues(input: {
   const openIssue = await issues.create({
     organization: orgA,
     projectId: open.id,
-    request: { assigneeMemberId: memberD, title: "Shared" },
+    request: { assigneeMemberIds: [memberD], title: "Shared" },
   });
   const mixedCursor = await rejected(() =>
     projects.listEligibleAssignees({
@@ -616,7 +657,7 @@ async function verifyPagedIssues(input: {
       openMembers.every((member) => member.memberId !== memberD) &&
       eligibleIds.has(memberD) &&
       eligibleIds.has(memberC) &&
-      openIssue.assigneeMemberId === memberD &&
+      openIssue.assignees.some((assignee) => assignee.id === memberD) &&
       mixedCursor?.status === 400,
   );
 }
@@ -889,7 +930,163 @@ async function main() {
   const todo = seededStatuses.find((status) => status.name === "Todo");
   check(
     "first issue lands on the default column as number 1",
-    firstIssue.statusId === defaultStatus?.id && firstIssue.number === 1,
+    firstIssue.statusId === defaultStatus?.id && firstIssue.number === "1",
+  );
+  const byNumber = await issues.getByNumber({
+    number: "1",
+    organization: orgA,
+    projectId: privateProject.id,
+  });
+  const hiddenNumber = await rejected(() =>
+    issues.getByNumber({
+      number: "1",
+      organization: orgB,
+      projectId: privateProject.id,
+    }),
+  );
+  const coded = await issues.list({
+    filters: parseIssueListQuery({ q: "I-0001" }),
+    organization: orgA,
+    projectId: privateProject.id,
+  });
+  const orgAStranger = await access.resolve({ organizationSlug: ids.orgA, userId: ids.userD });
+  const privateHidden =
+    orgAStranger === undefined
+      ? null
+      : await rejected(() =>
+          issues.getByNumber({
+            number: "1",
+            organization: orgAStranger,
+            projectId: privateProject.id,
+          }),
+        );
+  const emptyProject = await projects.create({
+    organization: orgA,
+    request: {
+      name: "Empty numbers",
+      slug: `empty-${crypto.randomUUID().slice(0, 8)}`,
+      visibility: "workspace",
+    },
+  });
+  const otherProject = await rejected(() =>
+    issues.getByNumber({
+      number: "1",
+      organization: orgA,
+      projectId: emptyProject.id,
+    }),
+  );
+  const prefix = await issues.list({
+    filters: parseIssueListQuery({ q: "i-000" }),
+    organization: orgA,
+    projectId: privateProject.id,
+  });
+  const bareCode = await issues.list({
+    filters: parseIssueListQuery({ q: "i-" }),
+    organization: orgA,
+    projectId: privateProject.id,
+  });
+  const ranged = await issues.list({
+    filters: parseIssueListQuery({ number: "I-0002..I-0010" }),
+    organization: orgA,
+    projectId: privateProject.id,
+  });
+  check("issue number lookup returns that issue", byNumber.id === firstIssue.id);
+  check("another workspace cannot read an issue by number", hiddenNumber?.status === 404);
+  check(
+    "a member who cannot see a private project cannot read its issue by number",
+    privateHidden?.status === 404 && privateHidden.code === "PROJECT_NOT_FOUND",
+  );
+  check(
+    "an issue number from another project is not found",
+    otherProject?.status === 404 && otherProject.code === "ISSUE_NOT_FOUND",
+  );
+  check(
+    "search by issue code returns that issue only",
+    coded.issues.length === 1 && coded.issues[0]?.id === firstIssue.id,
+  );
+  check(
+    "a code prefix can match I-0001",
+    prefix.issues.some((item) => item.id === firstIssue.id),
+  );
+  check("a bare i- search does not match every issue", bareCode.issues.length === 0);
+  check(
+    "a code range uses numeric order",
+    ranged.issues.length === 1 && ranged.issues[0]?.number === "2",
+  );
+  const counterProject = await projects.create({
+    organization: orgA,
+    request: {
+      name: "Counter",
+      slug: `counter-${crypto.randomUUID().slice(0, 8)}`,
+      visibility: "workspace",
+    },
+  });
+  const kept = await issues.create({
+    organization: orgA,
+    projectId: counterProject.id,
+    request: { title: "Keep" },
+  });
+  const dropped = await issues.create({
+    organization: orgA,
+    projectId: counterProject.id,
+    request: { title: "Drop" },
+  });
+  await issues.remove({
+    issueId: dropped.id,
+    organization: orgA,
+    projectId: counterProject.id,
+  });
+  const reused = await issues.create({
+    organization: orgA,
+    projectId: counterProject.id,
+    request: { title: "Next" },
+  });
+  const [concurrentLeft, concurrentRight] = await Promise.all([
+    issues.create({
+      organization: orgA,
+      projectId: counterProject.id,
+      request: { title: "Left" },
+    }),
+    issues.create({
+      organization: orgA,
+      projectId: counterProject.id,
+      request: { title: "Right" },
+    }),
+  ]);
+  check(
+    "deleting the highest issue does not reuse its number",
+    kept.number === "1" && dropped.number === "2" && reused.number === "3",
+  );
+  check(
+    "concurrent creates receive different numbers",
+    concurrentLeft.number !== concurrentRight.number,
+  );
+  await db.execute(sql`
+    update project_issue_counter
+    set last_number = 8
+    where project_id = ${counterProject.id}::uuid
+  `);
+  const afterGap = await issues.create({
+    organization: orgA,
+    projectId: counterProject.id,
+    request: { title: "Gap" },
+  });
+  check("the counter does not fill a gap", afterGap.number === "9");
+  await db.execute(sql`
+    update project_issue_counter
+    set last_number = 9223372036854775807
+    where project_id = ${counterProject.id}::uuid
+  `);
+  const exhausted = await rejected(() =>
+    issues.create({
+      organization: orgA,
+      projectId: counterProject.id,
+      request: { title: "Too far" },
+    }),
+  );
+  check(
+    "the bigint ceiling rejects the next issue",
+    exhausted?.status === 409 && exhausted.code === "ISSUE_NUMBER_EXHAUSTED",
   );
   check(
     "newer issue sorts ahead in the same column",
@@ -927,7 +1124,7 @@ async function main() {
       issueId: firstIssue.id,
       organization: orgA,
       projectId: privateProject.id,
-      request: { assigneeMemberId: memberC, priority: "high" },
+      request: { assigneeMemberIds: [memberC], priority: "high" },
     });
     await issues.update({
       issueId: secondIssue.id,
@@ -1084,6 +1281,71 @@ async function main() {
         request: { title: "Nope" },
       }),
     ),
+  );
+  const notedContent = issueContentFromPlainText("Flight notes β");
+  const noted =
+    notedContent === null
+      ? null
+      : await issues.create({
+          organization: orgA,
+          projectId: memberProject.id,
+          request: { content: notedContent, title: "Noted" },
+        });
+  const deniedContentUpdate =
+    noted === null
+      ? null
+      : await rejected(() =>
+          issues.update({
+            issueId: noted.id,
+            organization: orgAMember,
+            projectId: memberProject.id,
+            request: { title: "Changed" },
+          }),
+        );
+  const preserved =
+    noted === null
+      ? null
+      : await issues.update({
+          issueId: noted.id,
+          organization: orgA,
+          projectId: memberProject.id,
+          request: { title: "Noted again" },
+        });
+  const found =
+    noted === null
+      ? null
+      : await issues.list({
+          filters: parseIssueListQuery({ q: "flight notes" }),
+          organization: orgA,
+          projectId: memberProject.id,
+        });
+  const cleared =
+    noted === null
+      ? null
+      : await issues.update({
+          issueId: noted.id,
+          organization: orgA,
+          projectId: memberProject.id,
+          request: { content: null },
+        });
+
+  check("a viewer cannot update an issue they can see", deniedContentUpdate?.status === 403);
+  check(
+    "a title patch preserves stored content",
+    preserved !== null &&
+      preserved.title === "Noted again" &&
+      preserved.contentText === "Flight notes β" &&
+      preserved.content !== null,
+  );
+  check(
+    "content search uses the plain-text projection",
+    found !== null &&
+      found.issues.some((issue) => issue.id === noted?.id) &&
+      found.issues.every((issue) => !("content" in issue)),
+  );
+  check(
+    "clearing content removes the document",
+    cleared !== null && cleared.content === null && cleared.contentText === "",
   );
   const personalView = await views.create({
     organization: orgAMember,

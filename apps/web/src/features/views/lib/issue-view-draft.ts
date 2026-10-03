@@ -5,6 +5,7 @@ import {
   issueViewDefinitionsEqual,
   issueViewToListQuery,
   parseIssueListQuery,
+  parseIssueNumberBound,
   unassignedAssigneeId,
   type IssueListQuery,
   type IssueViewDefinition,
@@ -17,7 +18,7 @@ const issueViewQueryKeys = [
   "assignee",
   "category",
   "created",
-  "description",
+  "content",
   "number",
   "priority",
   "q",
@@ -77,7 +78,7 @@ function parseIssueViewDraft(
     assignee: queryValue(params, "assignee"),
     category: queryValue(params, "category"),
     created: queryValue(params, "created"),
-    description: queryValue(params, "description"),
+    content: params.get("content") ?? params.get("description") ?? undefined,
     number: queryValue(params, "number"),
     priority: queryValue(params, "priority"),
     q: queryValue(params, "q"),
@@ -136,7 +137,7 @@ function setAssignees(filters: IssueViewFilters, tokens: readonly string[]): Iss
 
 function setFilterText(
   filters: IssueViewFilters,
-  field: "description" | "q" | "title",
+  field: "content" | "q" | "title",
   value: string,
 ): IssueViewFilters {
   const trimmed = value.trim();
@@ -157,17 +158,13 @@ function setFilterNumber(
       : { ...filters, numberMax: undefined };
   }
 
-  if (!/^\d+$/.test(trimmed)) {
+  const decimal = parseIssueNumberBound(trimmed);
+
+  if (decimal === undefined) {
     return filters;
   }
 
-  const parsed = Number(trimmed);
-
-  if (!Number.isSafeInteger(parsed) || parsed < 1) {
-    return filters;
-  }
-
-  return bound === "min" ? { ...filters, numberMin: parsed } : { ...filters, numberMax: parsed };
+  return bound === "min" ? { ...filters, numberMin: decimal } : { ...filters, numberMax: decimal };
 }
 
 function setFilterDate(
@@ -198,7 +195,7 @@ function countAdvancedIssueViewFilters(filters: IssueViewFilters): number {
   const values = [
     filters.q,
     filters.title,
-    filters.description,
+    filters.content,
     filters.numberMin,
     filters.numberMax,
     filters.createdFrom,

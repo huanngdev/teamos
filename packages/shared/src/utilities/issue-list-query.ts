@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { IssueListQuery } from "../contracts/issue.js";
+import { parseIssueNumberBound } from "./issue-code.js";
 import {
   issuePrioritySchema,
   issueStatusCategorySchema,
@@ -17,12 +18,12 @@ interface IssueListFilters {
   categories: IssueStatusCategory[];
   createdFrom: string | undefined;
   createdTo: string | undefined;
-  description: string | undefined;
+  content: string | undefined;
   includeCurrentUser: boolean;
   includeFacets: boolean;
   includeUnassigned: boolean;
-  numberMax: number | undefined;
-  numberMin: number | undefined;
+  numberMax: string | undefined;
+  numberMin: string | undefined;
   priorities: IssuePriority[];
   q: string | undefined;
   statusIds: string[];
@@ -97,18 +98,16 @@ function parseRange(
   return [from.length === 0 ? undefined : from, to.length === 0 ? undefined : to];
 }
 
-function parsePositiveInteger(value: string | undefined): number | undefined {
-  if (value === undefined || !/^\d+$/.test(value)) {
+function hasBound(value: string | undefined): boolean {
+  return value !== undefined && value.length > 0;
+}
+
+function parseNumberBound(value: string | undefined): string | undefined {
+  if (!hasBound(value) || value === undefined) {
     return undefined;
   }
 
-  const parsed = Number(value);
-
-  if (!Number.isSafeInteger(parsed) || parsed < 1) {
-    return undefined;
-  }
-
-  return parsed;
+  return parseIssueNumberBound(value);
 }
 
 function parseText(value: string | undefined, max: number): string | undefined {
@@ -176,8 +175,16 @@ function parseIssueListQuery(input: IssueListQuery): IssueListFilters {
     (value) => value !== unassignedAssigneeId && value !== currentUserAssigneeId,
   );
   const number = parseRange(input.number);
-  const numberMin = parsePositiveInteger(number?.[0]);
-  const numberMax = parsePositiveInteger(number?.[1]);
+  const numberMin = parseNumberBound(number?.[0]);
+  const numberMax = parseNumberBound(number?.[1]);
+
+  if (hasBound(number?.[0]) && numberMin === undefined) {
+    unsatisfiable = true;
+  }
+
+  if (hasBound(number?.[1]) && numberMax === undefined) {
+    unsatisfiable = true;
+  }
   const created = parseRange(input.created);
   const updated = parseRange(input.updated);
   const timeZone =
@@ -189,7 +196,7 @@ function parseIssueListQuery(input: IssueListQuery): IssueListFilters {
     createdFrom:
       created?.[0] !== undefined && isCalendarDateKey(created[0]) ? created[0] : undefined,
     createdTo: created?.[1] !== undefined && isCalendarDateKey(created[1]) ? created[1] : undefined,
-    description: parseText(input.description, 200),
+    content: parseText(input.content ?? input.description, 200),
     includeCurrentUser,
     includeFacets: input.facets === "1",
     includeUnassigned,

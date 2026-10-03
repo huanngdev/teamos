@@ -23,12 +23,11 @@ function issue(
   overrides: Partial<IssueSummary> = {},
 ): IssueSummary {
   return {
-    assignee: null,
-    assigneeMemberId: null,
+    assignees: [],
     createdAt,
-    description: null,
+    contentText: "",
     id: `issue-${number}`,
-    number,
+    number: String(number),
     position: number,
     priority: "none",
     statusId: backlogId,
@@ -92,10 +91,10 @@ test("lists issues newest first and links to the board", async () => {
   ]);
   renderWorkspace("/w/acme/p/apollo/issues");
 
-  const titles = await screen.findAllByRole("button", { name: /gate$/ });
+  const titles = await screen.findAllByRole("link", { name: /gate$/ });
 
-  expect(titles.map((button) => button.textContent)).toEqual(["Orbit gate", "Alpha gate"]);
-  expect(screen.getByText("#2")).toBeInTheDocument();
+  expect(titles.map((link) => link.textContent)).toEqual(["Orbit gate", "Alpha gate"]);
+  expect(screen.getByText("I-0002")).toBeInTheDocument();
   expect(screen.queryByText("none")).not.toBeInTheDocument();
   expect(screen.getAllByText("No priority").length).toBeGreaterThan(0);
   expect(
@@ -120,13 +119,13 @@ test("searches issues from the toolbar", async () => {
   ]);
   renderWorkspace("/w/acme/p/apollo/issues");
 
-  await screen.findByRole("button", { name: "Alpha gate" });
+  await screen.findByRole("link", { name: "Alpha gate" });
   await user.type(screen.getByRole("textbox", { name: "Search issues" }), "orbit");
 
   await waitFor(() => {
-    expect(screen.queryByRole("button", { name: "Alpha gate" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Alpha gate" })).not.toBeInTheDocument();
   });
-  expect(screen.getByRole("button", { name: "Orbit gate" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Orbit gate" })).toBeInTheDocument();
 });
 
 test("pages the loaded issues", async () => {
@@ -146,14 +145,14 @@ test("pages the loaded issues", async () => {
   );
   renderWorkspace("/w/acme/p/apollo/issues?pageSize=10");
 
-  expect(await screen.findByRole("button", { name: "Issue 11" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Issue 01" })).not.toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: "Issue 11" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Issue 01" })).not.toBeInTheDocument();
   expect(screen.getByText(/1.10 of 11 rows/)).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: "Next page" }));
 
-  expect(await screen.findByRole("button", { name: "Issue 01" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Issue 11" })).not.toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: "Issue 01" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Issue 11" })).not.toBeInTheDocument();
 });
 
 test("applies a priority filter from the URL", async () => {
@@ -178,8 +177,8 @@ test("applies a priority filter from the URL", async () => {
   );
   renderWorkspace("/w/acme/p/apollo/issues?priority=urgent");
 
-  expect(await screen.findByRole("button", { name: "Urgent gate" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Quiet gate" })).not.toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: "Urgent gate" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Quiet gate" })).not.toBeInTheDocument();
   expect(requested).toContain("priority=urgent");
   expect(screen.queryByText("urgent")).not.toBeInTheDocument();
   expect(screen.getByText("Urgent")).toBeInTheDocument();
@@ -208,11 +207,11 @@ test("deletes selected issues with one request and keeps the selection across pa
   );
   renderWorkspace("/w/acme/p/apollo/issues?pageSize=1");
 
-  await user.click(await screen.findByRole("checkbox", { name: "Select issue 2" }));
+  await user.click(await screen.findByRole("checkbox", { name: "Select issue I-0002" }));
   await user.click(screen.getByRole("button", { name: "Next page" }));
-  expect(await screen.findByRole("checkbox", { name: "Select issue 1" })).not.toBeChecked();
+  expect(await screen.findByRole("checkbox", { name: "Select issue I-0001" })).not.toBeChecked();
   expect(screen.getByRole("button", { name: "Delete 1 issue" })).toBeInTheDocument();
-  await user.click(screen.getByRole("checkbox", { name: "Select issue 1" }));
+  await user.click(screen.getByRole("checkbox", { name: "Select issue I-0001" }));
   await user.click(screen.getByRole("button", { name: "Delete 2 issues" }));
 
   const dialog = await screen.findByRole("alertdialog");
@@ -249,13 +248,99 @@ test("opens an issue and hides creation from a viewer", async () => {
   );
   renderWorkspace("/w/acme/p/apollo/issues");
 
-  expect(await screen.findByRole("button", { name: "Alpha gate" })).toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: "Alpha gate" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "New issue" })).not.toBeInTheDocument();
 
-  await user.click(screen.getByRole("button", { name: "Alpha gate" }));
-  const dialog = await screen.findByRole("dialog");
+  server.use(
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues/by-number/:number`, () =>
+      HttpResponse.json({
+        issue: { ...issue(1, "Alpha gate", "2026-01-01T12:00:00.000Z"), content: null },
+      }),
+    ),
+  );
+  await user.click(screen.getByRole("link", { name: "Alpha gate" }));
 
-  expect(within(dialog).getByLabelText("Title")).toBeDisabled();
+  expect(await screen.findByRole("textbox", { name: "Title" })).toBeDisabled();
+});
+
+test("highlights a created issue that is on the current page", async () => {
+  const user = userEvent.setup();
+  const rows = [issue(1, "Alpha gate", "2026-01-01T12:00:00.000Z")];
+  const created: unknown[] = [];
+
+  useWorkspaceHandlers();
+  mockIssues(rows);
+  server.use(
+    http.post(
+      `${apiUrl}/api/organizations/acme/projects/:projectId/issues`,
+      async ({ request }) => {
+        created.push(await request.json());
+        const saved = issue(2, "Check the gate", "2026-06-02T12:00:00.000Z");
+        rows.push(saved);
+
+        return HttpResponse.json(
+          { issue: { ...saved, content: null, contentText: "" } },
+          { status: 201 },
+        );
+      },
+    ),
+  );
+  renderWorkspace("/w/acme/p/apollo/issues");
+
+  await user.click(await screen.findByRole("button", { name: "New issue" }));
+  const dialog = await screen.findByRole("dialog", { name: "New issue" });
+
+  await user.type(within(dialog).getByLabelText("Issue title"), "Check the gate");
+  await user.click(within(dialog).getByRole("button", { name: "Create issue" }));
+
+  expect(await screen.findByText("I-0002 created.")).toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Search issues" })).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("link", { name: "Check the gate" })).toHaveLength(1);
+  expect(document.querySelector('[data-issue-id="issue-2"]')).toHaveClass("bg-accent/60");
+  expect(created).toEqual([{ assigneeMemberIds: [], priority: "none", title: "Check the gate" }]);
+  expect(created[0]).not.toHaveProperty("content");
+});
+
+test("reports a created issue that the current filter hides", async () => {
+  const user = userEvent.setup();
+  const searches: string[] = [];
+
+  useWorkspaceHandlers();
+  useBoardStore.getState().clear();
+  server.use(
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues`, ({ request }) => {
+      const params = new URL(request.url).searchParams;
+      searches.push(params.toString());
+
+      return HttpResponse.json(pageIssues([], params));
+    }),
+    http.post(`${apiUrl}/api/organizations/acme/projects/:projectId/issues`, () =>
+      HttpResponse.json(
+        {
+          issue: {
+            ...issue(3, "Hidden gate", "2026-06-03T12:00:00.000Z"),
+            content: null,
+          },
+        },
+        { status: 201 },
+      ),
+    ),
+  );
+  renderWorkspace("/w/acme/p/apollo/issues?priority=high");
+
+  await user.click(await screen.findByRole("button", { name: "New issue" }));
+  const dialog = await screen.findByRole("dialog", { name: "New issue" });
+
+  await user.type(within(dialog).getByLabelText("Issue title"), "Hidden gate");
+  await user.click(within(dialog).getByRole("button", { name: "Create issue" }));
+
+  expect(
+    await screen.findByText("I-0003 was created in Backlog. It is outside the current results."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Hidden gate" })).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Search issues" })).toBeInTheDocument();
+  expect(searches.at(-1)).toContain("priority=high");
 });
 
 test("shows an empty state when the project has no issues", async () => {

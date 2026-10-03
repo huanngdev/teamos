@@ -1,5 +1,39 @@
 export { formatDate, formatDateTime } from "./date.js";
 export {
+  ISSUE_CONTENT_DEPTH_MAX,
+  ISSUE_CONTENT_EXCERPT_MAX,
+  ISSUE_CONTENT_JSON_MAX_BYTES,
+  ISSUE_CONTENT_NODE_MAX,
+  ISSUE_CONTENT_TEXT_FORMAT_MASK,
+  ISSUE_CONTENT_TEXT_MAX,
+  ISSUE_CONTENT_VERSION,
+  emptyIssueContentDocument,
+  isSafeIssueLink,
+  issueContentDocumentSchema,
+  issueContentListItemNodeSchema,
+  issueContentListNodeSchema,
+  issueContentExcerpt,
+  issueContentFromPlainText,
+  issueContentText,
+  normalizeIssueContent,
+  prepareIssueContent,
+  type IssueContentDocument,
+} from "./issue-content.js";
+export {
+  ISSUE_CODE_MIN_WIDTH,
+  ISSUE_CODE_PREFIX,
+  ISSUE_NUMBER_MAX,
+  compareIssueNumbers,
+  formatIssueCode,
+  isCanonicalIssueDecimal,
+  issueNumberSchema,
+  issueNumberSearchDecimal,
+  needleMatchesIssueCodeText,
+  parseIssueCode,
+  parseIssueNumberBound,
+  type ParsedIssueCode,
+} from "./issue-code.js";
+export {
   canonicalIssueColumnScope,
   decodeIssueColumnCursor,
   encodeIssueColumnCursor,
@@ -35,6 +69,7 @@ export {
   type IssueViewRecordAccess,
 } from "./issue-view.js";
 export {
+  ISSUE_ASSIGNEE_MAX,
   ISSUE_BULK_DELETE_MAX,
   ISSUE_COLUMN_PAGE_MAX,
   ISSUE_COLUMN_PAGE_SIZE,

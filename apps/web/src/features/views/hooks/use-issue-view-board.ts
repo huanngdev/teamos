@@ -2,6 +2,7 @@ import {
   canManageListedIssueView,
   canPerformProjectAction,
   findStaleIssueViewReferences,
+  formatIssueCode,
   type OrganizationRole,
 } from "@teamos/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { useNavigate } from "react-router";
 
 import {
   issueKeys,
+  projectIssuePath,
   useColumnPages,
   useColumnForm,
   useIssueForm,
@@ -18,6 +20,8 @@ import {
   type DeleteColumnState,
   type IssueFormState,
 } from "@/features/issues";
+import { useCreatedIssueFeedback } from "@/features/issues/hooks/use-created-issue-feedback";
+import { issueReturnState } from "@/features/issues/lib/issue-navigation";
 import {
   useEligibleAssigneeLookup,
   useEligibleAssignees,
@@ -50,8 +54,10 @@ interface IssueViewBoardReady {
   columnForm: ColumnFormState;
   columns: BoardColumn[];
   deleteColumn: DeleteColumnState;
+  createdMessage: string | null;
   deleteOpen: boolean;
   form: IssueViewFormState;
+  highlightedIssueId: string | null;
   knownAssignees: EligibleAssigneePicker["assignees"];
   viewAssignees: EligibleAssigneePicker;
   formError: string | null;
@@ -126,14 +132,29 @@ function useIssueViewBoard(options: {
   const canViewProject = access !== null && canPerformProjectAction("view", access);
   const canUpdateIssue = access !== null && canPerformProjectAction("update-issue", access);
   const canCreateIssue = access !== null && canPerformProjectAction("create-issue", access);
-  const canDeleteIssue = access !== null && canPerformProjectAction("delete-issue", access);
   const canManage =
     saved !== undefined &&
     canManageListedIssueView(saved.visibility, { canUpdateProject, canViewProject });
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const createdFeedback = useCreatedIssueFeedback({
+    dataUpdatedAt: pages.dataUpdatedAt,
+    isFetching: pages.isFetching,
+    isVisible: pages.hasLoadedIssue,
+    locationLabel: (created) =>
+      catalog.statuses.find((status) => status.id === created.statusId)?.name ?? "its column",
+    onView: (created) => {
+      void navigate(
+        projectIssuePath(
+          options.organizationSlug,
+          options.projectSlug,
+          formatIssueCode(created.number),
+        ),
+      );
+    },
+  });
   const issueForm = useIssueForm({
-    canDeleteIssue,
     canUpdateIssue,
+    onCreated: createdFeedback.notifyCreated,
     organizationSlug: options.organizationSlug,
     projectId,
     statuses: catalog.statuses,
@@ -331,8 +352,10 @@ function useIssueViewBoard(options: {
       catalog,
       columnForm: columnForm.form,
       columns,
+      createdMessage: createdFeedback.createdMessage,
       deleteColumn: columnForm.deleteColumn,
       deleteOpen,
+      highlightedIssueId: createdFeedback.highlightedIssueId,
       form,
       knownAssignees,
       viewAssignees,
@@ -365,7 +388,14 @@ function useIssueViewBoard(options: {
           .find((item) => item.id === issueId);
 
         if (issue !== undefined) {
-          issueForm.openEdit(issue);
+          void navigate(
+            projectIssuePath(
+              options.organizationSlug,
+              options.projectSlug,
+              formatIssueCode(issue.number),
+            ),
+            { state: issueReturnState() },
+          );
         }
       },
       onLoadMore: pages.loadMore,

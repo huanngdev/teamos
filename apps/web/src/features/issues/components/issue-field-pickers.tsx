@@ -10,11 +10,13 @@ import { IssuePriorityIcon, IssuePriorityOption } from "./issue-priority-icon";
 import { IssueStatusIndicator, IssueStatusOption } from "./issue-status-indicator";
 
 function IssueStatusPicker({
+  appearance = "default",
   disabled,
   onChange,
   statuses,
   value,
 }: {
+  appearance?: "default" | "property";
   disabled: boolean;
   onChange: (statusId: string) => void;
   statuses: readonly ProjectStatusSummary[];
@@ -34,6 +36,8 @@ function IssueStatusPicker({
         <IssueStatusOption label={option.label} statusId={option.id} statuses={statuses} />
       )}
       selected={value.length === 0 ? [] : [value]}
+      size={appearance === "property" ? "sm" : "default"}
+      variant={appearance === "property" ? "ghost" : "outline"}
       trigger={
         selected === undefined ? (
           "Status"
@@ -46,10 +50,12 @@ function IssueStatusPicker({
 }
 
 function IssuePriorityPicker({
+  appearance = "default",
   disabled,
   onChange,
   value,
 }: {
+  appearance?: "default" | "property";
   disabled: boolean;
   onChange: (priority: IssuePriority) => void;
   value: IssuePriority;
@@ -73,6 +79,8 @@ function IssuePriorityPicker({
       }))}
       renderOption={(option) => <IssuePriorityOption id={option.id} label={option.label} />}
       selected={[value]}
+      size={appearance === "property" ? "sm" : "default"}
+      variant={appearance === "property" ? "ghost" : "outline"}
       trigger={<IssuePriorityIcon priority={value} />}
     />
   );

@@ -3,6 +3,7 @@ function issueKeys(slug: string, projectId: string) {
 
   return {
     board: (params: Record<string, string>) => [...prefix, "board", params] as const,
+    byNumber: (number: string) => [...prefix, "by-number", number] as const,
     cards: () => [...prefix, "cards"] as const,
     column: (statusId: string, params: Record<string, string>) =>
       [...prefix, "column", statusId, params] as const,

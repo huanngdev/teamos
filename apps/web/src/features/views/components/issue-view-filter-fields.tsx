@@ -1,5 +1,11 @@
-import type { EligibleAssignee, ProjectStatusSummary } from "@teamos/shared";
+import {
+  formatIssueCode,
+  parseIssueNumberBound,
+  type EligibleAssignee,
+  type ProjectStatusSummary,
+} from "@teamos/shared";
 import { CaretDownIcon, FunnelIcon } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -109,39 +115,31 @@ function IssueViewFilterFields({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="view-description-filter">Description</FieldLabel>
+                <FieldLabel htmlFor="view-content-filter">Content</FieldLabel>
                 <Input
-                  id="view-description-filter"
+                  id="view-content-filter"
                   onChange={(event) => {
-                    form.onSetText("description", event.target.value);
+                    form.onSetText("content", event.target.value);
                   }}
-                  value={form.definition.filters.description ?? ""}
+                  value={form.definition.filters.content ?? ""}
                 />
               </Field>
-              <Field>
-                <FieldLabel htmlFor="view-number-min">Number from</FieldLabel>
-                <Input
-                  id="view-number-min"
-                  min={1}
-                  onChange={(event) => {
-                    form.onSetNumber("min", event.target.value);
-                  }}
-                  type="number"
-                  value={form.definition.filters.numberMin ?? ""}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="view-number-max">Number to</FieldLabel>
-                <Input
-                  id="view-number-max"
-                  min={1}
-                  onChange={(event) => {
-                    form.onSetNumber("max", event.target.value);
-                  }}
-                  type="number"
-                  value={form.definition.filters.numberMax ?? ""}
-                />
-              </Field>
+              <IssueViewNumberBound
+                id="view-number-min"
+                label="Number from"
+                onCommit={(value) => {
+                  form.onSetNumber("min", value);
+                }}
+                value={form.definition.filters.numberMin}
+              />
+              <IssueViewNumberBound
+                id="view-number-max"
+                label="Number to"
+                onCommit={(value) => {
+                  form.onSetNumber("max", value);
+                }}
+                value={form.definition.filters.numberMax}
+              />
               <Field>
                 <FieldLabel htmlFor="view-created-range">Created</FieldLabel>
                 <DateRangePicker
@@ -172,6 +170,65 @@ function IssueViewFilterFields({
         </CollapsibleContent>
       </Collapsible>
     </>
+  );
+}
+
+function IssueViewNumberBound({
+  id,
+  label,
+  onCommit,
+  value,
+}: {
+  id: string;
+  label: string;
+  onCommit: (value: string) => void;
+  value: string | undefined;
+}) {
+  const formatted = value === undefined ? "" : formatIssueCode(value);
+  const [draft, setDraft] = useState(formatted);
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) {
+      setDraft(formatted);
+    }
+  }, [formatted]);
+
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        inputMode="numeric"
+        onBlur={() => {
+          focused.current = false;
+          const trimmed = draft.trim();
+
+          if (trimmed.length === 0) {
+            onCommit("");
+            setDraft("");
+            return;
+          }
+
+          const decimal = parseIssueNumberBound(trimmed);
+
+          if (decimal === undefined) {
+            setDraft(formatted);
+            return;
+          }
+
+          onCommit(trimmed);
+          setDraft(formatIssueCode(decimal));
+        }}
+        onChange={(event) => {
+          setDraft(event.target.value);
+        }}
+        onFocus={() => {
+          focused.current = true;
+        }}
+        value={draft}
+      />
+    </Field>
   );
 }
 

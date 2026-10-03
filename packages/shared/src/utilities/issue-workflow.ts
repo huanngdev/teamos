@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+const ISSUE_ASSIGNEE_MAX = 20;
 const ISSUE_BULK_DELETE_MAX = 200;
 const ISSUE_COLUMN_PAGE_SIZE = 40;
 const ISSUE_COLUMN_PAGE_MAX = 50;
@@ -66,6 +67,7 @@ function getIssueStatusCategoryLabel(category: IssueStatusCategory): string {
 }
 
 export {
+  ISSUE_ASSIGNEE_MAX,
   ISSUE_BULK_DELETE_MAX,
   ISSUE_COLUMN_PAGE_MAX,
   ISSUE_COLUMN_PAGE_SIZE,

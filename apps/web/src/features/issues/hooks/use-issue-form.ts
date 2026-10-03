@@ -4,51 +4,47 @@ import {
   issuePrioritySchema,
   type EligibleAssignee,
   type IssueCardSummary,
+  type IssueDetail,
   type IssuePriority,
-  type IssueSummary,
   type ProjectStatusSummary,
 } from "@teamos/shared";
 
 import { notify } from "@/shared";
-import { createIssue, deleteIssue, getIssue, updateIssue } from "../api/issue-api";
+import { createIssue, updateIssue } from "../api/issue-api";
+import { assigneesFromIssue, issueAssigneeKey } from "../lib/issue-assignees";
 import { readIssueError } from "../lib/issue-errors";
 import { issueKeys } from "../query-keys";
 
-const UNASSIGNED = "unassigned";
+interface IssueFormBaseline {
+  assigneeKey: string;
+  priority: IssuePriority;
+  statusId: string;
+  title: string;
+}
 
 interface IssueFormState {
-  assignee: EligibleAssignee | null;
-  assigneeMemberId: string;
-  canDelete: boolean;
-  cancelDelete: () => void;
-  confirmDelete: () => void;
-  deleteError: string | null;
-  deleteOpen: boolean;
-  description: string;
-  detailError: string | null;
-  detailReady: boolean;
   errorMessage: string | null;
+  isDirty: boolean;
   isPending: boolean;
   isReadOnly: boolean;
   isValid: boolean;
   mode: "closed" | "create" | "edit";
   priority: IssuePriority;
-  requestDelete: () => void;
-  reset: () => void;
-  retryDetail: () => void;
-  setAssignee: (assignee: EligibleAssignee | null) => void;
-  setDescription: (value: string) => void;
+  requestClose: () => void;
+  selectedAssignees: readonly EligibleAssignee[];
+  setAssignees: (assignees: EligibleAssignee[]) => void;
   setPriority: (value: string | null) => void;
   setStatusId: (value: string | null) => void;
   setTitle: (value: string) => void;
   statusId: string;
   submit: () => void;
   title: string;
+  titleError: string | null;
 }
 
 interface UseIssueFormOptions {
-  canDeleteIssue: boolean;
   canUpdateIssue: boolean;
+  onCreated?: (issue: IssueDetail) => void;
   organizationSlug: string;
   projectId: string | null;
   statuses: readonly ProjectStatusSummary[];
@@ -56,25 +52,34 @@ interface UseIssueFormOptions {
 
 function useIssueForm(options: UseIssueFormOptions): IssueFormState & {
   openCreate: (statusId?: string) => void;
-  openEdit: (issue: IssueCardSummary | IssueSummary) => void;
+  openEdit: (issue: IssueCardSummary) => void;
 } {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<"closed" | "create" | "edit">("closed");
   const [issueId, setIssueId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [statusId, setStatusIdState] = useState("");
   const [omitStatusOnCreate, setOmitStatusOnCreate] = useState(false);
   const [priority, setPriorityState] = useState<IssuePriority>("none");
-  const [assignee, setAssigneeState] = useState<EligibleAssignee | null>(null);
-  const assigneeMemberId = assignee?.id ?? UNASSIGNED;
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [detailReady, setDetailReady] = useState(true);
-  const [detailError, setDetailError] = useState<string | null>(null);
+  const [selectedAssignees, setAssignees] = useState<EligibleAssignee[]>([]);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
-  const detailRequest = useRef(0);
-  const defaultStatusId =
-    options.statuses.find((status) => status.isDefault)?.id ?? options.statuses[0]?.id ?? "";
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const baseline = useRef<IssueFormBaseline>({
+    assigneeKey: "",
+    priority: "none",
+    statusId: "",
+    title: "",
+  });
+  const createdHandler = useRef(options.onCreated);
+  const modeRef = useRef(mode);
+  createdHandler.current = options.onCreated;
+  modeRef.current = mode;
+  const trimmedTitle = title.trim();
+  const isDirty =
+    title !== baseline.current.title ||
+    priority !== baseline.current.priority ||
+    statusId !== baseline.current.statusId ||
+    issueAssigneeKey(selectedAssignees.map((person) => person.id)) !== baseline.current.assigneeKey;
 
   const invalidate = async () => {
     if (options.projectId === null) {
@@ -92,144 +97,112 @@ function useIssueForm(options: UseIssueFormOptions): IssueFormState & {
         throw new Error("Project is not ready.");
       }
 
-      const descriptionValue = description.trim();
+      const assigneeMemberIds = selectedAssignees.map((person) => person.id);
       const request = {
-        ...(assigneeMemberId === UNASSIGNED ? { assigneeMemberId: null } : { assigneeMemberId }),
-        ...(descriptionValue.length > 0 ? { description: descriptionValue } : {}),
+        assigneeMemberIds,
         priority,
-        title: title.trim(),
-        ...(!omitStatusOnCreate && statusId.length > 0 ? { statusId } : {}),
+        title: trimmedTitle,
+        ...(omitStatusOnCreate || statusId.length === 0 ? {} : { statusId }),
       };
 
       if (mode === "edit" && issueId !== null) {
         return updateIssue(options.organizationSlug, options.projectId, issueId, {
-          ...request,
-          description: descriptionValue.length > 0 ? descriptionValue : null,
-          ...(expectedUpdatedAt === null ? {} : { expectedUpdatedAt }),
+          assigneeMemberIds,
+          expectedUpdatedAt: expectedUpdatedAt ?? undefined,
+          priority,
+          statusId,
+          title: trimmedTitle,
         });
       }
 
       return createIssue(options.organizationSlug, options.projectId, request);
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       await invalidate();
-      notify.success(mode === "edit" ? "Issue updated" : "Issue created");
+      const created = modeRef.current === "create";
+      const handleCreated = createdHandler.current;
       reset();
-    },
-  });
 
-  const remove = useMutation({
-    mutationFn: async () => {
-      if (options.projectId === null || issueId === null) {
-        throw new Error("Issue is not ready.");
+      if (created && handleCreated !== undefined) {
+        handleCreated(saved);
+        return;
       }
 
-      await deleteIssue(options.organizationSlug, options.projectId, issueId);
-    },
-    onSuccess: async () => {
-      await invalidate();
-      notify.success("Issue deleted");
-      reset();
+      notify.success(created ? "Issue created" : "Issue updated");
     },
   });
+
+  function remember(next: IssueFormBaseline) {
+    baseline.current = next;
+  }
 
   function reset() {
     setMode("closed");
     setIssueId(null);
     setTitle("");
-    setDescription("");
-    setStatusIdState(defaultStatusId);
+    setStatusIdState("");
     setOmitStatusOnCreate(false);
     setPriorityState("none");
-    setAssigneeState(null);
-    setDeleteOpen(false);
-    setDetailReady(true);
-    setDetailError(null);
+    setAssignees([]);
     setExpectedUpdatedAt(null);
-    detailRequest.current += 1;
+    setTitleError(null);
+    remember({ assigneeKey: "", priority: "none", statusId: "", title: "" });
     save.reset();
-    remove.reset();
   }
 
-  function applyIssue(issue: IssueSummary) {
-    setTitle(issue.title);
-    setDescription(issue.description ?? "");
-    setStatusIdState(issue.statusId);
-    setOmitStatusOnCreate(false);
-    setPriorityState(issue.priority);
-    setAssigneeState(assigneeFromIssue(issue));
-    setExpectedUpdatedAt(issue.updatedAt);
-    setDetailError(null);
-    setDetailReady(true);
-  }
-
-  function loadDetail(issueIdToLoad: string) {
-    if (options.projectId === null) {
+  function requestClose() {
+    if (save.isPending) {
       return;
     }
 
-    const requestId = detailRequest.current + 1;
-    detailRequest.current = requestId;
-    setDetailReady(false);
-    setDetailError(null);
-    void getIssue(options.organizationSlug, options.projectId, issueIdToLoad)
-      .then((issue) => {
-        if (detailRequest.current !== requestId) {
-          return;
-        }
-
-        applyIssue(issue);
-      })
-      .catch(() => {
-        if (detailRequest.current !== requestId) {
-          return;
-        }
-
-        setDetailReady(false);
-        setDetailError("The issue could not be loaded.");
-      });
+    reset();
   }
 
-  function setAssignee(next: EligibleAssignee | null) {
-    setAssigneeState(next);
+  function submit() {
+    if (save.isPending || (mode === "edit" && !options.canUpdateIssue)) {
+      return;
+    }
+
+    if (trimmedTitle.length === 0) {
+      setTitleError("Enter an issue title.");
+      return;
+    }
+
+    if (trimmedTitle.length > 140) {
+      setTitleError("Use 140 characters or fewer.");
+      return;
+    }
+
+    setTitleError(null);
+    save.mutate();
   }
 
   return {
-    assignee,
-    assigneeMemberId,
-    canDelete: options.canDeleteIssue && mode === "edit",
-    cancelDelete: () => {
-      setDeleteOpen(false);
-    },
-    confirmDelete: () => {
-      remove.mutate();
-    },
-    deleteError: readIssueError(remove.error, "The issue could not be deleted."),
-    deleteOpen,
-    description,
-    detailError,
-    detailReady,
     errorMessage: readIssueError(
       save.error,
       mode === "edit" ? "The issue could not be updated." : "The issue could not be created.",
     ),
-    isPending: save.isPending || remove.isPending,
+    isDirty,
+    isPending: save.isPending,
     isReadOnly: mode === "edit" && !options.canUpdateIssue,
-    isValid: title.trim().length > 0 && (mode !== "edit" || detailReady),
+    isValid: trimmedTitle.length > 0 && trimmedTitle.length <= 140,
     mode,
     openCreate: (nextStatusId?: string) => {
+      const nextStatus = nextStatusId ?? "";
       save.reset();
       setMode("create");
       setIssueId(null);
       setTitle("");
-      setDescription("");
       setPriorityState("none");
-      setAssigneeState(null);
-      setStatusIdState(nextStatusId ?? defaultStatusId);
+      setAssignees([]);
+      setStatusIdState(nextStatus);
       setOmitStatusOnCreate(nextStatusId === undefined);
-      setDeleteOpen(false);
+      setExpectedUpdatedAt(null);
+      setTitleError(null);
+      remember({ assigneeKey: "", priority: "none", statusId: nextStatus, title: "" });
     },
     openEdit: (issue) => {
+      const nextAssignees = assigneesFromIssue(issue);
       save.reset();
       setMode("edit");
       setIssueId(issue.id);
@@ -237,33 +210,20 @@ function useIssueForm(options: UseIssueFormOptions): IssueFormState & {
       setStatusIdState(issue.statusId);
       setOmitStatusOnCreate(false);
       setPriorityState(issue.priority);
-      setAssigneeState(assigneeFromIssue(issue));
-      setDeleteOpen(false);
-
-      if ("description" in issue) {
-        setDescription(issue.description ?? "");
-        setExpectedUpdatedAt(issue.updatedAt);
-        setDetailError(null);
-        setDetailReady(true);
-        return;
-      }
-
-      setDescription("");
-      setExpectedUpdatedAt(null);
-      loadDetail(issue.id);
+      setAssignees(nextAssignees);
+      setExpectedUpdatedAt(issue.updatedAt);
+      setTitleError(null);
+      remember({
+        assigneeKey: issueAssigneeKey(nextAssignees.map((person) => person.id)),
+        priority: issue.priority,
+        statusId: issue.statusId,
+        title: issue.title,
+      });
     },
     priority,
-    requestDelete: () => {
-      setDeleteOpen(true);
-    },
-    reset,
-    retryDetail: () => {
-      if (issueId !== null) {
-        loadDetail(issueId);
-      }
-    },
-    setAssignee,
-    setDescription,
+    requestClose,
+    selectedAssignees,
+    setAssignees,
     setPriority: (value) => {
       const parsed = issuePrioritySchema.safeParse(value);
 
@@ -279,34 +239,15 @@ function useIssueForm(options: UseIssueFormOptions): IssueFormState & {
       setStatusIdState(value);
       setOmitStatusOnCreate(false);
     },
-    setTitle,
-    statusId,
-    submit: () => {
-      if (
-        save.isPending ||
-        title.trim().length === 0 ||
-        (mode === "edit" && (!detailReady || !options.canUpdateIssue))
-      ) {
-        return;
-      }
-
-      save.mutate();
+    setTitle: (value) => {
+      setTitle(value);
+      setTitleError(null);
     },
+    statusId,
+    submit,
     title,
+    titleError,
   };
 }
 
-function assigneeFromIssue(issue: IssueCardSummary | IssueSummary): EligibleAssignee | null {
-  if (issue.assigneeMemberId === null || issue.assignee === null) {
-    return null;
-  }
-
-  return {
-    email: issue.assignee.email,
-    id: issue.assigneeMemberId,
-    image: issue.assignee.image,
-    name: issue.assignee.name,
-  };
-}
-
-export { UNASSIGNED, useIssueForm, type IssueFormState };
+export { useIssueForm, type IssueFormState };

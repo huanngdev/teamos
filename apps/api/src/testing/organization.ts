@@ -203,6 +203,7 @@ function createFakeIssueService(): IssueService {
     clearAssignees: async () => {},
     create: rejectFakeMutation,
     get: rejectFakeMutation,
+    getByNumber: rejectFakeMutation,
     list: async ({ page = 1, pageSize = 20 }) => ({
       issues: [],
       page,

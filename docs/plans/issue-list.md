@@ -1,6 +1,6 @@
 # Issue Board
 
-Status: implemented. The board, its API, and its screen are in place. Labels, a list view, and realtime remain out of scope.
+Status: implemented. The board, its API, and its screen are in place. Labels and realtime remain out of scope. Issue pages, dialogs, and content documents in `docs/plans/issue-detail.md` replace the issue description and issue sheet in this file. Project description stays plain text.
 
 Branch: `feat/issue-list`.
 

@@ -1,9 +1,5 @@
-import {
-  formatDateTime,
-  getInitials,
-  getIssueStatusCategoryLabel,
-  type IssueSummary,
-} from "@teamos/shared";
+import { formatDateTime, formatIssueCode, getIssueStatusCategoryLabel } from "@teamos/shared";
+import { Link } from "react-router";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -12,15 +8,16 @@ import {
   CaretDoubleRightIcon,
   CaretLeftIcon,
   CaretRightIcon,
+  DotsThreeIcon,
   EyeSlashIcon,
+  NoteIcon,
   PushPinIcon,
   PushPinSlashIcon,
-  UserCircleIcon,
+  TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { createColumnHelper } from "@tanstack/react-table";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,13 +31,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { issueSelectColumnId } from "../lib/issue-table-pin";
+import { AssigneeFaces } from "./issue-assignee-faces";
 import { IssueColumnFilter } from "./issue-table-filters";
-import { IssueIconLabel } from "./issue-field-label";
 import { IssuePriorityIcon } from "./issue-priority-icon";
 import { IssueStatusIndicator } from "./issue-status-indicator";
 import { useIssueTableContext } from "../lib/issue-table-context";
 import { issueTableFeatures } from "../lib/issue-table-features";
 import {
+  assigneeColumnFilter,
   comparePriority,
   dateRangeColumnFilter,
   issueTableColumnIds,
@@ -48,7 +46,6 @@ import {
   multiValueColumnFilter,
   numberRangeColumnFilter,
   textColumnFilter,
-  unassignedAssigneeId,
   type IssueTableRow,
 } from "../lib/issue-table-query";
 
@@ -71,15 +68,18 @@ const issueTableColumns = columnHelper.columns([
   }),
   columnHelper.accessor("number", {
     cell: ({ row }) => (
-      <span className="font-mono text-muted-foreground tabular-nums">#{row.original.number}</span>
+      <span className="font-mono text-muted-foreground tabular-nums">
+        {formatIssueCode(row.original.number)}
+      </span>
     ),
     filterFn: numberRangeColumnFilter,
-    header: ({ column, table }) => <IssueColumnHeader column={column} label="#" table={table} />,
+    header: ({ column, table }) => <IssueColumnHeader column={column} label="ID" table={table} />,
     id: "number",
-    size: 72,
+    minSize: 104,
+    size: 120,
   }),
   columnHelper.accessor("title", {
-    cell: ({ row }) => <IssueTitleCell issue={row.original.issue} title={row.original.title} />,
+    cell: ({ row }) => <IssueTitleCell number={row.original.number} title={row.original.title} />,
     enableHiding: false,
     filterFn: textColumnFilter,
     header: ({ column, table }) => (
@@ -109,15 +109,9 @@ const issueTableColumns = columnHelper.columns([
     id: "priority",
     sortFn: (left, right) => comparePriority(left.original.priority, right.original.priority),
   }),
-  columnHelper.accessor((row) => row.assigneeId, {
-    cell: ({ row }) => (
-      <IssueAssigneeCell
-        image={row.original.assigneeImage}
-        name={row.original.assigneeName}
-        unassigned={row.original.assigneeId === unassignedAssigneeId}
-      />
-    ),
-    filterFn: multiValueColumnFilter,
+  columnHelper.accessor((row) => row.assigneeIds, {
+    cell: ({ row }) => <AssigneeFaces emptyLabel="Unassigned" people={row.original.assignees} />,
+    filterFn: assigneeColumnFilter,
     header: ({ column, table }) => (
       <IssueColumnHeader column={column} label="Assignee" table={table} />
     ),
@@ -159,19 +153,32 @@ const issueTableColumns = columnHelper.columns([
       <IssueColumnHeader column={column} label="Updated" table={table} />
     ),
   }),
-  columnHelper.accessor("description", {
+  columnHelper.accessor("contentText", {
     cell: ({ row }) =>
-      row.original.description.length === 0 ? (
+      row.original.contentText.length === 0 ? (
         <span className="text-muted-foreground">—</span>
       ) : (
-        <span className="block max-w-xs truncate" title={row.original.description}>
-          {row.original.description}
+        <span className="block max-w-xs truncate" title={row.original.contentText}>
+          {row.original.contentText}
         </span>
       ),
     filterFn: textColumnFilter,
     header: ({ column, table }) => (
-      <IssueColumnHeader column={column} label="Description" table={table} />
+      <IssueColumnHeader column={column} label="Content" table={table} />
     ),
+    id: "content",
+  }),
+  columnHelper.display({
+    cell: ({ row }) => <IssueActionsCell issueId={row.original.id} number={row.original.number} />,
+    enableColumnFilter: false,
+    enableHiding: false,
+    enablePinning: true,
+    enableSorting: false,
+    header: () => <span className="sr-only">Actions</span>,
+    id: "actions",
+    maxSize: 48,
+    minSize: 48,
+    size: 48,
   }),
 ]);
 
@@ -195,12 +202,12 @@ interface HeaderTable {
   store: { readonly state: { columnOrder: string[] } };
 }
 
-function IssueSelectCell({ issueId, number }: { issueId: string; number: number }) {
+function IssueSelectCell({ issueId, number }: { issueId: string; number: string }) {
   const { isSelected, toggleSelected } = useIssueTableContext();
 
   return (
     <Checkbox
-      aria-label={`Select issue ${number}`}
+      aria-label={`Select issue ${formatIssueCode(number)}`}
       checked={isSelected(issueId)}
       onCheckedChange={(checked) => {
         toggleSelected(issueId, checked === true);
@@ -378,48 +385,66 @@ function IssueColumnHeader({
   );
 }
 
-function IssueTitleCell({ issue, title }: { issue: IssueSummary; title: string }) {
-  const { openIssue } = useIssueTableContext();
+function IssueTitleCell({ number, title }: { number: string; title: string }) {
+  const { issueHref } = useIssueTableContext();
+  const code = formatIssueCode(number);
 
   return (
-    <button
-      className="block max-w-full truncate text-left font-medium line-clamp-1"
-      onClick={() => {
-        openIssue(issue);
-      }}
+    <Link
+      className="block min-w-0 truncate text-left font-medium line-clamp-1"
+      data-issue-path={code}
+      state={{ issueReturn: true }}
       title={title}
-      type="button"
+      to={issueHref(number)}
     >
       {title}
-    </button>
+    </Link>
   );
 }
 
-function IssueAssigneeCell({
-  image,
-  name,
-  unassigned,
-}: {
-  image: string | null;
-  name: string;
-  unassigned: boolean;
-}) {
-  if (unassigned) {
-    return (
-      <span className="min-w-0 text-muted-foreground">
-        <IssueIconLabel icon={UserCircleIcon} label={name} />
-      </span>
-    );
+function IssueActionsCell({ issueId, number }: { issueId: string; number: string }) {
+  const { canDelete, canUpdate, onDeleteIssue, onQuickEdit } = useIssueTableContext();
+  const code = formatIssueCode(number);
+
+  if (!canDelete && !canUpdate) {
+    return null;
   }
 
   return (
-    <span className="flex min-w-0 items-center gap-2">
-      <Avatar className="size-6">
-        <AvatarImage alt="" src={image ?? undefined} />
-        <AvatarFallback>{getInitials(name)}</AvatarFallback>
-      </Avatar>
-      <span className="truncate">{name}</span>
-    </span>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button aria-label={`${code} actions`} size="icon" type="button" variant="ghost">
+            <DotsThreeIcon />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" className="w-auto" side="left">
+        <DropdownMenuGroup>
+          {canUpdate ? (
+            <DropdownMenuItem
+              onClick={() => {
+                onQuickEdit(issueId);
+              }}
+            >
+              <NoteIcon data-icon="inline-start" />
+              Edit
+            </DropdownMenuItem>
+          ) : null}
+          {canDelete ? (
+            <DropdownMenuItem
+              onClick={() => {
+                onDeleteIssue(issueId);
+              }}
+              variant="destructive"
+            >
+              <TrashIcon data-icon="inline-start" />
+              Delete
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

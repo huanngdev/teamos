@@ -376,7 +376,12 @@ function useColumnPages(options: UseColumnPagesOptions) {
 
   return {
     columns,
+    dataUpdatedAt: board.dataUpdatedAt,
+    hasLoadedIssue: (issueId: string) =>
+      board.data?.columns.some((column) => column.issues.some((issue) => issue.id === issueId)) ??
+      false,
     isError: board.isError,
+    isFetching: board.isFetching,
     isPending: board.isPending,
     loadMore: (statusId: string) => {
       void load(statusId, "after");

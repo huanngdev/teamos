@@ -1,4 +1,4 @@
-import type { IssueCardSummary, ProjectMember } from "@teamos/shared";
+import type { IssueCardSummary } from "@teamos/shared";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import {
@@ -33,10 +33,10 @@ interface IssueBoardCanvasProps {
   canUpdateIssue: boolean;
   canUpdateProject: boolean;
   drag: IssueBoardDragState;
-  members: readonly ProjectMember[];
   onCreateColumn: () => void;
   onCreateIssue: (statusId: string) => void;
   onDeleteColumn: (statusId: string) => void;
+  highlightedIssueId?: string | null;
   onEditIssue: (issueId: string) => void;
   onLoadMore: (statusId: string) => void;
   onLoadPrevious: (statusId: string) => void;
@@ -50,7 +50,7 @@ function IssueBoardCanvas({
   canUpdateIssue,
   canUpdateProject,
   drag,
-  members,
+  highlightedIssueId = null,
   onCreateColumn,
   onCreateIssue,
   onDeleteColumn,
@@ -89,8 +89,8 @@ function IssueBoardCanvas({
                   canReorderColumns={canReorderColumns}
                   canUpdateProject={canUpdateProject}
                   column={column}
+                  highlightedIssueId={highlightedIssueId}
                   key={column.status.id}
-                  members={members}
                   onCreateIssue={() => {
                     onCreateIssue(column.status.id);
                   }}
@@ -110,10 +110,15 @@ function IssueBoardCanvas({
                 />
               ))}
               {canUpdateProject ? (
-                <div className="flex shrink-0 items-start p-3">
-                  <Button onClick={onCreateColumn} variant="outline">
-                    <PlusIcon data-icon="inline-start" />
-                    Add column
+                <div className="flex shrink-0 items-start">
+                  <Button
+                    aria-label="Add column"
+                    className="h-full"
+                    onClick={onCreateColumn}
+                    type="button"
+                    variant="outline"
+                  >
+                    <PlusIcon className="text-muted-foreground" />
                   </Button>
                 </div>
               ) : null}

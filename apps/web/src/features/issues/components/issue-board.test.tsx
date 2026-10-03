@@ -8,11 +8,12 @@ import { projectResponse, renderWorkspace, useWorkspaceHandlers } from "@/test/w
 import { server } from "@/test/server";
 
 const createdIssue = {
-  assigneeMemberId: null,
+  assignees: [],
+  content: null,
+  contentText: "",
   createdAt: "2026-01-01T00:00:00.000Z",
-  description: null,
   id: "33333333-3333-4333-8333-333333333333",
-  number: 1,
+  number: "1",
   position: 0,
   priority: "none",
   statusId: "11111111-1111-4111-8111-111111111111",
@@ -78,19 +79,26 @@ test("creates an issue in the selected column", async () => {
   await userEvent.click(await screen.findByRole("button", { name: "Add issue to Backlog" }));
   const dialog = await screen.findByRole("dialog");
 
-  await userEvent.type(within(dialog).getByLabelText("Title"), "Check the gate");
+  await userEvent.type(within(dialog).getByLabelText("Issue title"), "Check the gate");
   await userEvent.click(within(dialog).getByRole("button", { name: "Create issue" }));
 
   await waitFor(() => {
     expect(created).toEqual([
       {
-        assigneeMemberId: null,
+        assigneeMemberIds: [],
         priority: "none",
         statusId: "11111111-1111-4111-8111-111111111111",
         title: "Check the gate",
       },
     ]);
   });
+  expect(created[0]).not.toHaveProperty("content");
+  expect(
+    await screen.findByText("I-0001 was created in Backlog. It is outside the current results."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByText("Backlog")).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Check the gate" })).not.toBeInTheDocument();
 });
 
 test("hides column management from a project member", async () => {
@@ -104,6 +112,67 @@ test("hides column management from a project member", async () => {
 
   expect(await screen.findByRole("button", { name: "Add issue to Backlog" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Add column" })).not.toBeInTheDocument();
+});
+
+test("opens an issue page from a board card", async () => {
+  useWorkspaceHandlers();
+  server.use(
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issue-board`, () =>
+      HttpResponse.json({
+        columns: [
+          {
+            hasMore: false,
+            issues: [
+              {
+                assignees: [],
+                createdAt: "2026-01-01T00:00:00.000Z",
+                id: createdIssue.id,
+                number: "1",
+                position: 0,
+                priority: "none",
+                statusId: "11111111-1111-4111-8111-111111111111",
+                title: "Check the gate",
+                updatedAt: "2026-01-01T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+            scope: "fixture",
+            statusId: "11111111-1111-4111-8111-111111111111",
+            total: 1,
+          },
+          {
+            hasMore: false,
+            issues: [],
+            nextCursor: null,
+            scope: "fixture",
+            statusId: "22222222-2222-4222-8222-222222222222",
+            total: 0,
+          },
+        ],
+      }),
+    ),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues/by-number/:number`, () =>
+      HttpResponse.json({ issue: createdIssue }),
+    ),
+  );
+  renderWorkspace("/w/acme/p/apollo/board");
+
+  await userEvent.click(await screen.findByRole("button", { name: "I-0001, Check the gate" }));
+
+  expect(await screen.findByRole("textbox", { name: "Title" })).toHaveValue("Check the gate");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
+
+  const boardLink = screen.getAllByRole("link", { name: "Board" }).find((link) => {
+    return link.getAttribute("href") === "/w/acme/p/apollo/board";
+  });
+
+  expect(boardLink).toBeDefined();
+  await userEvent.click(boardLink as HTMLElement);
+
+  expect(await screen.findByRole("button", { name: "I-0001, Check the gate" })).toBeInTheDocument();
+  expect(screen.getByText("Backlog")).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
 test("shows column management to a project lead", async () => {

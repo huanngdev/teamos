@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   canPerformProjectAction,
+  formatIssueCode,
   type IssueSummary,
   type OrganizationRole,
   type ProjectMember,
@@ -18,6 +19,8 @@ import { listIssues, listProjectStatuses } from "../api/issue-api";
 import { issueTableColumns } from "../components/issue-table-columns";
 import type { IssueTable } from "../lib/issue-table-features";
 import { issueTableFeatures } from "../lib/issue-table-features";
+import { projectIssuePath } from "../lib/issue-paths";
+import { useCreatedIssueFeedback } from "./use-created-issue-feedback";
 import { logSelectedIssues } from "../lib/issue-selection";
 import { withSelectColumnPinned } from "../lib/issue-table-pin";
 import {
@@ -61,6 +64,9 @@ type IssueTableState =
 interface IssueTableView {
   canCreate: boolean;
   canDelete: boolean;
+  canUpdate: boolean;
+  createdMessage: string | null;
+  highlightedIssueId: string | null;
   deleteSelected: {
     cancel: () => void;
     confirm: () => void;
@@ -68,6 +74,7 @@ interface IssueTableView {
     error: string | null;
     isPending: boolean;
     open: boolean;
+    request: (issueIds: readonly string[]) => void;
   };
   facets: IssueTableFacets;
   isSelected: (issueId: string) => boolean;
@@ -76,14 +83,15 @@ interface IssueTableView {
   assignees: EligibleAssigneePicker;
   hasFilters: boolean;
   issueForm: IssueFormState;
+  issueHref: (number: string) => string;
   members: ProjectMember[];
   membersError: string | null;
   onClearFilters: () => void;
   onClearSearch: () => void;
   onCreate: () => void;
   onDeleteSelected: () => void;
+  onQuickEdit: (issueId: string) => void;
   onSearchChange: (value: string) => void;
-  openIssue: (issue: IssueSummary) => void;
   rows: IssueTableRow[];
   search: string;
   selectedCount: number;
@@ -196,15 +204,32 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
     organizationSlug: options.organizationSlug,
     projectId,
   });
+  const canUpdateIssue =
+    project !== null &&
+    canPerformProjectAction("update-issue", {
+      organizationRole: options.organizationRole,
+      projectRole: project.role,
+      visibility: project.visibility,
+    });
+  const createdFeedback = useCreatedIssueFeedback({
+    dataUpdatedAt: listed.dataUpdatedAt,
+    isFetching: listed.isFetching,
+    isVisible: (issueId) => listed.data?.issues.some((item) => item.id === issueId) ?? false,
+    locationLabel: (created) =>
+      statusList.find((status) => status.id === created.statusId)?.name ?? "its column",
+    onView: (created) => {
+      void navigate(
+        projectIssuePath(
+          options.organizationSlug,
+          options.projectSlug,
+          formatIssueCode(created.number),
+        ),
+      );
+    },
+  });
   const issueForm = useIssueForm({
-    canDeleteIssue: canDeleteIssues,
-    canUpdateIssue:
-      project !== null &&
-      canPerformProjectAction("update-issue", {
-        organizationRole: options.organizationRole,
-        projectRole: project.role,
-        visibility: project.visibility,
-      }),
+    canUpdateIssue,
+    onCreated: createdFeedback.notifyCreated,
     organizationSlug: options.organizationSlug,
     projectId,
     statuses: statusList,
@@ -336,7 +361,7 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
     },
     state: {
       columnFilters: query.columnFilters,
-      columnOrder: query.columnOrder,
+      columnOrder: [...query.columnOrder, "actions"],
       columnPinning,
       columnVisibility: query.columnVisibility,
       globalFilter: query.q,
@@ -412,6 +437,9 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
     view: {
       canCreate,
       canDelete: canDeleteIssues,
+      canUpdate: canUpdateIssue,
+      createdMessage: createdFeedback.createdMessage,
+      highlightedIssueId: createdFeedback.highlightedIssueId,
       deleteSelected,
       facets: listed.data?.facets ?? null,
       isSelected: (issueId) => selectedIds[issueId] === true,
@@ -426,6 +454,8 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
       assignees,
       hasFilters: issueTableHasFilters(query),
       issueForm,
+      issueHref: (number) =>
+        projectIssuePath(options.organizationSlug, options.projectSlug, formatIssueCode(number)),
       members: memberList,
       membersError:
         cachedMembers === undefined && members.isError
@@ -447,13 +477,17 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
           issueForm.openCreate();
         }
       },
+      onQuickEdit: (issueId) => {
+        const card = listed.data?.issues.find((item) => item.id === issueId);
+
+        if (canUpdateIssue && card !== undefined) {
+          issueForm.openEdit(card);
+        }
+      },
       onDeleteSelected: () => {
         deleteSelected.request(chosenIds);
       },
       onSearchChange: setSearchInput,
-      openIssue: (issue) => {
-        issueForm.openEdit(issue);
-      },
       rows,
       search: searchInput,
       selectedCount: chosenIds.length,

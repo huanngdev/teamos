@@ -1,20 +1,20 @@
 import { createContext, useContext } from "react";
-import type {
-  IssueListFacets,
-  IssueSummary,
-  ProjectMember,
-  ProjectStatusSummary,
-} from "@teamos/shared";
+import type { IssueListFacets, ProjectMember, ProjectStatusSummary } from "@teamos/shared";
 
 import type { EligibleAssigneePicker } from "@/features/projects";
 import type { IssueTableRow } from "./issue-table-query";
 
 interface IssueTableContextValue {
   assignees: EligibleAssigneePicker;
+  canDelete: boolean;
+  canUpdate: boolean;
   facets: IssueListFacets | null;
+  highlightedIssueId: string | null;
   isSelected: (issueId: string) => boolean;
+  issueHref: (number: string) => string;
   members: readonly ProjectMember[];
-  openIssue: (issue: IssueSummary) => void;
+  onDeleteIssue: (issueId: string) => void;
+  onQuickEdit: (issueId: string) => void;
   rows: readonly IssueTableRow[];
   statuses: readonly ProjectStatusSummary[];
   togglePage: (issueIds: readonly string[], selected: boolean) => void;
@@ -35,10 +35,15 @@ const emptyAssigneePicker: EligibleAssigneePicker = {
 
 const IssueTableContext = createContext<IssueTableContextValue>({
   assignees: emptyAssigneePicker,
+  canDelete: false,
+  canUpdate: false,
   facets: null,
+  highlightedIssueId: null,
   isSelected: () => false,
+  issueHref: () => "",
   members: [],
-  openIssue: () => undefined,
+  onDeleteIssue: () => undefined,
+  onQuickEdit: () => undefined,
   rows: [],
   statuses: [],
   togglePage: () => undefined,

@@ -75,7 +75,7 @@ function IssueViewBoardReady({
             canReorderColumns={false}
             canUpdateProject={view.canUpdateProject}
             drag={drag}
-            members={view.catalog.members}
+            highlightedIssueId={view.highlightedIssueId}
             onCreateColumn={view.onCreateColumn}
             onCreateIssue={view.onCreateIssue}
             onDeleteColumn={view.onDeleteColumn}
@@ -87,6 +87,9 @@ function IssueViewBoardReady({
           />
         </div>
       </div>
+      <p aria-live="polite" className="sr-only">
+        {view.createdMessage}
+      </p>
       <IssueFormDialog
         assignees={view.assignees}
         form={view.issueForm}

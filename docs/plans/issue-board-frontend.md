@@ -1,6 +1,6 @@
 # Issue Board Frontend
 
-Status: implemented.
+Status: implemented. Issue pages and dialogs in `docs/plans/issue-detail.md` replace the issue sheet in this file.
 
 Branch: `feat/issue-list`.
 

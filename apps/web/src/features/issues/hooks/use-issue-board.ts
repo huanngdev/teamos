@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   canPerformProjectAction,
+  formatIssueCode,
   type OrganizationRole,
   type ProjectMember,
   type ProjectStatusSummary,
 } from "@teamos/shared";
+import { useNavigate } from "react-router";
 
 import { listProjectMembers, useEligibleAssignees, useProjectList } from "@/features/projects";
 import type { EligibleAssigneePicker } from "@/features/projects";
@@ -13,6 +15,9 @@ import { memberCacheKey, notify, useShellStore } from "@/shared";
 import { listProjectStatuses, updateProjectStatus } from "../api/issue-api";
 import { applyColumnMove, type BoardColumn } from "../lib/board-columns";
 import { readIssueError } from "../lib/issue-errors";
+import { issueReturnState } from "../lib/issue-navigation";
+import { useCreatedIssueFeedback } from "./use-created-issue-feedback";
+import { projectIssuePath } from "../lib/issue-paths";
 import { placementForDrop } from "../lib/issue-placement";
 import { issueKeys, parseDragId } from "../query-keys";
 import { useColumnForm, type ColumnFormState, type DeleteColumnState } from "./use-column-form";
@@ -40,6 +45,8 @@ interface IssueBoardView {
   assignees: EligibleAssigneePicker;
   columnForm: ColumnFormState;
   deleteColumn: DeleteColumnState;
+  createdMessage: string | null;
+  highlightedIssueId: string | null;
   issueForm: IssueFormState;
   members: ProjectMember[];
   membersError: string | null;
@@ -60,6 +67,7 @@ interface IssueBoardView {
 }
 
 function useIssueBoard(options: UseIssueBoardOptions): IssueBoardState {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const projectList = useProjectList({
     enabled: options.enabled,
@@ -107,14 +115,23 @@ function useIssueBoard(options: UseIssueBoardOptions): IssueBoardState {
     organizationSlug: options.organizationSlug,
     projectId,
   });
+  const createdFeedback = useCreatedIssueFeedback({
+    dataUpdatedAt: pages.dataUpdatedAt,
+    isFetching: pages.isFetching,
+    isVisible: pages.hasLoadedIssue,
+    locationLabel: (created) =>
+      statuses.data?.find((status) => status.id === created.statusId)?.name ?? "its column",
+    onView: (created) => {
+      void navigate(
+        projectIssuePath(
+          options.organizationSlug,
+          options.projectSlug,
+          formatIssueCode(created.number),
+        ),
+      );
+    },
+  });
   const issueForm = useIssueForm({
-    canDeleteIssue:
-      project !== null &&
-      canPerformProjectAction("delete-issue", {
-        organizationRole: options.organizationRole,
-        projectRole: project.role,
-        visibility: project.visibility,
-      }),
     canUpdateIssue:
       project !== null &&
       canPerformProjectAction("update-issue", {
@@ -122,6 +139,7 @@ function useIssueBoard(options: UseIssueBoardOptions): IssueBoardState {
         projectRole: project.role,
         visibility: project.visibility,
       }),
+    onCreated: createdFeedback.notifyCreated,
     organizationSlug: options.organizationSlug,
     projectId,
     statuses: statuses.data ?? [],
@@ -193,7 +211,9 @@ function useIssueBoard(options: UseIssueBoardOptions): IssueBoardState {
       canUpdateProject,
       columns,
       columnForm: columnForm.form,
+      createdMessage: createdFeedback.createdMessage,
       deleteColumn: columnForm.deleteColumn,
+      highlightedIssueId: createdFeedback.highlightedIssueId,
       issueForm,
       members: cachedMembers ?? members.data ?? [],
       membersError:
@@ -280,7 +300,14 @@ function useIssueBoard(options: UseIssueBoardOptions): IssueBoardState {
           .find((item) => item.id === issueId);
 
         if (issue !== undefined) {
-          issueForm.openEdit(issue);
+          void navigate(
+            projectIssuePath(
+              options.organizationSlug,
+              options.projectSlug,
+              formatIssueCode(issue.number),
+            ),
+            { state: issueReturnState() },
+          );
         }
       },
       onLoadMore: pages.loadMore,

@@ -19,7 +19,7 @@ function canonicalIssueColumnScope(statusId: string, filters: IssueListFilters):
     [...filters.categories].sort().join(","),
     filters.createdFrom ?? "",
     filters.createdTo ?? "",
-    filters.description ?? "",
+    filters.content ?? "",
     filters.includeUnassigned ? "1" : "0",
     filters.numberMax ?? "",
     filters.numberMin ?? "",

@@ -1,3 +1,5 @@
+import { TrashIcon } from "@phosphor-icons/react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,37 +10,41 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { IssueFormState } from "../hooks/use-issue-form";
-import { TrashIcon } from "@phosphor-icons/react";
 
 interface DeleteIssueDialogProps {
-  form: IssueFormState;
+  error: string | null;
+  isPending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  open: boolean;
 }
 
-function DeleteIssueDialog({ form }: DeleteIssueDialogProps) {
+function DeleteIssueDialog({
+  error,
+  isPending,
+  onCancel,
+  onConfirm,
+  open,
+}: DeleteIssueDialogProps) {
   return (
     <AlertDialog
       onOpenChange={(nextOpen) => {
         if (!nextOpen) {
-          form.cancelDelete();
+          onCancel();
         }
       }}
-      open={form.deleteOpen}
+      open={open}
     >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete this issue?</AlertDialogTitle>
           <AlertDialogDescription>
-            {form.deleteError ?? "This permanently removes the issue from the board."}
+            {error ?? "This permanently removes the issue from the project."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep issue</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={form.isPending}
-            onClick={form.confirmDelete}
-            variant="destructive"
-          >
+          <AlertDialogAction disabled={isPending} onClick={onConfirm} variant="destructive">
             <TrashIcon data-icon="inline-start" />
             Delete issue
           </AlertDialogAction>

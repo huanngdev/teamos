@@ -16,7 +16,7 @@ function filters(overrides: Partial<IssueListFilters> = {}): IssueListFilters {
     categories: [],
     createdFrom: undefined,
     createdTo: undefined,
-    description: undefined,
+    content: undefined,
     includeCurrentUser: false,
     includeFacets: false,
     includeUnassigned: false,

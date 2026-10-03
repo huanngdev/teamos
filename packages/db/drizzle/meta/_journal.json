@@ -43,6 +43,27 @@
       "when": 1790832926206,
       "tag": "0005_issue_pagination_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790938106900,
+      "tag": "0006_issue_number_counter",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790945194010,
+      "tag": "0007_issue_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790961558092,
+      "tag": "0008_needy_ravenous",
+      "breakpoints": true
     }
   ]
 }

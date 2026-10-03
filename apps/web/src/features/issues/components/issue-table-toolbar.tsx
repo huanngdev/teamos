@@ -74,7 +74,7 @@ const filterColumnIcons: Record<IssueTableColumnId, Icon> = {
   assignee: UserCircleIcon,
   category: TagIcon,
   createdAt: CalendarBlankIcon,
-  description: TextAlignLeftIcon,
+  content: TextAlignLeftIcon,
   number: HashIcon,
   priority: CellSignalHighIcon,
   status: CircleIcon,

@@ -37,12 +37,11 @@ const member: ProjectMember = {
 
 function issue(overrides: Partial<IssueSummary> = {}): IssueSummary {
   return {
-    assignee: null,
-    assigneeMemberId: null,
+    assignees: [],
+    contentText: "Gate check",
     createdAt: "2026-01-15T08:00:00.000Z",
-    description: "Gate check",
     id: "issue-1",
-    number: 12,
+    number: "12",
     position: 0,
     priority: "high",
     statusId: backlog.id,
@@ -55,15 +54,22 @@ function issue(overrides: Partial<IssueSummary> = {}): IssueSummary {
 function row(overrides: Partial<IssueTableRow> = {}): IssueTableRow {
   return {
     assigneeEmail: "ada@example.com",
-    assigneeId: "member-1",
-    assigneeImage: null,
+    assigneeIds: ["member-1"],
     assigneeName: "Ada Lovelace",
+    assignees: [
+      {
+        email: "ada@example.com",
+        id: "member-1",
+        image: null,
+        name: "Ada Lovelace",
+      },
+    ],
     category: "backlog",
     createdAt: "2026-01-15T08:00:00.000Z",
-    description: "Gate check",
+    contentText: "Gate check",
     id: "issue-1",
     issue: issue(),
-    number: 12,
+    number: "12",
     priority: "high",
     statusId: backlog.id,
     statusName: "Backlog",
@@ -100,7 +106,7 @@ test("round-trips search, sort, paging, and filters", () => {
     { id: "priority", value: ["high"] },
     { id: "assignee", value: ["unassigned"] },
     { id: "title", value: "orbit" },
-    { id: "number", value: [2, undefined] },
+    { id: "number", value: ["2", undefined] },
     { id: "createdAt", value: ["2026-01-01", undefined] },
   ]);
   expect(query.columnVisibility).toEqual({});
@@ -139,9 +145,23 @@ test("rejects invalid ranges and cannot hide the title", () => {
 test("builds rows for missing columns and members", () => {
   const rows = buildIssueTableRows(
     [
-      issue({ assigneeMemberId: "missing-member", statusId: "missing-status" }),
-      issue({ assigneeMemberId: "member-1", id: "issue-2", number: 13 }),
-      issue({ id: "issue-3", number: 14 }),
+      issue({
+        assignees: [{ email: "", id: "missing-member", image: null, name: "" }],
+        statusId: "missing-status",
+      }),
+      issue({
+        assignees: [
+          {
+            email: "ada@example.com",
+            id: "member-1",
+            image: null,
+            name: "Ada Lovelace",
+          },
+        ],
+        id: "issue-2",
+        number: "13",
+      }),
+      issue({ id: "issue-3", number: "14" }),
     ],
     [backlog],
     [member],
@@ -158,11 +178,14 @@ test("builds rows for missing columns and members", () => {
     assigneeName: "Ada Lovelace",
     statusName: "Backlog",
   });
-  expect(rows[2]).toMatchObject({ assigneeId: "unassigned", assigneeName: "Unassigned" });
+  expect(rows[2]).toMatchObject({ assigneeIds: ["unassigned"], assigneeName: "Unassigned" });
 });
 
 test("matches search text and local calendar dates", () => {
   expect(matchesIssueSearch(row(), "#12")).toBe(true);
+  expect(matchesIssueSearch(row(), "I-0012")).toBe(true);
+  expect(matchesIssueSearch(row(), "i-001")).toBe(true);
+  expect(matchesIssueSearch(row(), "i-")).toBe(false);
   expect(matchesIssueSearch(row(), "high")).toBe(true);
   expect(matchesIssueSearch(row(), "ada@example.com")).toBe(true);
   expect(matchesIssueSearch(row(), "missing")).toBe(false);
@@ -172,8 +195,10 @@ test("matches search text and local calendar dates", () => {
   expect(localDateKey(stamp)).toBe("2026-01-15");
   expect(matchesDateRange(stamp, ["2026-01-15", "2026-01-15"])).toBe(true);
   expect(matchesDateRange(stamp, ["2026-01-16", undefined])).toBe(false);
-  expect(matchesNumberRange(3, [1, undefined])).toBe(true);
-  expect(matchesNumberRange(3, [4, 8])).toBe(false);
+  expect(matchesNumberRange("3", ["1", undefined])).toBe(true);
+  expect(matchesNumberRange("3", ["4", "8"])).toBe(false);
+  expect(matchesNumberRange("10", ["2", undefined])).toBe(true);
+  expect(matchesNumberRange("2", [undefined, "10"])).toBe(true);
 });
 
 test("moves columns and windows page numbers", () => {

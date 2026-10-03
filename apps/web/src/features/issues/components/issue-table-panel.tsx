@@ -50,10 +50,17 @@ function IssueTablePanel({ state }: IssueTablePanelProps) {
     <IssueTableContext.Provider
       value={{
         assignees: view.assignees,
+        canDelete: view.canDelete,
+        canUpdate: view.canUpdate,
         facets: view.facets,
+        highlightedIssueId: view.highlightedIssueId,
         isSelected: view.isSelected,
+        issueHref: view.issueHref,
         members: view.members,
-        openIssue: view.openIssue,
+        onDeleteIssue: (issueId) => {
+          view.deleteSelected.request([issueId]);
+        },
+        onQuickEdit: view.onQuickEdit,
         rows: view.rows,
         statuses: view.statuses,
         togglePage: view.togglePage,
@@ -95,6 +102,9 @@ function IssueTablePanel({ state }: IssueTablePanelProps) {
         onConfirm={view.deleteSelected.confirm}
         open={view.deleteSelected.open}
       />
+      <p aria-live="polite" className="sr-only">
+        {view.createdMessage}
+      </p>
       <IssueFormDialog assignees={view.assignees} form={view.issueForm} statuses={view.statuses} />
     </IssueTableContext.Provider>
   );

@@ -1,6 +1,6 @@
 # Issue pagination and placement
 
-Status: implemented. This plan is the accepted scope for server-paged issues, per-column boards, anchor moves, right-side sheets, and eligible assignees. The "Verified current state" section below is the starting point, not the finished behavior.
+Status: implemented. This plan is the accepted scope for server-paged issues, per-column boards, anchor moves, and eligible assignees. Issue pages, create and quick-edit dialogs, and content documents are in `docs/plans/issue-detail.md` and replace the issue sheet and issue description described below. The "Verified current state" section is the starting point, not the finished behavior.
 
 Branch: `feat/issue-list`.
 
@@ -18,7 +18,7 @@ Branch: `feat/issue-list`.
 - The table uses page/offset. Deep offsets get slower as the offset grows. The benchmark records that. It is not treated as constant-time.
 - Board columns use keyset pagination on `(position, id)`. The first page size is 40: about three column viewports, small enough that one wide column cannot starve the others. Bootstrap is one grouped count plus at most `PROJECT_STATUS_MAX` (20) index-bounded `LIMIT 41` queries in `Promise.all`. It is not one `LEFT JOIN LATERAL`, not an unbounded query per column, and not one project-wide limit split across columns.
 - A column cursor is base64url JSON bound to the status and the canonical filter. It is checked before the keyset predicate. It is not an authorization token.
-- Card reads omit `description`. `GET .../issues/{issueId}` returns the full issue. The edit sheet loads that detail before it can save.
+- Card reads omit the content document. `GET .../issues/{issueId}` returns the full issue, including content. Quick edit does not send content, so it does not load the document before it saves.
 - Moves send `placement`: `start`, `end`, `before`, or `after` an anchor id, plus `expectedUpdatedAt`. The server reads the anchor and at most the neighboring row. A normal move updates one issue. A gap smaller than 2, or an int4 overflow, rewrites at most 128 nearby rows in one statement. Only when that window has no room does one set-based renumber of the column run. Issue writes take a project `FOR SHARE` plus column advisory locks in status-id order. They do not take a project-wide `FOR UPDATE`.
 - Dropping after the last loaded card sends `after` that card. `end` is only for an empty column. `start` is only when nothing is unloaded above the drop.
 - A saved view still sends status only. A status change without `placement` still moves to the start of the destination column.

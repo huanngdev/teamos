@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "cn";
+import { useEffect } from "react";
 import { useIssueTableContext } from "../lib/issue-table-context";
 import type { IssueTable } from "../lib/issue-table-features";
 import { issueTablePinStyle } from "../lib/issue-table-pin";
@@ -23,7 +24,22 @@ function IssueDataTable({ table }: { table: IssueTable }) {
   const filtered =
     (typeof table.state.globalFilter === "string" && table.state.globalFilter.length > 0) ||
     table.state.columnFilters.length > 0;
-  const { isSelected } = useIssueTableContext();
+  const { highlightedIssueId, isSelected } = useIssueTableContext();
+
+  useEffect(() => {
+    if (highlightedIssueId === null) {
+      return;
+    }
+
+    const row = document.querySelector(`[data-issue-id="${CSS.escape(highlightedIssueId)}"]`);
+
+    if (row === null || typeof row.scrollIntoView !== "function") {
+      return;
+    }
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    row.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+  }, [highlightedIssueId]);
   const startEdge = table.getStartVisibleLeafColumns().at(-1)?.id;
   const endEdge = table.getEndVisibleLeafColumns()[0]?.id;
 
@@ -76,7 +92,11 @@ function IssueDataTable({ table }: { table: IssueTable }) {
         ) : (
           rows.map((row) => (
             <TableRow
-              className="group"
+              className={cn(
+                "group hover:bg-transparent data-[state=selected]:bg-transparent",
+                row.original.id === highlightedIssueId && "bg-accent/60",
+              )}
+              data-issue-id={row.original.id}
               data-state={isSelected(row.original.id) ? "selected" : undefined}
               key={row.id}
             >
@@ -86,8 +106,9 @@ function IssueDataTable({ table }: { table: IssueTable }) {
                 return (
                   <TableCell
                     className={cn(
-                      pinned !== false &&
-                        "sticky z-10 bg-background group-hover:bg-muted/50 group-data-[state=selected]:bg-muted",
+                      pinned !== false
+                        ? "issue-table-pin sticky z-20"
+                        : "relative z-0 bg-background group-hover:bg-muted/50 group-data-[state=selected]:bg-muted",
                       cell.column.id === startEdge && "border-r",
                       cell.column.id === endEdge && "border-l",
                       cell.column.id === "title" && "max-w-80 whitespace-normal",

@@ -1,6 +1,6 @@
 # Issue Board Backend
 
-Status: implemented. The board screen in `docs/plans/issue-board-frontend.md` is implemented too.
+Status: implemented. The board screen in `docs/plans/issue-board-frontend.md` is implemented too. Issue content and the issue page in `docs/plans/issue-detail.md` replace the issue description field in this file.
 
 Branch: `feat/issue-list`.
 

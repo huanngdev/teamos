@@ -11,7 +11,7 @@ import {
   type IssueBoardResponse,
   type IssueColumnPageResponse,
   type IssueListResponse,
-  type IssueSummary,
+  type IssueDetail,
   type ProjectStatusSummary,
   type UpdateIssueRequest,
   type UpdateProjectStatusRequest,
@@ -87,10 +87,23 @@ async function listIssues(
   });
 }
 
-async function getIssue(slug: string, projectId: string, issueId: string): Promise<IssueSummary> {
+async function getIssue(slug: string, projectId: string, issueId: string): Promise<IssueDetail> {
   const response = await requestParsed(issueResponseSchema, {
     method: "GET",
     url: issuePath(slug, projectId, `/issues/${encodeURIComponent(issueId)}`),
+  });
+
+  return response.issue;
+}
+
+async function getIssueByNumber(
+  slug: string,
+  projectId: string,
+  number: string,
+): Promise<IssueDetail> {
+  const response = await requestParsed(issueResponseSchema, {
+    method: "GET",
+    url: issuePath(slug, projectId, `/issues/by-number/${encodeURIComponent(number)}`),
   });
 
   return response.issue;
@@ -125,7 +138,7 @@ async function createIssue(
   slug: string,
   projectId: string,
   request: CreateIssueRequest,
-): Promise<IssueSummary> {
+): Promise<IssueDetail> {
   const response = await requestParsed(issueResponseSchema, {
     data: request,
     method: "POST",
@@ -140,7 +153,7 @@ async function updateIssue(
   projectId: string,
   issueId: string,
   request: UpdateIssueRequest,
-): Promise<IssueSummary> {
+): Promise<IssueDetail> {
   const response = await requestParsed(issueResponseSchema, {
     data: request,
     method: "PATCH",
@@ -176,6 +189,7 @@ export {
   deleteIssues,
   deleteProjectStatus,
   getIssue,
+  getIssueByNumber,
   listIssueBoard,
   listIssueColumn,
   listIssues,

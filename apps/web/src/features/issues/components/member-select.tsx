@@ -45,6 +45,8 @@ type MemberSelectProps = MemberSelectShared &
         inline?: false;
         mode: "single";
         onValueChange: (value: MemberChoice | null) => void;
+        triggerSize?: "default" | "sm";
+        triggerVariant?: "ghost" | "outline";
         value: MemberChoice;
       }
     | {
@@ -96,9 +98,13 @@ function SingleMemberSelect({
   onRetry,
   onSearch,
   onValueChange,
+  triggerSize = "default",
+  triggerVariant = "outline",
   value,
 }: MemberSelectShared & {
   onValueChange: (value: MemberChoice | null) => void;
+  triggerSize?: "default" | "sm";
+  triggerVariant?: "ghost" | "outline";
   value: MemberChoice;
 }) {
   return (
@@ -122,13 +128,19 @@ function SingleMemberSelect({
     >
       <ComboboxTrigger
         render={
-          <Button aria-label="Assignee" disabled={disabled} type="button" variant="outline" />
+          <Button
+            aria-label="Assignee"
+            disabled={disabled}
+            size={triggerSize}
+            type="button"
+            variant={triggerVariant}
+          />
         }
       >
         <MemberIdentity choice={value} />
       </ComboboxTrigger>
       <ComboboxContent>
-        <ComboboxInput placeholder="Search name or email" showTrigger={false} />
+        <ComboboxInput placeholder="Search name or email" showTrigger={false} className="mb-1!" />
         <MemberChoiceList
           error={error}
           hasMore={hasMore}
@@ -299,7 +311,7 @@ function MemberChoiceList({
         {(choice: MemberChoice) => (
           <ComboboxItem key={choice.id} value={choice} className="p-0">
             {/* Member rows are the density case that uses the compact item size. */}
-            <Item size="sm">
+            <Item size="sm" className="w-full rounded-none px-2 py-1.5 ">
               <ItemContent>
                 <ItemTitle>
                   <MemberIdentity choice={choice} />

@@ -21,12 +21,11 @@ const todo: ProjectStatusSummary = {
 
 function issue(id: string, statusId: string, position: number): IssueSummary {
   return {
-    assignee: null,
-    assigneeMemberId: null,
+    assignees: [],
     createdAt: "2026-01-01T00:00:00.000Z",
-    description: null,
+    contentText: "",
     id,
-    number: position + 1,
+    number: String(position + 1),
     position,
     priority: "none",
     statusId,

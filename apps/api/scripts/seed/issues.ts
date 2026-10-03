@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { projectMembership, projectStatus } from "@teamos/db/schema";
-import { issuePriorities } from "@teamos/shared";
+import { issueContentFromPlainText, issuePriorities } from "@teamos/shared";
 import { and, asc, eq } from "drizzle-orm";
 
 import { createIssueService } from "../../src/services/issues.js";
@@ -8,7 +8,7 @@ import { createOrganizationMemberService } from "../../src/services/organization
 import { optionalEnv, type SeedContext } from "./context.js";
 
 const titleMax = 140;
-const descriptionMax = 5000;
+const contentTextMax = 5000;
 const seedIssueMax = 200;
 
 async function seedIssues(context: SeedContext): Promise<void> {
@@ -60,8 +60,8 @@ async function seedIssues(context: SeedContext): Promise<void> {
       break;
     }
 
-    const description = faker.datatype.boolean()
-      ? faker.lorem.paragraph().trim().slice(0, descriptionMax)
+    const contentText = faker.datatype.boolean()
+      ? faker.lorem.paragraph().trim().slice(0, contentTextMax)
       : undefined;
     const title = faker.lorem
       .sentence({ max: 8, min: 3 })
@@ -73,11 +73,10 @@ async function seedIssues(context: SeedContext): Promise<void> {
       organization,
       projectId,
       request: {
-        assigneeMemberId:
-          assignees.length === 0 || !faker.datatype.boolean()
-            ? null
-            : faker.helpers.arrayElement(assignees),
-        ...(description === undefined ? {} : { description }),
+        ...(assignees.length === 0 || !faker.datatype.boolean()
+          ? {}
+          : { assigneeMemberIds: [faker.helpers.arrayElement(assignees)] }),
+        ...(contentText === undefined ? {} : { content: issueContentFromPlainText(contentText) }),
         priority: faker.helpers.arrayElement([...issuePriorities]),
         statusId: status.id,
         title: title.length > 0 ? title : "Seeded issue",

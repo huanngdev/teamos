@@ -222,6 +222,75 @@ test("keeps advanced filters when resetting and saving a multi-select assignee",
   });
 });
 
+test("opens an issue page from a saved view card", async () => {
+  const user = userEvent.setup();
+
+  useWorkspaceHandlers();
+  mockViews();
+  server.use(
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issue-board`, () =>
+      HttpResponse.json({
+        columns: [
+          {
+            hasMore: false,
+            issues: [
+              {
+                assignees: [],
+                createdAt: "2026-01-01T00:00:00.000Z",
+                id: "issue-1",
+                number: "1",
+                position: 0,
+                priority: "none",
+                statusId: "11111111-1111-4111-8111-111111111111",
+                title: "Check the gate",
+                updatedAt: "2026-01-01T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+            scope: "fixture",
+            statusId: "11111111-1111-4111-8111-111111111111",
+            total: 1,
+          },
+        ],
+      }),
+    ),
+    http.get(`${apiUrl}/api/organizations/acme/projects/:projectId/issues/by-number/:number`, () =>
+      HttpResponse.json({
+        issue: {
+          assignees: [],
+          content: null,
+          contentText: "Keep the gate notes",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          id: "issue-1",
+          number: "1",
+          position: 0,
+          priority: "none",
+          statusId: "11111111-1111-4111-8111-111111111111",
+          title: "Check the gate",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      }),
+    ),
+  );
+  renderWorkspace(`/w/acme/p/apollo/views/${viewId}`);
+
+  await user.click(await screen.findByRole("button", { name: "I-0001, Check the gate" }));
+
+  expect(await screen.findByRole("textbox", { name: "Title" })).toHaveValue("Check the gate");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
+
+  const viewLink = screen.getAllByRole("link", { name: "My issues" }).find((link) => {
+    return link.getAttribute("href")?.includes(viewId) === true;
+  });
+
+  expect(viewLink).toBeDefined();
+  await user.click(viewLink as HTMLElement);
+
+  expect(await screen.findByRole("button", { name: "I-0001, Check the gate" })).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
 test("opens a saved view on the default board and edits its filters", async () => {
   const user = userEvent.setup();
   const issueRequests: string[] = [];

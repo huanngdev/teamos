@@ -3,12 +3,11 @@ import { describe, expect, test } from "vitest";
 import { issueMatchesViewColumns, issueViewMoveRequest } from "./issue-view-move";
 
 const issue = {
-  assignee: null,
-  assigneeMemberId: null,
+  assignees: [],
   createdAt: "2026-01-01T00:00:00.000Z",
-  description: null,
+  contentText: "",
   id: "issue-1",
-  number: 1,
+  number: "1",
   position: 2000,
   priority: "high" as const,
   statusId: "backlog",

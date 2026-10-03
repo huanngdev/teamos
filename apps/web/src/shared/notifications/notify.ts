@@ -9,8 +9,18 @@ const notify = {
   error(message: string): void {
     toast.error(message);
   },
-  success(message: string): void {
-    toast.success(message);
+  success(message: string, action?: { label: string; onClick: () => void }): void {
+    toast.success(
+      message,
+      action === undefined
+        ? undefined
+        : {
+            action: {
+              label: action.label,
+              onClick: action.onClick,
+            },
+          },
+    );
   },
 };
 

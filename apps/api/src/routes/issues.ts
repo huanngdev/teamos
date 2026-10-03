@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z as openApiZod } from "@hono/zod-openapi";
 import {
   createIssueRequestSchema,
   decodeIssueColumnCursor,
@@ -6,8 +6,11 @@ import {
   issueBoardResponseSchema,
   issueColumnPageResponseSchema,
   issueColumnQuerySchema,
+  issueContentListItemNodeSchema,
+  issueContentListNodeSchema,
   issueListQuerySchema,
   issueListResponseSchema,
+  issueNumberSchema,
   issueResponseSchema,
   issueTableQuerySchema,
   organizationSlugSchema,
@@ -29,6 +32,30 @@ import type {
   OrganizationRoutes,
 } from "@/routes/organization-types.js";
 
+/*
+ * List nodes recurse through list items. Named OpenAPI refs stop the document
+ * generator from walking that cycle. Runtime validation still uses the schemas.
+ * Shared and the API can each load Zod, so the extension is copied onto the
+ * prototype that actually owns these schemas.
+ */
+const issueContentZodType = Object.getPrototypeOf(Object.getPrototypeOf(issueContentListNodeSchema));
+const openApiExtension = openApiZod.ZodType.prototype.openapi;
+
+if (
+  typeof issueContentListNodeSchema.openapi !== "function" &&
+  issueContentZodType !== null &&
+  typeof openApiExtension === "function"
+) {
+  Object.defineProperty(issueContentZodType, "openapi", {
+    configurable: true,
+    value: openApiExtension,
+    writable: true,
+  });
+}
+
+issueContentListNodeSchema.openapi("IssueContentList");
+issueContentListItemNodeSchema.openapi("IssueContentListItem");
+
 const projectParamsSchema = z.object({
   organizationSlug: organizationSlugSchema,
   projectId: z.uuid(),
@@ -36,6 +63,10 @@ const projectParamsSchema = z.object({
 
 const issueParamsSchema = projectParamsSchema.extend({
   issueId: z.uuid(),
+});
+
+const issueNumberParamsSchema = projectParamsSchema.extend({
+  number: issueNumberSchema,
 });
 
 const columnParamsSchema = projectParamsSchema.extend({
@@ -61,6 +92,25 @@ const listIssuesRoute = createRoute({
   tags: ["Issues"],
 });
 
+const getIssueByNumberRoute = createRoute({
+  method: "get",
+  operationId: "getIssueByNumber",
+  path: "/{organizationSlug}/projects/{projectId}/issues/by-number/{number}",
+  request: { params: issueNumberParamsSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: issueResponseSchema } },
+      description: "Returns one issue by its decimal number, including its content.",
+      headers: requestIdHeaders,
+    },
+    ...protectedRouteErrorResponses,
+    ...apiErrorResponses,
+  },
+  security: [{ sessionCookie: [] }],
+  summary: "Get an issue by number",
+  tags: ["Issues"],
+});
+
 const getIssueRoute = createRoute({
   method: "get",
   operationId: "getIssue",
@@ -69,7 +119,7 @@ const getIssueRoute = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: issueResponseSchema } },
-      description: "Returns one issue, including its description.",
+      description: "Returns one issue, including its content.",
       headers: requestIdHeaders,
     },
     ...protectedRouteErrorResponses,
@@ -237,6 +287,19 @@ function registerIssueRoutes(
     });
 
     return context.json(issueListResponseSchema.parse(result), 200);
+  });
+
+  routes.openapi(getIssueByNumberRoute, async (context) => {
+    const session = getAuthenticatedSession(context);
+    const { number, organizationSlug, projectId } = context.req.valid("param");
+    const organization = await requireOrganizationAccess(
+      organizationAccess,
+      organizationSlug,
+      session.user.id,
+    );
+    const issue = await issues.getByNumber({ number, organization, projectId });
+
+    return context.json(issueResponseSchema.parse({ issue }), 200);
   });
 
   routes.openapi(getIssueRoute, async (context) => {
