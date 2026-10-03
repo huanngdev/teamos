@@ -18,6 +18,7 @@ import { ApiClientError } from "@/shared/api/api-client";
 import { useWorkspace } from "@/features/workspaces";
 import { deleteIssue, getIssueByNumber, listProjectStatuses, updateIssue } from "../api/issue-api";
 import { assigneesFromIssue, issueAssigneeKey, resolveAssignees } from "../lib/issue-assignees";
+import { issueDetailSync } from "../lib/issue-detail-sync";
 import { clearIssueDraft, readIssueDraft, writeIssueDraft } from "../lib/issue-draft";
 import { readIssueError } from "../lib/issue-errors";
 import { focusIssueTrigger, hasIssueReturn } from "../lib/issue-navigation";
@@ -157,6 +158,7 @@ function useIssueDetail(): IssueDetailState {
     title: "",
   });
   const selectedRef = useRef(selectedAssignees);
+  const contentRef = useRef(content);
   const issue = detailQuery.data;
   const isDirty =
     title !== baseline.current.title ||
@@ -185,6 +187,7 @@ function useIssueDetail(): IssueDetailState {
     });
 
   selectedRef.current = selectedAssignees;
+  contentRef.current = content;
   draftRef.current = {
     assigneeKey: assigneeKey(selectedAssignees),
     contentKey: contentKey(content),
@@ -218,8 +221,22 @@ function useIssueDetail(): IssueDetailState {
         current.statusId === sent.statusId &&
         current.assigneeKey === sent.assigneeKey &&
         current.contentKey === sent.contentKey;
+      const serverContentKey = contentKey(saved.content);
+      const serverMatchesSent = sent !== null && serverContentKey === sent.contentKey;
 
-      clearIssueDraft(saved.id);
+      if (same) {
+        clearIssueDraft(saved.id);
+      } else {
+        writeIssueDraft(saved.id, {
+          assigneeMemberIds: selectedRef.current.map((person) => person.id),
+          baseUpdatedAt: saved.updatedAt,
+          content: contentRef.current,
+          priority: current.priority,
+          statusId: current.statusId,
+          title: current.title,
+        });
+      }
+
       failedSave.current = null;
       setBaseUpdatedAt(saved.updatedAt);
       setDisplayUpdatedAt(saved.updatedAt);
@@ -227,7 +244,7 @@ function useIssueDetail(): IssueDetailState {
       setTitleError(null);
       baseline.current = {
         assigneeKey: assigneeKey(nextAssignees),
-        contentKey: contentKey(saved.content),
+        contentKey: same && !serverMatchesSent ? current.contentKey : serverContentKey,
         priority: saved.priority,
         statusId: saved.statusId,
         title: saved.title,
@@ -238,11 +255,23 @@ function useIssueDetail(): IssueDetailState {
         setPriority(saved.priority);
         setStatusId(saved.statusId);
         setAssignees(nextAssignees);
-        setContent(saved.content);
+
+        if (serverMatchesSent) {
+          setContent(saved.content);
+        }
+
         setContentError(null);
       }
 
       applied.current = `${saved.id}:${saved.updatedAt}`;
+
+      if (projectId !== null && parsed !== undefined) {
+        queryClient.setQueryData(
+          issueKeys(organizationSlug, projectId).byNumber(parsed.decimal),
+          saved,
+        );
+      }
+
       await queryClient.invalidateQueries({
         queryKey: issueKeys(organizationSlug, projectId ?? "").prefix(),
       });
@@ -280,8 +309,24 @@ function useIssueDetail(): IssueDetailState {
     }
 
     const key = `${issue.id}:${issue.updatedAt}`;
+    const sync = issueDetailSync({
+      acknowledgedRevision: applied.current,
+      baseUpdatedAt,
+      cacheUpdatedAt: issue.updatedAt,
+      dirty: dirtyRef.current,
+      issueId: issue.id,
+    });
 
-    if (applied.current === key) {
+    if (sync === "conflict") {
+      setConflict(true);
+      return;
+    }
+
+    if (sync === "keep") {
+      if (applied.current !== key) {
+        return;
+      }
+
       if (dirtyRef.current && issue.updatedAt !== baseUpdatedAt) {
         setConflict(true);
       }
@@ -307,14 +352,6 @@ function useIssueDetail(): IssueDetailState {
 
       if (changed) {
         setAssignees(resolved);
-      }
-
-      return;
-    }
-
-    if (dirtyRef.current && applied.current !== null) {
-      if (issue.updatedAt !== baseUpdatedAt) {
-        setConflict(true);
       }
 
       return;
@@ -593,11 +630,13 @@ function useIssueDetail(): IssueDetailState {
         remove.mutate();
       },
       onContent: (next, error) => {
-        if (error === null) {
-          setContent(next);
+        if (error !== null) {
+          setContentError(error);
+          return;
         }
 
-        setContentError(error);
+        setContentError(null);
+        setContent((current) => (contentKey(current) === contentKey(next) ? current : next));
       },
       onCopyLink: () => {
         const url = new URL(
