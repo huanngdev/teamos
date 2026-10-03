@@ -2,8 +2,10 @@ import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
 import type { IssueContentDocument } from "@teamos/shared";
+import { COMPOSITION_END_TAG } from "lexical";
 import { useEffect, useRef } from "react";
 
+import { shouldPublishEditorUpdate } from "./editor-update";
 import { issueEditorExtension } from "./extensions";
 import { IssueEditorMenus } from "./issue-editor-menus";
 import { sanitizeIssueEditorState } from "./sanitize-document";
@@ -41,10 +43,15 @@ function editorJson(document: IssueContentDocument | null): string {
   return JSON.stringify({ root: document.root });
 }
 
+function publishedContentKey(content: IssueContentDocument | null, error: string | null): string {
+  return error === null ? JSON.stringify(content) : error;
+}
+
 function IssueEditorSurface({ document, editable, generation, onChange }: IssueEditorProps) {
   const [editor] = useLexicalComposerContext();
   const onChangeRef = useRef(onChange);
   const documentRef = useRef(document);
+  const published = useRef<string | null>(null);
   const skip = useRef(true);
   onChangeRef.current = onChange;
   documentRef.current = document;
@@ -57,17 +64,34 @@ function IssueEditorSurface({ document, editable, generation, onChange }: IssueE
     skip.current = true;
     const state = editor.parseEditorState(editorJson(documentRef.current));
     editor.setEditorState(state);
+    const sanitized = sanitizeIssueEditorState(state.toJSON());
+    published.current = publishedContentKey(sanitized.content, sanitized.error);
     skip.current = false;
   }, [editor, generation]);
 
   useEffect(
     () =>
-      editor.registerUpdateListener(({ editorState }) => {
-        if (skip.current) {
+      editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, tags }) => {
+        if (
+          skip.current ||
+          !shouldPublishEditorUpdate({
+            composing: editor.isComposing(),
+            compositionEnded: tags.has(COMPOSITION_END_TAG),
+            dirtyElementCount: dirtyElements.size,
+            dirtyLeafCount: dirtyLeaves.size,
+          })
+        ) {
           return;
         }
 
         const sanitized = sanitizeIssueEditorState(editorState.toJSON());
+        const key = publishedContentKey(sanitized.content, sanitized.error);
+
+        if (published.current === key) {
+          return;
+        }
+
+        published.current = key;
         onChangeRef.current(sanitized.content, sanitized.error);
       }),
     [editor],

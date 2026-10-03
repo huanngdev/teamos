@@ -25,6 +25,164 @@ describe("issue content", () => {
     expect(issueContentDocumentSchema.parse(document).root.children).toHaveLength(3);
   });
 
+  test("keeps intentional blank lines and a linebreak", () => {
+    const document = issueContentDocumentSchema.parse({
+      root: {
+        children: [
+          {
+            children: [
+              {
+                detail: 0,
+                format: 0,
+                mode: "normal",
+                style: "",
+                text: "Hello",
+                type: "text",
+                version: 1,
+              },
+              { type: "linebreak", version: 1 },
+              {
+                detail: 0,
+                format: 0,
+                mode: "normal",
+                style: "",
+                text: "there",
+                type: "text",
+                version: 1,
+              },
+            ],
+            direction: null,
+            format: "",
+            indent: 0,
+            type: "paragraph",
+            version: 1,
+          },
+          {
+            children: [],
+            direction: null,
+            format: "",
+            indent: 0,
+            type: "paragraph",
+            version: 1,
+          },
+          {
+            children: [
+              {
+                detail: 0,
+                format: 0,
+                mode: "normal",
+                style: "",
+                text: "World",
+                type: "text",
+                version: 1,
+              },
+            ],
+            direction: null,
+            format: "",
+            indent: 0,
+            type: "paragraph",
+            version: 1,
+          },
+          {
+            children: [],
+            direction: null,
+            format: "",
+            indent: 0,
+            type: "paragraph",
+            version: 1,
+          },
+        ],
+        direction: null,
+        format: "",
+        indent: 0,
+        type: "root",
+        version: 1,
+      },
+      version: 1,
+    });
+    const prepared = prepareIssueContent(document);
+
+    expect(prepared.content?.root.children).toHaveLength(4);
+    expect(prepared.contentText).toBe("Hello\nthere\n\nWorld\n");
+  });
+
+  test("keeps an empty list item after a filled item", () => {
+    const paragraph = (value: string) => ({
+      children:
+        value.length === 0
+          ? []
+          : [
+              {
+                detail: 0,
+                format: 0,
+                mode: "normal" as const,
+                style: "" as const,
+                text: value,
+                type: "text" as const,
+                version: 1 as const,
+              },
+            ],
+      direction: null,
+      format: "" as const,
+      indent: 0,
+      type: "paragraph" as const,
+      version: 1 as const,
+    });
+    const document = issueContentDocumentSchema.parse({
+      root: {
+        children: [
+          {
+            children: [
+              {
+                children: [paragraph("One")],
+                direction: null,
+                format: "",
+                indent: 0,
+                type: "listitem",
+                value: 1,
+                version: 1,
+              },
+              {
+                children: [paragraph("")],
+                direction: null,
+                format: "",
+                indent: 0,
+                type: "listitem",
+                value: 2,
+                version: 1,
+              },
+            ],
+            direction: null,
+            format: "",
+            indent: 0,
+            listType: "bullet",
+            start: 1,
+            tag: "ul",
+            type: "list",
+            version: 1,
+          },
+        ],
+        direction: null,
+        format: "",
+        indent: 0,
+        type: "root",
+        version: 1,
+      },
+      version: 1,
+    });
+    const prepared = prepareIssueContent(document);
+    const list = prepared.content?.root.children[0];
+
+    expect(list?.type).toBe("list");
+
+    if (list?.type !== "list") {
+      return;
+    }
+
+    expect(list.children).toHaveLength(2);
+    expect(prepared.contentText).toBe("One\n");
+  });
+
   test("stores an empty description as no document", () => {
     expect(issueContentFromPlainText("")).toBeNull();
     expect(prepareIssueContent(null)).toEqual({ content: null, contentText: "" });
