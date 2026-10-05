@@ -20,7 +20,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "zod": "^4.6.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@teamos/eslint-config": "workspace:*",

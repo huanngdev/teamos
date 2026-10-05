@@ -30,16 +30,16 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.3"
   },
   "devDependencies": {
     "@teamos/eslint-config": "workspace:*",
     "@teamos/prettier-config": "workspace:*",
     "@teamos/typescript-config": "workspace:*",
     "bun-types": "^1.2.21",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9.35.0",
-    "pg": "^8.23.0",
+    "pg": "^8.23.1",
     "typescript": "^5.9.2"
   }
 }
