@@ -43,6 +43,18 @@ test("keeps the editor when the refetched row is the acknowledgement", () => {
   ).toBe("keep");
 });
 
+test("keeps a dirty draft when a save is acknowledged before its base revision renders", () => {
+  expect(
+    issueDetailSync({
+      acknowledgedRevision: `${issueId}:${saved}`,
+      baseUpdatedAt: initial,
+      cacheUpdatedAt: initial,
+      dirty: true,
+      issueId,
+    }),
+  ).toBe("keep");
+});
+
 test("conflicts when a newer row arrives while the draft is dirty", () => {
   expect(
     issueDetailSync({

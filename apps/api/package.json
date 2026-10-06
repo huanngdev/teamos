@@ -17,24 +17,24 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1131.0",
+    "@aws-sdk/client-s3": "^3.1145.0",
     "@hono/zod-openapi": "^1.6.3",
     "@hono/zod-validator": "^0.9.1",
     "@loglayer/hono": "^2.4.0",
     "@loglayer/plugin-redaction": "^4.1.0",
     "@loglayer/transport-simple-pretty-terminal": "^3.3.0",
-    "@scalar/hono-api-reference": "^0.12.1",
+    "@scalar/hono-api-reference": "^0.12.9",
     "@teamos/db": "workspace:*",
     "@teamos/shared": "workspace:*",
-    "better-auth": "^1.7.5",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.13.7",
+    "better-auth": "^1.7.7",
+    "drizzle-orm": "^0.45.3",
+    "hono": "^4.13.12",
     "ioredis": "^6.0.0",
     "loglayer": "^9.4.0",
-    "nodemailer": "^10.0.10",
-    "rate-limiter-flexible": "^11.2.0",
-    "serialize-error": "^13.0.1",
-    "zod": "^4.6.4"
+    "nodemailer": "^10.0.13",
+    "rate-limiter-flexible": "^11.2.1",
+    "serialize-error": "^13.0.2",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.6.0",
@@ -42,7 +42,7 @@
     "@teamos/prettier-config": "workspace:*",
     "@teamos/typescript-config": "workspace:*",
     "bun-types": "^1.2.21",
-    "eslint": "^9.35.0",
+    "eslint": "^10.11.0",
     "typescript": "^5.9.2"
   }
 }

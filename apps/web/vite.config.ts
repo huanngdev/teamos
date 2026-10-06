@@ -40,6 +40,14 @@ export default defineConfig(({ mode }) => {
     test: {
       clearMocks: true,
       environment: "jsdom",
+      /*
+       * Serve the test document from the API origin. MSW 3 mocks XHR through
+       * jsdom's CORS checks, and the mocked handlers do not emulate the API's
+       * CORS headers, so cross-origin credentialed requests would fail.
+       */
+      environmentOptions: {
+        jsdom: { url: new URL(parsed.data.VITE_API_URL).origin },
+      },
       include: ["src/**/*.test.{ts,tsx}"],
       setupFiles: ["./src/test/setup.ts"],
       testTimeout: 15_000,
