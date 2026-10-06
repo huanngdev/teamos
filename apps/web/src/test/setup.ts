@@ -69,7 +69,7 @@ Object.defineProperty(window, "cancelAnimationFrame", {
  * Better Auth client captures `fetch` when it is created, so a client imported
  * by a test module would otherwise hold the unpatched implementation.
  */
-server.listen({ onUnhandledRequest: "error" });
+server.listen({ onUnhandledFrame: "error" });
 
 afterEach(() => {
   useShellStore.getState().clear();
