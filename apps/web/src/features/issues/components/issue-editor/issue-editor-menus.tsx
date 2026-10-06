@@ -449,9 +449,8 @@ function matchSlash(before: string): { query: string; token: string } | null {
 function slashTextPoint(selection: RangeSelection): { node: TextNode; offset: number } | null {
   let node: LexicalNode = selection.anchor.getNode();
   let offset = selection.anchor.offset;
-  let type = selection.anchor.type;
 
-  while (type === "element") {
+  while (selection.anchor.type === "element") {
     if (!$isElementNode(node)) {
       return null;
     }
@@ -462,7 +461,6 @@ function slashTextPoint(selection: RangeSelection): { node: TextNode; offset: nu
     if ($isTextNode(child)) {
       node = child;
       offset = atEnd ? child.getTextContentSize() : 0;
-      type = "text";
       break;
     }
 

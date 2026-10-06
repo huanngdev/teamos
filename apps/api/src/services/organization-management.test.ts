@@ -171,7 +171,7 @@ async function captureError(action: () => Promise<unknown>): Promise<AppError> {
       return error;
     }
 
-    throw new Error(`Expected an AppError but received: ${String(error)}`);
+    throw new Error(`Expected an AppError but received: ${String(error)}`, { cause: error });
   }
 
   throw new Error("Expected the action to fail.");
