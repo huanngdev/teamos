@@ -213,6 +213,7 @@ function IssueColumn({
         <div className="flex h-12 shrink-0 items-center gap-2 px-3 py-2">
           {canReorderColumns ? (
             <KanbanColumnHandle
+              // eslint-disable-next-line shadcn/no-restyle -- the reui handle hides itself until hover; keep it visible for keyboard and touch users
               className="opacity-100"
               render={(props) => (
                 <Button
