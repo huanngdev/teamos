@@ -28,6 +28,6 @@
     "@teamos/typescript-config": "workspace:*",
     "bun-types": "^1.2.21",
     "eslint": "^10.11.0",
-    "typescript": "^5.9.2"
+    "typescript": "^7.0.2"
   }
 }
