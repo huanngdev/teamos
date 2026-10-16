@@ -50,6 +50,7 @@
         "SMTP_SECURE",
         "SMTP_USER",
         "STARTUP_TIMEOUT_MS",
+        "TRUST_PROXY",
         "VITE_API_URL",
         "WEB_URL"
       ],
@@ -94,6 +95,7 @@
         "SMTP_SECURE",
         "SMTP_USER",
         "STARTUP_TIMEOUT_MS",
+        "TRUST_PROXY",
         "VITE_API_URL",
         "WEB_URL"
       ],

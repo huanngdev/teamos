@@ -23,6 +23,7 @@ import {
   type ObjectStorageClient,
 } from "@/infrastructure/index.js";
 import { createLogger } from "@/logging/index.js";
+import { resolveClientIp } from "@/middleware/index.js";
 import {
   createOrganizationManagementService,
   createOrganizationMemberService,
@@ -245,7 +246,11 @@ async function bootstrap(options: BootstrapOptions): Promise<RunningApi> {
     const server = Bun.serve({
       fetch: (request, bunServer) => {
         return app.fetch(request, {
-          clientIp: bunServer.requestIP(request)?.address,
+          clientIp: resolveClientIp(
+            request,
+            bunServer.requestIP(request)?.address,
+            options.env.TRUST_PROXY,
+          ),
         });
       },
       idleTimeout: options.env.IDLE_TIMEOUT_SECONDS,

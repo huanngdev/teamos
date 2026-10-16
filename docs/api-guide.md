@@ -121,6 +121,8 @@ Global middleware runs before route dispatch:
 6. CSRF protection.
 7. Redis-backed rate limiting, keyed by client IP.
 
+The client IP is the socket address. With `TRUST_PROXY=true` it is the rightmost `X-Forwarded-For` entry instead, which is the address the reverse proxy observed; `compose.prod.yaml` enables this because the API is only reachable through Caddy.
+
 `/health` and `/health/ready` bypass rate limiting. Domain endpoints must not bypass it without an explicit reason and a focused test.
 
 Organization-scoped routes add a second rate limiter keyed by the authenticated actor (`user:<id>`) and configured by `MANAGEMENT_RATE_LIMIT_POINTS`. It protects invitations, role changes, and member removal, where an IP-only budget would let one account exhaust a shared NAT address.

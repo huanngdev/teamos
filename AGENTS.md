@@ -63,8 +63,11 @@ Do not replace these technologies without an explicit architectural decision fro
 │   ├── eslint-config/       # Shared ESLint flat configurations
 │   ├── prettier-config/     # Shared Prettier configurations
 │   └── typescript-config/   # Shared TypeScript JSON configurations
+├── deploy/                  # Production Caddyfile
 ├── docs/                    # Infrastructure and project progress documentation
 ├── compose.yaml             # PostgreSQL, Redis, and MinIO for local development
+├── compose.prod.yaml        # Single-host production stack (see docs/deployment.md)
+├── Dockerfile               # Production migrate, api, and web images
 ├── package.json
 └── turbo.json
 ```
@@ -209,7 +212,7 @@ The root `compose.yaml` must define PostgreSQL, Redis, and MinIO services with h
 
 Environment files are split by owner. The root `.env` only configures Docker Compose. The API validates `apps/api/.env` with Zod at startup, and the web client validates `apps/web/.env` with Zod whenever Vite runs. Both schemas apply local development defaults, so a fresh clone runs without creating `.env` files first.
 
-Application processes may run directly through Bun during development; Docker Compose is primarily responsible for supporting infrastructure unless the repository later documents a full-container workflow.
+Application processes may run directly through Bun during development; the root `compose.yaml` only provides supporting infrastructure. Production uses the full-container workflow in `compose.prod.yaml`, the root `Dockerfile`, and `deploy/Caddyfile`, documented in `docs/deployment.md`. Keep its API environment overrides in sync when the API adds connection or URL variables.
 
 ## Engineering Conventions
 

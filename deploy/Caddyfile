@@ -1,0 +1,20 @@
+# Serves the web build and proxies the API from one origin, so the Better Auth
+# session cookie is first-party and the browser needs no CORS preflight.
+# Caddy obtains and renews the HTTPS certificate for APP_DOMAIN automatically.
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	@api path /api/* /health /health/*
+	handle @api {
+		reverse_proxy api:4001
+	}
+
+	handle {
+		root * /srv
+		# Vite fingerprints asset file names, so they can be cached forever.
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

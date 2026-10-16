@@ -204,7 +204,7 @@ Project membership and issues use composite foreign keys that include `organizat
 - Email change, avatar upload, and password change.
 - Durable email outbox. A failed invitation send leaves a pending invitation that must be resent by hand.
 - Chat, schedules, and realtime.
-- Production deployment, backups, and secret management.
+- Scheduled backups and secret management. Single-host deployment is in `docs/deployment.md`.
 
 ## Infrastructure
 
@@ -251,7 +251,7 @@ Covered areas include HTTP hardening, session and profile contracts, workspace m
 - One warm local run of 10,000 and 100,000 issues is recorded in `docs/plans/issue-pagination.md`. The 100,000-issue deep table page took 226 ms and the text search took 393 ms on that machine. That run is not a support claim.
 - Local Compose credentials are development defaults.
 - Redis rate limiting fails closed when Redis is not ready on the real server path.
-- There is no production deployment or migration runbook.
+- Production is a single host. Backups are manual and secrets live in `.env` files on the server (`docs/deployment.md`).
 
 ## Recommended next step
 
