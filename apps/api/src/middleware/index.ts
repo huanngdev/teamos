@@ -1,4 +1,4 @@
-export { clientIp } from "@/middleware/client-ip.js";
+export { clientIp, resolveClientIp } from "@/middleware/client-ip.js";
 export { contentType } from "@/middleware/content-type.js";
 export { createCsrfProtection } from "@/middleware/csrf.js";
 export { createRateLimitMiddleware } from "@/middleware/rate-limit.js";

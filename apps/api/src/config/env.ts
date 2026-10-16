@@ -117,6 +117,10 @@ const envSchema = z
       .default("true")
       .transform((value) => value === "true"),
     RATE_LIMIT_POINTS: z.coerce.number().int().min(1).default(300),
+    TRUST_PROXY: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     RATE_LIMIT_DURATION_SECONDS: z.coerce.number().int().min(1).default(60),
     BETTER_AUTH_SECRET: z
       .string()
