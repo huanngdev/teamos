@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@teamos/prettier-config": "workspace:*",
-    "prettier": "^3.9.9",
-    "turbo": "^2.11.7"
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.10"
   }
 }
