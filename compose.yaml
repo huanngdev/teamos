@@ -32,7 +32,8 @@ services:
       - redis_data:/data
 
   minio:
-    image: quay.io/minio/minio:latest
+    # MinIO stopped publishing images; pgsty/minio rebuilds the upstream AGPL server unchanged.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-teamos_password}
