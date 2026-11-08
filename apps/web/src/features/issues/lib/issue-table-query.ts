@@ -587,9 +587,19 @@ function matchesText(value: unknown, needle: unknown): boolean {
     return true;
   }
 
-  return String(value ?? "")
-    .toLowerCase()
-    .includes(needle.trim().toLowerCase());
+  return filterText(value).toLowerCase().includes(needle.trim().toLowerCase());
+}
+
+function filterText(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+
+  return "";
 }
 
 function matchesNumberRange(value: unknown, range: unknown): boolean {

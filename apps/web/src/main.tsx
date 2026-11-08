@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
 
-import { App, AppProviders } from "./app";
+import { AppProviders, createAppRouter } from "./app";
 import { ErrorBoundary } from "@/shared";
 import "./styles/index.css";
 
@@ -12,13 +12,13 @@ if (!rootElement) {
   throw new Error("The application root element was not found.");
 }
 
+const router = createAppRouter();
+
 createRoot(rootElement).render(
   <StrictMode>
     <AppProviders>
       <ErrorBoundary>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <RouterProvider router={router} />
       </ErrorBoundary>
     </AppProviders>
   </StrictMode>,

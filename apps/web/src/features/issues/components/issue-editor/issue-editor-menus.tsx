@@ -32,7 +32,15 @@ import {
   type RangeSelection,
   type TextNode,
 } from "lexical";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
@@ -64,26 +72,20 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
   const formatPointer = useFormatMenuPointer(editor);
   const [selectionBox, setSelectionBox] = useState<{ left: number; top: number } | null>(null);
   const [slash, setSlash] = useState<{ left: number; query: string; top: number } | null>(null);
-  const [index, setIndex] = useState(0);
-  const editableRef = useRef(editable);
+  const [indexState, setIndexState] = useState({ query: "", value: 0 });
+  const slashQuery = slash?.query ?? "";
+  const index = indexState.query === slashQuery ? indexState.value : 0;
+  const readEditable = useEffectEvent(() => editable);
   const slashCommands = slashCommandList(commands);
   const visible =
     slash === null ? [] : slashCommands.filter((command) => matchesSlash(command, slash.query));
   const enabled = visible.filter((command) => command.disabled !== true);
-  const menuRef = useRef({
-    choose: () => undefined as void,
-    close: () => undefined as void,
-    count: 0,
-    open: false,
-  });
   const dismissedRef = useRef<string | null>(null);
   const tokenRef = useRef<SlashMatch | null>(null);
   const touchHandled = useRef<string | null>(null);
 
-  editableRef.current = editable;
-  menuRef.current.open = slash !== null;
-  menuRef.current.count = enabled.length;
-  menuRef.current.choose = () => {
+  const readMenu = useEffectEvent(() => ({ count: enabled.length, open: slash !== null }));
+  const chooseCommand = useEffectEvent(() => {
     const command = enabled[index];
     const token = tokenRef.current;
 
@@ -92,20 +94,23 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
     }
 
     commitSlash(editor, token, command.run);
-  };
-  menuRef.current.close = () => {
+  });
+  const closeMenu = useEffectEvent(() => {
     dismissedRef.current = tokenRef.current === null ? null : slashIdentity(tokenRef.current);
     setSlash(null);
-  };
+  });
+  const stepIndex = useEffectEvent((direction: number, count: number) => {
+    setIndexState((current) => {
+      const base = current.query === slashQuery ? current.value : 0;
 
-  useEffect(() => {
-    setIndex(0);
-  }, [slash?.query]);
+      return { query: slashQuery, value: (base + direction + count) % count };
+    });
+  });
 
   useEffect(
     () =>
       editor.registerUpdateListener(({ editorState }) => {
-        if (!editableRef.current) {
+        if (!readEditable()) {
           setSelectionBox(null);
           setSlash(null);
           return;
@@ -179,50 +184,65 @@ function IssueEditorMenus({ editable }: { editable: boolean }) {
       mergeRegister(
         editor.registerCommand(
           KEY_ARROW_DOWN_COMMAND,
-          (event) =>
-            guardSlashKey(event, editor, menuRef.current, (keyEvent) =>
-              moveSlash(keyEvent, menuRef.current, 1, setIndex),
-            ),
+          (event) => {
+            const menu = readMenu();
+
+            return guardSlashKey(event, editor, menu, (keyEvent) =>
+              moveSlash(keyEvent, menu, 1, stepIndex),
+            );
+          },
           COMMAND_PRIORITY_HIGH,
         ),
         editor.registerCommand(
           KEY_ARROW_UP_COMMAND,
-          (event) =>
-            guardSlashKey(event, editor, menuRef.current, (keyEvent) =>
-              moveSlash(keyEvent, menuRef.current, -1, setIndex),
-            ),
+          (event) => {
+            const menu = readMenu();
+
+            return guardSlashKey(event, editor, menu, (keyEvent) =>
+              moveSlash(keyEvent, menu, -1, stepIndex),
+            );
+          },
           COMMAND_PRIORITY_HIGH,
         ),
         editor.registerCommand(
           KEY_TAB_COMMAND,
-          (event) =>
-            guardSlashKey(event, editor, menuRef.current, (keyEvent) =>
-              moveSlash(keyEvent, menuRef.current, keyEvent.shiftKey ? -1 : 1, setIndex),
-            ),
+          (event) => {
+            const menu = readMenu();
+
+            return guardSlashKey(event, editor, menu, (keyEvent) =>
+              moveSlash(keyEvent, menu, keyEvent.shiftKey ? -1 : 1, stepIndex),
+            );
+          },
           COMMAND_PRIORITY_HIGH,
         ),
         editor.registerCommand(
           KEY_ENTER_COMMAND,
-          (event) =>
-            guardSlashKey(event, editor, menuRef.current, (keyEvent) => {
+          (event) => {
+            const menu = readMenu();
+
+            return guardSlashKey(event, editor, menu, (keyEvent) => {
               keyEvent.preventDefault();
 
-              if (menuRef.current.count > 0) {
-                menuRef.current.choose();
+              if (menu.count > 0) {
+                chooseCommand();
               }
 
               return true;
-            }),
+            });
+          },
           COMMAND_PRIORITY_HIGH,
         ),
         editor.registerCommand(
           KEY_ESCAPE_COMMAND,
-          (event) =>
-            guardSlashKey(event, editor, menuRef.current, (keyEvent) => {
+          (event) => {
+            const menu = readMenu();
+
+            return guardSlashKey(event, editor, menu, (keyEvent) => {
               keyEvent.preventDefault();
-              menuRef.current.close();
+              closeMenu();
               return true;
-            }),
+            });
+          },
           COMMAND_PRIORITY_HIGH,
         ),
       ),
@@ -689,14 +709,14 @@ function moveSlash(
   event: KeyboardEvent,
   menu: { count: number; open: boolean },
   direction: number,
-  setIndex: (update: (current: number) => number) => void,
+  step: (direction: number, count: number) => void,
 ): boolean {
   if (!menu.open || menu.count === 0) {
     return false;
   }
 
   event.preventDefault();
-  setIndex((current) => (current + direction + menu.count) % menu.count);
+  step(direction, menu.count);
   return true;
 }
 

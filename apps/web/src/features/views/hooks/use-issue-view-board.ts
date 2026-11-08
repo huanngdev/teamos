@@ -206,9 +206,11 @@ function useIssueViewBoard(options: {
       }
     },
   });
-  resetForm.current = form.reset;
-  resetSave.current = save.reset;
-  openEdit.current = form.openEdit;
+  useEffect(() => {
+    resetForm.current = form.reset;
+    resetSave.current = save.reset;
+    openEdit.current = form.openEdit;
+  });
   const assignees = useEligibleAssignees({
     enabled: options.enabled,
     organizationSlug: options.organizationSlug,

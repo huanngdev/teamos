@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   encodeIssueColumnCursor,
   type IssueCardSummary,
@@ -118,9 +118,12 @@ function useColumnPages(options: UseColumnPagesOptions) {
   const loadingIds = useRef(new Set<string>());
   const moving = useRef(false);
   const seenBoard = useRef(0);
-  const columnsRef = useRef<InternalColumn[]>([]);
-  const [columns, setColumns] = useState<InternalColumn[]>([]);
-  columnsRef.current = columns;
+  const [columnState, setColumnState] = useState<{ columns: InternalColumn[]; key: string }>({
+    columns: [],
+    key,
+  });
+  const columns = columnState.key === key ? columnState.columns : [];
+  const readColumns = useEffectEvent(() => columns);
   const board = useQuery({
     enabled: options.enabled && projectId !== null,
     queryFn: () => listIssueBoard(options.organizationSlug, projectId ?? "", options.params),
@@ -130,10 +133,25 @@ function useColumnPages(options: UseColumnPagesOptions) {
         : issueKeys(options.organizationSlug, projectId).board(options.params),
   });
 
+  function updateColumns(
+    update: InternalColumn[] | ((items: InternalColumn[]) => InternalColumn[]),
+  ): void {
+    setColumnState((current) => ({
+      columns:
+        typeof update === "function" ? update(current.key === key ? current.columns : []) : update,
+      key,
+    }));
+  }
+
+  const syncColumns = useEffectEvent(
+    (update: InternalColumn[] | ((items: InternalColumn[]) => InternalColumn[])) => {
+      updateColumns(update);
+    },
+  );
+
   useEffect(() => {
     generation.current += 1;
     seenBoard.current = 0;
-    setColumns([]);
   }, [key, projectId]);
 
   useEffect(() => {
@@ -141,8 +159,8 @@ function useColumnPages(options: UseColumnPagesOptions) {
       return;
     }
 
-    if (board.dataUpdatedAt === seenBoard.current && columnsRef.current.length > 0) {
-      setColumns((current) =>
+    if (board.dataUpdatedAt === seenBoard.current && readColumns().length > 0) {
+      syncColumns((current) =>
         current.map((column) => {
           const status = options.statuses.find((item) => item.id === column.status.id);
 
@@ -154,7 +172,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
     }
 
     seenBoard.current = board.dataUpdatedAt;
-    setColumns(fromBoard(options.statuses, board.data.columns));
+    syncColumns(fromBoard(options.statuses, board.data.columns));
   }, [board.data, board.dataUpdatedAt, options.statuses]);
 
   async function load(statusId: string, direction: "after" | "before") {
@@ -163,7 +181,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
     }
 
     const flight = `${statusId}:${direction}`;
-    const current = columnsRef.current.find((column) => column.status.id === statusId);
+    const current = columns.find((column) => column.status.id === statusId);
 
     if (current === undefined || current.loadingMore || loadingIds.current.has(flight)) {
       return;
@@ -193,7 +211,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
 
     loadingIds.current.add(flight);
 
-    setColumns((items) =>
+    updateColumns((items) =>
       items.map((column) =>
         column.status.id === statusId ? { ...column, error: null, loadingMore: true } : column,
       ),
@@ -211,7 +229,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
         return;
       }
 
-      setColumns((items) =>
+      updateColumns((items) =>
         items.map((column) => {
           if (column.status.id !== statusId) {
             return column;
@@ -265,7 +283,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
         readIssueError(error, "More issues could not be loaded.") ??
         "More issues could not be loaded.";
 
-      setColumns((items) =>
+      updateColumns((items) =>
         items.map((column) =>
           column.status.id === statusId
             ? { ...column, error: message, loadingMore: false }
@@ -282,7 +300,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
       return;
     }
 
-    const snapshot = columnsRef.current;
+    const snapshot = columns;
     const source = snapshot.find((column) =>
       column.issues.some((issue) => issue.id === input.issueId),
     );
@@ -297,7 +315,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
     const retained = input.retain?.(nextCard) ?? true;
     const sameColumn = source.status.id === destination.status.id;
     moving.current = true;
-    setColumns((items) =>
+    updateColumns((items) =>
       items.map((column) => {
         const isSource = column.status.id === source.status.id;
         const isDestination = column.status.id === destination.status.id;
@@ -350,7 +368,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
         return;
       }
 
-      setColumns((items) =>
+      updateColumns((items) =>
         items.map((column) => {
           const without = column.issues.filter((issue) => issue.id !== saved.id);
 
@@ -364,7 +382,7 @@ function useColumnPages(options: UseColumnPagesOptions) {
         }),
       );
     } catch (error) {
-      setColumns(snapshot);
+      updateColumns(snapshot);
       notify.error(
         readIssueError(error, "The issue could not be moved.") ?? "The issue could not be moved.",
       );

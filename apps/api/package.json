@@ -1,19 +1,19 @@
 {
   "name": "@teamos/api",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --cwd ../../packages/shared build && bun run --cwd ../../packages/db build && bun --watch src/server.ts",
-    "build": "bun run --cwd ../../packages/shared build && bun run --cwd ../../packages/db build && rm -rf dist && bun build src/server.ts --target=bun --outdir=dist --sourcemap=external",
+    "dev": "bun --watch src/server.ts",
+    "build": "rm -rf dist && bun build src/server.ts --target=bun --outdir=dist --sourcemap=external",
     "start": "bun dist/server.js",
-    "test": "bun run --cwd ../../packages/shared build && bun run --cwd ../../packages/db build && bun test src",
-    "test:coverage": "bun run --cwd ../../packages/shared build && bun run --cwd ../../packages/db build && bun test --coverage src",
+    "test": "bun --bun vitest run",
+    "test:watch": "bun --bun vitest",
     "benchmark:issues": "bun scripts/benchmark-issues.ts",
     "verify:isolation": "bun scripts/verify-organization-isolation.ts",
     "seed": "bun scripts/seed/index.ts",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "lint:fix": "oxlint --type-aware --fix",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
@@ -38,11 +38,9 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.6.0",
-    "@teamos/eslint-config": "workspace:*",
-    "@teamos/prettier-config": "workspace:*",
-    "@teamos/typescript-config": "workspace:*",
+    "@teamos/config": "workspace:*",
     "bun-types": "^1.4.3",
-    "eslint": "^10.11.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^5.0.3"
   }
 }

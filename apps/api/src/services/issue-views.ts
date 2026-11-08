@@ -1,4 +1,5 @@
 import type { Database } from "@teamos/db";
+import { buildLiteralSearchCondition } from "@teamos/db/repositories";
 import { issueView, member, projectMembership, projectStatus } from "@teamos/db/schema";
 import {
   canCreateIssueView,
@@ -23,7 +24,6 @@ import { ZodError } from "zod";
 
 import type { OrganizationAccess } from "@/auth/index.js";
 import { AppError } from "@/errors/index.js";
-import { buildLiteralSearchCondition } from "@/services/search.js";
 import {
   assertActorAccessAfterLock,
   assertProjectAction,

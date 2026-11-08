@@ -43,7 +43,8 @@ services:
       - redis_data:/data
 
   minio:
-    image: quay.io/minio/minio:latest
+    # MinIO stopped publishing images; pgsty/minio rebuilds the upstream AGPL server unchanged.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     restart: unless-stopped
     command: ["server", "/data"]
     environment:

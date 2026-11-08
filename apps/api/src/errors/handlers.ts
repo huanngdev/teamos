@@ -111,20 +111,30 @@ function registerErrorHandlers(app: Hono<AppEnv>, logger: ILogLayer): void {
   app.onError((error, context) => {
     const info = getErrorInfo(error);
     const requestStartedAt = context.get("requestStartedAt") ?? Date.now();
+    const requestLogger = context.var.logger ?? logger;
+    const metadata = {
+      req: {
+        method: context.req.method,
+        url: context.req.path,
+      },
+      res: {
+        statusCode: info.status,
+      },
+      responseTime: Date.now() - requestStartedAt,
+    };
 
-    (context.var.logger ?? logger)
-      .withError(error)
-      .withMetadata({
-        req: {
-          method: context.req.method,
-          url: context.req.path,
-        },
-        res: {
-          statusCode: info.status,
-        },
-        responseTime: Date.now() - requestStartedAt,
-      })
-      .error("request failed");
+    /*
+     * An expected rejection such as an anonymous request is part of normal
+     * operation, so it is a warning without a stack trace. Only a server fault
+     * is an error, and only then does the stack help.
+     */
+    if (info.status >= 500) {
+      requestLogger.withError(error).withMetadata(metadata).error("request failed");
+    } else {
+      requestLogger
+        .withMetadata({ ...metadata, error: { code: info.code } })
+        .warn("request rejected");
+    }
 
     return createErrorResponse(context, info);
   });

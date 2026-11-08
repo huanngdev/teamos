@@ -1,6 +1,6 @@
 # TeamOS Agent System
 
-Last updated: 2026-09-30
+Last updated: 2026-11-08
 
 OpenCode and Grok Build share this system. Both read the root `AGENTS.md`. Skills live in `.agents/skills`. `.grok/skills` contains symlinks to that directory so Grok Build loads the same files. Do not fork a second copy.
 
@@ -8,9 +8,18 @@ Load `teamos-engineering` before implementation. `CODE_RULES.md` overrides every
 
 ## Architecture
 
-One primary agent implements. OpenCode `plan` and Grok's planning mode design without editing. `explore` searches the repo. `scout` reads dependency source. A subagent is for one bounded investigation, not a standing role.
+Roles are fixed in `docs/decisions/0003-agent-roles-orca.md`:
 
-Do not add product-manager, architect, backend, frontend, QA, security, performance, or DevOps agents. They drop `CODE_RULES.md` and duplicate the primary agent.
+- **Coordinator** — Claude Code on Opus 5.5 (medium effort). Plans, writes specs, owns `AGENTS.md`, `CODE_RULES.md`, and `docs/**`, dispatches workers through Orca, reviews every diff, and commits.
+- **Worker** — OpenCode Go on `opencode-go/deepseek-v4.1-flash` (pinned in `opencode.json`). Implements one self-contained spec, runs the checks, and reports evidence with `worker_done`. It asks the coordinator instead of changing scope.
+
+Dispatch: `orca orchestration worker-start --spec-file <spec.md> --worktree current --agent opencode2`. Sequential tasks share the coordinator worktree; parallel tasks that touch the same files get their own worktree.
+
+Inside one agent, a subagent is for one bounded investigation, not a standing role. Do not add product-manager, architect, QA, security, or DevOps agents.
+
+## Skill precedence
+
+User decision > `AGENTS.md` / `CODE_RULES.md` > `teamos-engineering` > owner `hd-*` skills (start at `hd-index`) > marketplace skills. The `hd-*` skills are global: Claude Code loads them from the `huanngdev` plugin, OpenCode from `~/.agents/skills/hd-*`.
 
 ## Installed skills
 
@@ -66,7 +75,7 @@ Keep instructions short and retrieve the rest by path:
 - `docs/agent-system.md` — this file
 - `docs/infra-guide.md` and `docs/api-guide.md` — current infrastructure and API behavior
 
-Do not copy those documents into the prompt. Do not add a second issue tracker. GitHub Issues and Linear are not the backlog for this repository.
+Do not copy those documents into the prompt. Do not add a second issue tracker. GitHub Issues and Linear are not the backlog for this repository; the Linear MCP is disabled in `opencode.json` and denied in `.claude/settings.json`, and `orca-linear` is not used here.
 
 ## Rejected skills
 
@@ -85,4 +94,4 @@ Do not install these unless the user explicitly reverses the decision:
 
 Phase 2 candidates are `domain-modeling`, `writing-for-agents`, and `web-design-guidelines`. `vercel-react-best-practices` is useful only with the Vite and TanStack Query override above.
 
-Phase 3 waits for a real need: browser end-to-end tests, local-only static security scanning, Redis beyond rate limiting, and CI. There is no approved Drizzle, Hono, or Bun skill. Use the repo patterns instead.
+Phase 3 waits for a real need: local-only static security scanning, Redis beyond rate limiting, and CI. There is no approved Drizzle, Hono, or Bun skill. Use the repo patterns instead.

@@ -126,7 +126,9 @@ async function closeServices(
   services: readonly ServiceResource[],
   logger: ILogLayer,
 ): Promise<void> {
-  const results = await Promise.allSettled(services.map((service) => service.close()));
+  const results = await Promise.allSettled(
+    services.map((service) => Promise.resolve(service.close())),
+  );
 
   results.forEach((result, index) => {
     const service = services[index];

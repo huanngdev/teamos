@@ -1,7 +1,9 @@
 import type { OrganizationSummary } from "@teamos/shared";
 
 type WorkspaceDestination =
-  { kind: "recent"; slug: string } | { kind: "newest"; slug: string } | { kind: "create" };
+  | { kind: "recent"; slug: string }
+  | { kind: "newest"; slug: string }
+  | { kind: "create" };
 
 function compareByNewest(left: OrganizationSummary, right: OrganizationSummary): number {
   const createdAtDifference = Date.parse(right.createdAt) - Date.parse(left.createdAt);

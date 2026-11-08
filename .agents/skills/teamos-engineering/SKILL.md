@@ -101,7 +101,7 @@ Do not introduce SWR, Next.js server patterns, or `next/dynamic` from a React sk
 
 ## Agent shape
 
-Use the primary agent. Use `explore` to search the repo and `scout` to read dependency source. Use a subagent only for a bounded, independent investigation. Do not create a standing set of product, architecture, backend, frontend, QA, security, or DevOps agents.
+The coordinator (Claude Code, Opus 5.5) plans and reviews; the worker (OpenCode Go, DeepSeek v4.1 Flash) implements one spec dispatched through Orca and reports evidence. See `docs/decisions/0003-agent-roles-orca.md`. If you are a worker, do not edit `AGENTS.md`, `CODE_RULES.md`, or `docs/**`, and do not commit. Use `explore` to search the repo and `scout` to read dependency source. Use a subagent only for a bounded, independent investigation. Do not create a standing set of product, architecture, backend, frontend, QA, security, or DevOps agents.
 
 ## Do not install
 

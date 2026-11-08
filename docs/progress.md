@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-10-03
+Last updated: 2026-11-08
 
 This file is the product snapshot: what is coded, what is finished, which HTTP APIs exist, and what each UI route does. OpenAPI at `/openapi.json` remains the machine-readable contract. Do not mark a feature complete here until its persistence, authorization, tests, and user-facing flow all exist.
 
@@ -8,13 +8,17 @@ This file is the product snapshot: what is coded, what is finished, which HTTP A
 
 The issue list, the issue board, and project views are implemented. The list is `/w/:organizationSlug/p/:projectSlug/issues`. The board is `/w/:organizationSlug/p/:projectSlug/board`. Views are `/views` and `/views/:viewId`. The list is a table. Search, filters, sort, and pages are applied by `GET .../issues` in SQL. The board and a saved view each load one page per column. The plan is `docs/plans/issue-pagination.md`. A view is a saved filter set rendered on that same kanban. The Views page is a searchable table. A saved view opens the same board UI, without a title or filter bar. Project settings in `docs/plans/project-settings.md` are implemented too. A new project is seeded with workflow columns. Members create, edit, assign, and drag issues. Leads manage columns and project views. Anyone who can see the project can save a personal view. A lead, owner, or admin can change the project name, description, and visibility from `/w/:organizationSlug/p/:projectSlug/settings`.
 
-Issue codes and the issue page are implemented. Each project keeps the next number in `project_issue_counter`. Create allocates it inside the project transaction, and a deleted number is never reused. The screen shows `I-0001`, with at least four digits. The list, the board, and a saved view open `/w/:organizationSlug/p/:projectSlug/issues/:issueCode` as a page. Create and quick edit stay in a dialog on the current view. Issue content is a versioned document with a plain-text projection. The behavior is specified in `docs/plans/issue-detail.md`. An issue stores up to 20 assignees. Focused web tests and `verify:isolation` cover codes, content, and assignees. Closing the create dialog or leaving the page does not ask with a browser confirm. A draft stays in this browser until reload or a successful save. DEV-56 opens and filters the slash insert menu from an empty paragraph, a new paragraph, or after a space, shows a no-results state, and leaves typed text when Escape dismisses the menu. Slash rows size their icons with the same rule as other menus, so a bare icon does not render at the browser's default SVG size.
+Issue codes and the issue page are implemented. Each project keeps the next number in `project_issue_counter`. Create allocates it inside the project transaction, and a deleted number is never reused. The screen shows `I-0001`, with at least four digits. The list, the board, and a saved view open `/w/:organizationSlug/p/:projectSlug/issues/:issueCode` as a page. Create and quick edit stay in a dialog on the current view. Issue content is a versioned document with a plain-text projection. The behavior is specified in `docs/plans/issue-detail.md`. An issue stores up to 20 assignees. Focused web tests and `verify:isolation` cover codes, content, and assignees. Closing the create dialog or leaving the page does not ask with a browser confirm. A draft stays in this browser until reload or a successful save. The slash insert menu opens and filters the slash insert menu from an empty paragraph, a new paragraph, or after a space, shows a no-results state, and leaves typed text when Escape dismisses the menu. Slash rows size their icons with the same rule as other menus, so a bare icon does not render at the browser's default SVG size.
 
-DEV-55: acknowledging an autosave keeps intentional blank lines and does not remount the editor or move the caret.
+Acknowledging an autosave keeps intentional blank lines and does not remount the editor or move the caret.
 
-Selecting text and pressing Bold, Italic, or Inline code keeps the format toolbar open (DEV-54).
+Selecting text and pressing Bold, Italic, or Inline code keeps the format toolbar open.
 
 Labels, comments, and realtime are still open. The next roadmap milestone is M2 in `docs/plans/product-roadmap.md`.
+
+## Engineering baseline
+
+The repo follows the owner `hd-*` skills (`docs/plans/hd-skills-adoption.md`): oxlint, oxfmt, tsdown, and `packages/config` (ADR 0001); tests in `<workspace>/test/` on Vitest (ADR 0002); Opus coordinates and DeepSeek implements through Orca (ADR 0003). `bun run check` includes `format:check`.
 
 ## What is finished
 

@@ -38,7 +38,9 @@ import type {
  * Shared and the API can each load Zod, so the extension is copied onto the
  * prototype that actually owns these schemas.
  */
-const issueContentZodType = Object.getPrototypeOf(Object.getPrototypeOf(issueContentListNodeSchema));
+const issueContentZodType = Object.getPrototypeOf(
+  Object.getPrototypeOf(issueContentListNodeSchema),
+);
 const openApiExtension = openApiZod.ZodType.prototype.openapi;
 
 if (

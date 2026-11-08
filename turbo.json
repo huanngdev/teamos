@@ -1,5 +1,8 @@
 {
   "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "cacheMaxSize": "10GB",
+  "cacheMaxAge": "7d",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -102,18 +105,19 @@
       "persistent": true
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^build"]
     },
     "lint:fix": {
-      "dependsOn": ["^lint:fix"],
+      "dependsOn": ["^build"],
       "cache": false
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["^build"]
     },
     "test": {
-      "cache": false,
-      "dependsOn": ["^build", "^test"]
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["coverage/**"]
     }
   }
 }

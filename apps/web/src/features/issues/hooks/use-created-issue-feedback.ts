@@ -1,5 +1,5 @@
 import { formatIssueCode, type IssueDetail } from "@teamos/shared";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { notify } from "@/shared";
 
@@ -20,38 +20,48 @@ interface CreatedIssueFeedback {
 const highlightMs = 1600;
 
 function useCreatedIssueFeedback(options: CreatedIssueFeedbackOptions): CreatedIssueFeedback {
-  const optionsRef = useRef(options);
   const [pending, setPending] = useState<IssueDetail | null>(null);
-  const [createdMessage, setCreatedMessage] = useState<string | null>(null);
-  const [highlightedIssueId, setHighlightedIssueId] = useState<string | null>(null);
-  optionsRef.current = options;
+  const [clearedHighlightId, setClearedHighlightId] = useState<string | null>(null);
+  const notified = useRef<IssueDetail | null>(null);
+  const readOptions = useEffectEvent(() => options);
+
+  /*
+   * The created issue settles once the list stops fetching. Both the message
+   * and the highlight derive from that snapshot; the effect only fires the
+   * external notification, so no state is written during it.
+   */
+  const settled = pending !== null && !options.isFetching ? pending : null;
+  const code = settled === null ? null : formatIssueCode(settled.number);
+  const createdMessage =
+    settled === null || code === null
+      ? null
+      : options.isVisible(settled.id)
+        ? `${code} created.`
+        : `${code} was created in ${options.locationLabel(settled)}. It is outside the current results.`;
+  const highlightedIssueId =
+    settled !== null && clearedHighlightId !== settled.id ? settled.id : null;
 
   useEffect(() => {
-    if (pending === null || options.isFetching) {
+    if (settled === null || notified.current === settled) {
       return;
     }
 
-    const issue = pending;
-    const current = optionsRef.current;
-    const code = formatIssueCode(issue.number);
-    const location = current.locationLabel(issue);
-    setPending(null);
+    notified.current = settled;
+    const current = readOptions();
 
-    if (current.isVisible(issue.id)) {
-      setCreatedMessage(`${code} created.`);
-      setHighlightedIssueId(issue.id);
+    if (current.isVisible(settled.id)) {
       return;
     }
 
-    setHighlightedIssueId(null);
-    setCreatedMessage(`${code} was created in ${location}. It is outside the current results.`);
-    notify.success(`${code} was created in ${location}.`, {
+    const settledCode = formatIssueCode(settled.number);
+    const location = current.locationLabel(settled);
+    notify.success(`${settledCode} was created in ${location}.`, {
       label: "View issue",
       onClick: () => {
-        current.onView(issue);
+        current.onView(settled);
       },
     });
-  }, [options.dataUpdatedAt, options.isFetching, pending]);
+  }, [settled]);
 
   useEffect(() => {
     if (highlightedIssueId === null) {
@@ -59,7 +69,7 @@ function useCreatedIssueFeedback(options: CreatedIssueFeedbackOptions): CreatedI
     }
 
     const timer = window.setTimeout(() => {
-      setHighlightedIssueId(null);
+      setClearedHighlightId(highlightedIssueId);
     }, highlightMs);
 
     return () => {
@@ -71,8 +81,8 @@ function useCreatedIssueFeedback(options: CreatedIssueFeedbackOptions): CreatedI
     createdMessage,
     highlightedIssueId,
     notifyCreated: (issue) => {
-      setHighlightedIssueId(null);
-      setCreatedMessage(null);
+      notified.current = null;
+      setClearedHighlightId(null);
       setPending(issue);
     },
   };

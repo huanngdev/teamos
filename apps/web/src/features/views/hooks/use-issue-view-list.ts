@@ -199,7 +199,20 @@ function useIssueViewList(options: {
       save.mutate(value);
     },
   });
-  resetForm.current = form.reset;
+  const total = views.data?.pagination.total ?? 0;
+
+  /*
+   * The last page can disappear after a delete. Adjusting the offset during
+   * render (instead of an effect) keeps the query from settling on a page that
+   * no longer exists.
+   */
+  if (views.data !== undefined && offset > 0 && offset >= total && !views.isFetching) {
+    setOffset(Math.max(0, offset - ISSUE_VIEW_LIST_DEFAULT_LIMIT));
+  }
+
+  useEffect(() => {
+    resetForm.current = form.reset;
+  });
   const assignees = useEligibleAssignees({
     enabled: options.enabled,
     organizationSlug: options.organizationSlug,
@@ -234,13 +247,6 @@ function useIssueViewList(options: {
       await refresh();
     },
   });
-  const total = views.data?.pagination.total ?? 0;
-
-  useEffect(() => {
-    if (views.data !== undefined && offset > 0 && offset >= total && !views.isFetching) {
-      setOffset(Math.max(0, offset - ISSUE_VIEW_LIST_DEFAULT_LIMIT));
-    }
-  }, [offset, total, views.data, views.isFetching]);
 
   if (!options.enabled || projectList.isPending || (projectId !== null && views.isPending)) {
     return { status: "loading" };

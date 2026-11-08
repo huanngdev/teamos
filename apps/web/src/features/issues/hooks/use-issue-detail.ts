@@ -140,14 +140,15 @@ function useIssueDetail(): IssueDetailState {
   const [conflict, setConflict] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const baseline = useRef<IssueDetailBaseline>({
+  const [baseline, setBaseline] = useState<IssueDetailBaseline>({
     assigneeKey: "",
     contentKey: "",
     priority: "none",
     statusId: "",
     title: "",
   });
-  const applied = useRef<string | null>(null);
+  const [appliedRevision, setAppliedRevision] = useState<string | null>(null);
+  const [handledSyncGate, setHandledSyncGate] = useState<string | null>(null);
   const failedSave = useRef<string | null>(null);
   const sentSave = useRef<IssueDetailBaseline | null>(null);
   const draftRef = useRef<IssueDetailBaseline>({
@@ -161,15 +162,13 @@ function useIssueDetail(): IssueDetailState {
   const contentRef = useRef(content);
   const issue = detailQuery.data;
   const isDirty =
-    title !== baseline.current.title ||
-    priority !== baseline.current.priority ||
-    statusId !== baseline.current.statusId ||
-    assigneeKey(selectedAssignees) !== baseline.current.assigneeKey ||
-    contentKey(content) !== baseline.current.contentKey ||
+    title !== baseline.title ||
+    priority !== baseline.priority ||
+    statusId !== baseline.statusId ||
+    assigneeKey(selectedAssignees) !== baseline.assigneeKey ||
+    contentKey(content) !== baseline.contentKey ||
     contentError !== null;
-  const dirtyRef = useRef(isDirty);
   const code = parsed?.code ?? "";
-  dirtyRef.current = isDirty;
   const issuesPath = projectIssuesPath(organizationSlug, projectSlug);
   const canUpdate =
     project !== null &&
@@ -186,15 +185,124 @@ function useIssueDetail(): IssueDetailState {
       visibility: project.visibility,
     });
 
-  selectedRef.current = selectedAssignees;
-  contentRef.current = content;
-  draftRef.current = {
-    assigneeKey: assigneeKey(selectedAssignees),
-    contentKey: contentKey(content),
-    priority,
-    statusId,
-    title,
-  };
+  /*
+   * Mutation callbacks and the autosave effect read the newest draft after an
+   * async save settles. Writing the refs in an effect keeps render from
+   * reading mutable values.
+   */
+  useEffect(() => {
+    selectedRef.current = selectedAssignees;
+    contentRef.current = content;
+    draftRef.current = {
+      assigneeKey: assigneeKey(selectedAssignees),
+      contentKey: contentKey(content),
+      priority,
+      statusId,
+      title,
+    };
+  });
+
+  /*
+   * Follow the cached issue while keeping the editor mounted. State is
+   * adjusted during render (React's "adjust state when a prop changes"
+   * pattern) so a refetch never has to write state from an effect.
+   */
+  const issueKey = issue === undefined ? null : `${issue.id}:${issue.updatedAt}`;
+  const acknowledgedRevision =
+    issue !== undefined && appliedRevision !== null && appliedRevision.startsWith(`${issue.id}:`)
+      ? appliedRevision
+      : null;
+
+  if (issue !== undefined && issueKey !== null) {
+    const syncGate = `${issueKey}|${acknowledgedRevision ?? ""}`;
+    const syncGateChanged = syncGate !== handledSyncGate;
+    const sync = issueDetailSync({
+      acknowledgedRevision,
+      baseUpdatedAt,
+      cacheUpdatedAt: issue.updatedAt,
+      dirty: isDirty,
+      issueId: issue.id,
+    });
+
+    if (syncGateChanged) {
+      setHandledSyncGate(syncGate);
+    }
+
+    if (sync === "conflict") {
+      if (!conflict) {
+        setConflict(true);
+      }
+    } else if (sync === "keep") {
+      if (acknowledgedRevision === issueKey) {
+        if (isDirty && issue.updatedAt !== baseUpdatedAt && !conflict) {
+          setConflict(true);
+        }
+
+        /*
+         * Storage is only read when the issue revision or the acknowledged
+         * revision changes; ordinary renders reuse the selected assignees.
+         */
+        const stored = syncGateChanged ? readIssueDraft(issue.id) : null;
+        const ids =
+          stored !== null && stored.baseUpdatedAt === baseUpdatedAt
+            ? stored.assigneeMemberIds
+            : selectedAssignees.map((person) => person.id);
+
+        if (issueAssigneeKey(ids) === assigneeKey(selectedAssignees)) {
+          const resolved = resolveAssignees(ids, assignees.assignees, assigneesFromIssue(issue));
+          const changed = resolved.some((person, index) => {
+            const current = selectedAssignees[index];
+
+            return (
+              current === undefined ||
+              current.name !== person.name ||
+              current.email !== person.email
+            );
+          });
+
+          if (changed) {
+            setAssignees(resolved);
+          }
+        }
+      }
+    } else if (acknowledgedRevision !== issueKey) {
+      const draft = syncGateChanged ? readIssueDraft(issue.id) : null;
+      const serverAssignees = assigneesFromIssue(issue);
+      setBaseline({
+        assigneeKey: assigneeKey(serverAssignees),
+        contentKey: contentKey(issue.content),
+        priority: issue.priority,
+        statusId: issue.statusId,
+        title: issue.title,
+      });
+
+      if (draft === null) {
+        setTitle(issue.title);
+        setPriority(issue.priority);
+        setStatusId(issue.statusId);
+        setAssignees(serverAssignees);
+        setContent(issue.content);
+        setBaseUpdatedAt(issue.updatedAt);
+        setConflict(false);
+      } else {
+        setTitle(draft.title);
+        setPriority(draft.priority);
+        setStatusId(draft.statusId);
+        setAssignees(
+          resolveAssignees(draft.assigneeMemberIds, assignees.assignees, serverAssignees),
+        );
+        setContent(draft.content);
+        setBaseUpdatedAt(draft.baseUpdatedAt);
+        setConflict(draft.baseUpdatedAt !== issue.updatedAt);
+      }
+
+      setContentError(null);
+      setDisplayUpdatedAt(issue.updatedAt);
+      setEditorGeneration((current) => current + 1);
+      setAppliedRevision(issueKey);
+    }
+  }
+
   const save = useMutation({
     mutationFn: async (payload: UpdateIssueRequest) => {
       if (projectId === null || issue === undefined) {
@@ -242,13 +350,13 @@ function useIssueDetail(): IssueDetailState {
       setDisplayUpdatedAt(saved.updatedAt);
       setConflict(false);
       setTitleError(null);
-      baseline.current = {
+      setBaseline({
         assigneeKey: assigneeKey(nextAssignees),
         contentKey: same && !serverMatchesSent ? current.contentKey : serverContentKey,
         priority: saved.priority,
         statusId: saved.statusId,
         title: saved.title,
-      };
+      });
 
       if (same) {
         setTitle(saved.title);
@@ -263,7 +371,7 @@ function useIssueDetail(): IssueDetailState {
         setContentError(null);
       }
 
-      applied.current = `${saved.id}:${saved.updatedAt}`;
+      setAppliedRevision(`${saved.id}:${saved.updatedAt}`);
 
       if (projectId !== null && parsed !== undefined) {
         queryClient.setQueryData(
@@ -277,6 +385,8 @@ function useIssueDetail(): IssueDetailState {
       });
     },
   });
+
+  const mutateSave = save.mutate;
 
   const remove = useMutation({
     mutationFn: async () => {
@@ -298,98 +408,6 @@ function useIssueDetail(): IssueDetailState {
       void navigate(issuesPath);
     },
   });
-
-  useEffect(() => {
-    applied.current = null;
-  }, [parsed?.decimal]);
-
-  useEffect(() => {
-    if (issue === undefined) {
-      return;
-    }
-
-    const key = `${issue.id}:${issue.updatedAt}`;
-    const sync = issueDetailSync({
-      acknowledgedRevision: applied.current,
-      baseUpdatedAt,
-      cacheUpdatedAt: issue.updatedAt,
-      dirty: dirtyRef.current,
-      issueId: issue.id,
-    });
-
-    if (sync === "conflict") {
-      setConflict(true);
-      return;
-    }
-
-    if (sync === "keep") {
-      if (applied.current !== key) {
-        return;
-      }
-
-      if (dirtyRef.current && issue.updatedAt !== baseUpdatedAt) {
-        setConflict(true);
-      }
-
-      const stored = readIssueDraft(issue.id);
-      const ids =
-        stored !== null && stored.baseUpdatedAt === baseUpdatedAt
-          ? stored.assigneeMemberIds
-          : selectedRef.current.map((person) => person.id);
-
-      if (issueAssigneeKey(ids) !== assigneeKey(selectedRef.current)) {
-        return;
-      }
-
-      const resolved = resolveAssignees(ids, assignees.assignees, assigneesFromIssue(issue));
-      const changed = resolved.some((person, index) => {
-        const current = selectedRef.current[index];
-
-        return (
-          current === undefined || current.name !== person.name || current.email !== person.email
-        );
-      });
-
-      if (changed) {
-        setAssignees(resolved);
-      }
-
-      return;
-    }
-
-    const draft = readIssueDraft(issue.id);
-    const serverAssignees = assigneesFromIssue(issue);
-    baseline.current = {
-      assigneeKey: assigneeKey(serverAssignees),
-      contentKey: contentKey(issue.content),
-      priority: issue.priority,
-      statusId: issue.statusId,
-      title: issue.title,
-    };
-
-    if (draft === null) {
-      setTitle(issue.title);
-      setPriority(issue.priority);
-      setStatusId(issue.statusId);
-      setAssignees(serverAssignees);
-      setContent(issue.content);
-      setBaseUpdatedAt(issue.updatedAt);
-      setConflict(false);
-    } else {
-      setTitle(draft.title);
-      setPriority(draft.priority);
-      setStatusId(draft.statusId);
-      setAssignees(resolveAssignees(draft.assigneeMemberIds, assignees.assignees, serverAssignees));
-      setContent(draft.content);
-      setBaseUpdatedAt(draft.baseUpdatedAt);
-      setConflict(draft.baseUpdatedAt !== issue.updatedAt);
-    }
-
-    setContentError(null);
-    setDisplayUpdatedAt(issue.updatedAt);
-    setEditorGeneration((current) => current + 1);
-    applied.current = key;
-  }, [assignees.assignees, baseUpdatedAt, issue]);
 
   useEffect(() => {
     if (issue === undefined || baseUpdatedAt.length === 0) {
@@ -452,7 +470,7 @@ function useIssueDetail(): IssueDetailState {
         title: trimmed,
       };
       setTitleError(null);
-      save.mutate(payload);
+      mutateSave(payload);
     }, 300);
 
     return () => {
@@ -465,10 +483,10 @@ function useIssueDetail(): IssueDetailState {
     content,
     contentError,
     isDirty,
+    mutateSave,
     priority,
     save.isError,
     save.isPending,
-    save.mutate,
     selectedAssignees,
     statusId,
     title,
@@ -490,13 +508,13 @@ function useIssueDetail(): IssueDetailState {
   function applyServerIssue(next: IssueDetail) {
     const serverAssignees = assigneesFromIssue(next);
 
-    baseline.current = {
+    setBaseline({
       assigneeKey: assigneeKey(serverAssignees),
       contentKey: contentKey(next.content),
       priority: next.priority,
       statusId: next.statusId,
       title: next.title,
-    };
+    });
     setTitle(next.title);
     setPriority(next.priority);
     setStatusId(next.statusId);
@@ -508,7 +526,7 @@ function useIssueDetail(): IssueDetailState {
     setConflict(false);
     setTitleError(null);
     setEditorGeneration((current) => current + 1);
-    applied.current = `${next.id}:${next.updatedAt}`;
+    setAppliedRevision(`${next.id}:${next.updatedAt}`);
   }
 
   function refresh() {
@@ -517,7 +535,6 @@ function useIssueDetail(): IssueDetailState {
       applyServerIssue(issue);
     }
 
-    dirtyRef.current = false;
     void detailQuery.refetch();
   }
 
@@ -586,7 +603,7 @@ function useIssueDetail(): IssueDetailState {
     };
   }
 
-  if (detailQuery.isPending || applied.current === null || detailQuery.data === undefined) {
+  if (detailQuery.isPending || baseUpdatedAt.length === 0 || detailQuery.data === undefined) {
     return { onDismiss: dismiss, status: "loading" };
   }
 

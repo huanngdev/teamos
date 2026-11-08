@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { notify } from "@/shared";
 import { deleteIssues } from "../api/issue-api";
@@ -44,7 +44,9 @@ function useDeleteSelectedIssues(options: UseDeleteSelectedIssuesOptions) {
     },
   });
 
-  onDeleted.current = options.onDeleted;
+  useEffect(() => {
+    onDeleted.current = options.onDeleted;
+  });
 
   return {
     cancel: () => {

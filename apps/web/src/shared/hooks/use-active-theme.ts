@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 
 type ActiveTheme = "light" | "dark";
@@ -18,17 +17,21 @@ function getActiveThemeLabel(theme: ActiveTheme): string {
 
 function useActiveTheme(): ActiveTheme | undefined {
   const { resolvedTheme } = useTheme();
-  const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
-    return undefined;
+  /*
+   * next-themes resolves the stored theme on the first client render. Return
+   * undefined until then instead of assuming light, so the logo does not flash
+   * the wrong asset before the provider settles.
+   */
+  if (resolvedTheme === "dark") {
+    return "dark";
   }
 
-  return resolvedTheme === "dark" ? "dark" : "light";
+  if (resolvedTheme === "light") {
+    return "light";
+  }
+
+  return undefined;
 }
 
 export { getActiveThemeLabel, useActiveTheme, type ActiveTheme };
