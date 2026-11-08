@@ -1,11 +1,11 @@
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { expect, test } from "vitest";
 
+import { routes } from "@/app/routes";
 import { apiUrl } from "@/shared";
-
-import { App } from "@/app/App";
-import { renderWithProviders } from "../support/render-app";
+import { renderWithAppProviders } from "../support/render-app";
 import { server } from "../support/server";
 
 const healthyReadiness = {
@@ -34,13 +34,22 @@ const unauthenticatedResponse = {
   },
 } as const;
 
+function renderApp() {
+  const router = createMemoryRouter(routes, { initialEntries: ["/"] });
+
+  return {
+    router,
+    ...renderWithAppProviders(<RouterProvider router={router} />),
+  };
+}
+
 test("waits for backend readiness before continuing", async () => {
   server.use(
     http.get(`${apiUrl}/health/ready`, () => new Promise<never>(() => {})),
     http.get(`${apiUrl}/api/me`, () => HttpResponse.json(unauthenticatedResponse, { status: 401 })),
   );
 
-  renderWithProviders(<App />);
+  renderApp();
 
   expect(await screen.findByText("Connecting to TeamOS")).toBeInTheDocument();
 });
@@ -52,7 +61,7 @@ test("redirects unauthenticated visitors to the sign-in page", async () => {
     http.get(`${apiUrl}/api/authentication/providers`, () => HttpResponse.json(providersResponse)),
   );
 
-  renderWithProviders(<App />);
+  renderApp();
 
   expect(await screen.findByText("Sign in to TeamOS")).toBeInTheDocument();
   expect(await screen.findByRole("button", { name: /Continue with Google/ })).toBeInTheDocument();

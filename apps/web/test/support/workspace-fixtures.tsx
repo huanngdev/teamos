@@ -285,7 +285,7 @@ function useWorkspaceHandlers(options: WorkspaceHandlerOptions = {}) {
 }
 
 /*
- * Renders the same workspace and project route tree as `AppRoutes`, without
+ * Renders the same workspace and project route tree as the app router, without
  * the protected-session gate, so feature tests can open a page directly.
  */
 function renderWorkspace(route = "/w/acme/projects") {

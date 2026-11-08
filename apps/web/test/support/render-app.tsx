@@ -19,19 +19,28 @@ function createTestQueryClient(): QueryClient {
   });
 }
 
-function renderWithProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}) {
+/*
+ * For tests that bring their own data router (RouterProvider). Wrapping those
+ * in MemoryRouter would install a second, unused history.
+ */
+function renderWithAppProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}) {
   const queryClient = options.queryClient ?? createTestQueryClient();
 
   return {
     queryClient,
     ...render(
       <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={[options.route ?? "/"]}>{ui}</MemoryRouter>
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
       </ThemeProvider>,
     ),
   };
 }
 
-export { createTestQueryClient, renderWithProviders };
+function renderWithProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}) {
+  return renderWithAppProviders(
+    <MemoryRouter initialEntries={[options.route ?? "/"]}>{ui}</MemoryRouter>,
+    options,
+  );
+}
+
+export { createTestQueryClient, renderWithAppProviders, renderWithProviders };

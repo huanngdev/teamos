@@ -1,9 +1,10 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { Navigate, Route, Routes } from "react-router";
-import { expect, test } from "vitest";
+import { createMemoryRouter, Navigate, RouterProvider, type RouteObject } from "react-router";
+import { expect, test, vi } from "vitest";
 
+import { routes } from "@/app/routes";
 import { projectBoardSegment, projectIssuesSegment } from "@/features/issues";
 import { projectRoutePattern } from "@/features/projects";
 import {
@@ -13,11 +14,15 @@ import {
   workspaceRoutePattern,
 } from "@/features/workspaces";
 import { apiUrl } from "@/shared";
-import { renderWithProviders } from "../support/render-app";
+import { renderWithAppProviders } from "../support/render-app";
 import { server } from "../support/server";
 import { useWorkspaceHandlers } from "../support/workspace-fixtures";
 
-import { AppRoutes } from "@/app/routes";
+vi.mock("@/routes/verify-email-route", () => ({
+  VerifyEmailRoute: () => {
+    throw new Error("The verify email route failed to render.");
+  },
+}));
 
 const healthyReadiness = {
   dependencies: {
@@ -30,55 +35,91 @@ const healthyReadiness = {
   timestamp: "2026-01-02T03:04:05.000Z",
 } as const;
 
-function RankProbe() {
-  return (
-    <Routes>
-      <Route element={<p>Create workspace</p>} path={createWorkspacePath} />
-      <Route path={projectRoutePattern}>
-        <Route element={<p>Overview</p>} index />
-        <Route element={<p>Board</p>} path={projectBoardSegment} />
-        <Route element={<p>Issues</p>} path={projectIssuesSegment} />
-      </Route>
-      <Route path={workspaceRoutePattern}>
-        <Route element={<Navigate replace to={workspaceProjectsSegment} />} index />
-        <Route element={<p>Projects</p>} path={workspaceProjectsSegment} />
-        <Route element={<p>Members</p>} path={workspaceMembersSegment} />
-      </Route>
-      <Route element={<p>Missing</p>} path="*" />
-    </Routes>
-  );
+function renderAt(route: string, routerRoutes: RouteObject[] = routes) {
+  const router = createMemoryRouter(routerRoutes, { initialEntries: [route] });
+
+  return {
+    router,
+    ...renderWithAppProviders(<RouterProvider router={router} />),
+  };
 }
 
+const rankProbeRoutes: RouteObject[] = [
+  { path: createWorkspacePath, element: <p>Create workspace</p> },
+  {
+    path: projectRoutePattern,
+    children: [
+      { index: true, element: <p>Overview</p> },
+      { path: projectBoardSegment, element: <p>Board</p> },
+      { path: projectIssuesSegment, element: <p>Issues</p> },
+    ],
+  },
+  {
+    path: workspaceRoutePattern,
+    children: [
+      { index: true, element: <Navigate replace to={workspaceProjectsSegment} /> },
+      { path: workspaceProjectsSegment, element: <p>Projects</p> },
+      { path: workspaceMembersSegment, element: <p>Members</p> },
+    ],
+  },
+  { path: "*", element: <p>Missing</p> },
+];
+
 test("keeps workspace creation on the static /w/new path", () => {
-  renderWithProviders(<RankProbe />, { route: "/w/new" });
+  renderAt("/w/new", rankProbeRoutes);
 
   expect(screen.getByText("Create workspace")).toBeInTheDocument();
 });
 
 test("opens a workspace whose slug is new at its project list", async () => {
-  renderWithProviders(<RankProbe />, { route: "/w/new/projects" });
+  renderAt("/w/new/projects", rankProbeRoutes);
 
   expect(await screen.findByText("Projects")).toBeInTheDocument();
   expect(screen.queryByText("Create workspace")).not.toBeInTheDocument();
 });
 
 test("lets a project slug reuse a workspace page name", () => {
-  renderWithProviders(<RankProbe />, { route: "/w/acme/p/members" });
+  renderAt("/w/acme/p/members", rankProbeRoutes);
 
   expect(screen.getByText("Overview")).toBeInTheDocument();
   expect(screen.queryByText("Members")).not.toBeInTheDocument();
 });
 
 test("sends a workspace entry to its project list", async () => {
-  renderWithProviders(<RankProbe />, { route: "/w/acme" });
+  renderAt("/w/acme", rankProbeRoutes);
 
   expect(await screen.findByText("Projects")).toBeInTheDocument();
 });
 
-test("does not register the old workspace or board urls", async () => {
-  renderWithProviders(<AppRoutes />, {
-    route: "/workspaces/acme/projects/website/issues/board?priority=high",
+test("renders the not-found route for an unknown url", async () => {
+  renderAt("/does/not/exist");
+
+  expect(await screen.findByText("Page not found")).toBeInTheDocument();
+  expect(screen.getByText(/\/does\/not\/exist/)).toBeInTheDocument();
+});
+
+test("redirects a workspace entry to its projects tab", async () => {
+  server.use(http.get(`${apiUrl}/health/ready`, () => HttpResponse.json(healthyReadiness)));
+  useWorkspaceHandlers();
+
+  const { router } = renderAt("/w/acme");
+
+  await waitFor(() => {
+    expect(router.state.location.pathname).toBe("/w/acme/projects");
   });
+  expect(await screen.findByRole("heading", { name: "Apollo" })).toBeInTheDocument();
+});
+
+test("renders the route error screen when a route component throws", async () => {
+  renderAt("/auth/verify-email");
+
+  expect(await screen.findByText("Something went wrong")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  expect(screen.queryByText(/The verify email route failed to render/)).not.toBeInTheDocument();
+});
+
+test("does not register the old workspace or board urls", async () => {
+  renderAt("/workspaces/acme/projects/website/issues/board?priority=high");
 
   expect(await screen.findByText("Page not found")).toBeInTheDocument();
   expect(
@@ -108,7 +149,7 @@ test("opens an issue page from its canonical code", async () => {
       HttpResponse.json({ issue: gateIssue }),
     ),
   );
-  renderWithProviders(<AppRoutes />, { route: "/w/acme/p/apollo/issues/I-0001" });
+  renderAt("/w/acme/p/apollo/issues/I-0001");
 
   expect(await screen.findByLabelText("Title")).toHaveValue("Check the gate");
   expect(screen.getByText("I-0001")).toBeInTheDocument();
@@ -145,7 +186,7 @@ test("replaces a padded issue code with the canonical code", async () => {
       },
     ),
   );
-  renderWithProviders(<AppRoutes />, { route: "/w/acme/p/apollo/issues/I-1" });
+  renderAt("/w/acme/p/apollo/issues/I-1");
 
   expect(await screen.findByLabelText("Title")).toHaveValue("Check the gate");
   expect(screen.getByText("I-0001")).toBeInTheDocument();
@@ -178,7 +219,7 @@ test("saves a detail edit after the draft stays still", async () => {
       },
     ),
   );
-  renderWithProviders(<AppRoutes />, { route: "/w/acme/p/apollo/issues/I-0001" });
+  renderAt("/w/acme/p/apollo/issues/I-0001");
 
   const title = await screen.findByLabelText("Title");
   await user.type(title, " now");
@@ -209,7 +250,7 @@ test("rejects an issue code without requesting the issue", async () => {
       },
     ),
   );
-  renderWithProviders(<AppRoutes />, { route: "/w/acme/p/apollo/issues/nope" });
+  renderAt("/w/acme/p/apollo/issues/nope");
 
   expect(await screen.findByText("Page not found")).toBeInTheDocument();
   expect(screen.getByText(/\/w\/acme\/p\/apollo\/issues\/nope/)).toBeInTheDocument();
@@ -235,7 +276,7 @@ test("opens the issue page from the list and returns to that list", async () => 
       HttpResponse.json({ issue: gateIssue }),
     ),
   );
-  renderWithProviders(<AppRoutes />, { route: "/w/acme/p/apollo/issues?priority=high" });
+  renderAt("/w/acme/p/apollo/issues?priority=high");
 
   await user.click(await screen.findByRole("link", { name: "Check the gate" }));
 
@@ -260,7 +301,7 @@ test("opens the issue page from the list and returns to that list", async () => 
 test("opens the board from the short project path", async () => {
   server.use(http.get(`${apiUrl}/health/ready`, () => HttpResponse.json(healthyReadiness)));
   useWorkspaceHandlers();
-  renderWithProviders(<AppRoutes />, { route: "/w/acme/p/apollo/board" });
+  renderAt("/w/acme/p/apollo/board");
 
   expect(await screen.findByText("Backlog")).toBeInTheDocument();
   expect(

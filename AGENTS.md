@@ -51,9 +51,9 @@ bun run db:generate             # then review the SQL order
 
 ```text
 apps/web/src
-  app/            providers, route registration (routes.tsx)
+  app/            providers, lazy route objects (routes.tsx), router, RouteError
   layouts/        router layouts + their orchestration hooks
-  routes/         URL-level components only, *-route.tsx
+  routes/         URL-level components only, *-route.tsx, no barrel (lazy-loaded)
   features/<f>/   one capability: api, components, hooks, lib, query-keys, index.ts barrel
   shared/         cross-feature API client, env, query client, hooks, components
   components/ui/  generated shadcn primitives — never edited or moved
