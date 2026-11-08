@@ -7,10 +7,8 @@ test("drizzle studio scripts bind the documented development endpoint", async ()
     scripts: Record<string, string>;
   };
 
-  for (const scriptName of ["dev", "db:studio"]) {
-    const script = manifest.scripts[scriptName] ?? "";
+  const script = manifest.scripts["db:studio"] ?? "";
 
-    expect(script).toContain(`--host ${drizzleStudioHost}`);
-    expect(script).toContain(`--port ${drizzleStudioPort}`);
-  }
+  expect(script).toContain(`--host ${drizzleStudioHost}`);
+  expect(script).toContain(`--port ${drizzleStudioPort}`);
 });

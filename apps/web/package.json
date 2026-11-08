@@ -1,14 +1,14 @@
 {
   "name": "@teamos/web",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --cwd ../../packages/shared build && vite",
-    "build": "bun run --cwd ../../packages/shared build && vite build",
+    "dev": "vite",
+    "build": "vite build",
     "start": "vite preview --host 0.0.0.0",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "lint:fix": "oxlint --type-aware --fix",
     "check-types": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -64,10 +64,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@tanstack/eslint-plugin-query": "^5.104.1",
-    "@teamos/eslint-config": "workspace:*",
-    "@teamos/prettier-config": "workspace:*",
-    "@teamos/typescript-config": "workspace:*",
+    "@teamos/config": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -76,7 +73,6 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^6.1.1",
-    "eslint": "^10.11.0",
     "jsdom": "^30.1.2",
     "msw": "^3.0.3",
     "typescript": "^5.9.2",

@@ -1,33 +1,27 @@
 {
   "name": "@teamos/shared",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "test": "bun test src",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "check-types": "tsc -p tsconfig.test.json"
-  },
+  "sideEffects": false,
   "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    },
+    ".": "./dist/index.mjs",
     "./package.json": "./package.json"
   },
-  "sideEffects": false,
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "bun test src",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "lint:fix": "oxlint --type-aware --fix",
+    "check-types": "tsc -p tsconfig.test.json"
+  },
   "dependencies": {
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@teamos/eslint-config": "workspace:*",
-    "@teamos/prettier-config": "workspace:*",
-    "@teamos/typescript-config": "workspace:*",
+    "@teamos/config": "workspace:*",
     "bun-types": "^1.4.3",
-    "eslint": "^10.11.0",
     "typescript": "^5.9.2"
   }
 }

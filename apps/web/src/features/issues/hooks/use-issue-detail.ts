@@ -278,6 +278,8 @@ function useIssueDetail(): IssueDetailState {
     },
   });
 
+  const mutateSave = save.mutate;
+
   const remove = useMutation({
     mutationFn: async () => {
       if (projectId === null || issue === undefined) {
@@ -452,7 +454,7 @@ function useIssueDetail(): IssueDetailState {
         title: trimmed,
       };
       setTitleError(null);
-      save.mutate(payload);
+      mutateSave(payload);
     }, 300);
 
     return () => {
@@ -465,10 +467,10 @@ function useIssueDetail(): IssueDetailState {
     content,
     contentError,
     isDirty,
+    mutateSave,
     priority,
     save.isError,
     save.isPending,
-    save.mutate,
     selectedAssignees,
     statusId,
     title,

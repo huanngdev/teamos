@@ -1,13 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "@teamos/typescript-config/api.json",
+  "extends": "@teamos/config/tsconfig/bun.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "declaration": true,
     "noEmit": false,
     "outDir": "dist",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
     "rootDir": "src",
     "sourceMap": true

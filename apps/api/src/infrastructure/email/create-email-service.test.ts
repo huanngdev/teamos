@@ -22,10 +22,15 @@ const unconfiguredEnv: EmailEnv = {
 
 test("returns an unavailable service when SMTP is not configured", async () => {
   const service = createEmailService(unconfiguredEnv);
+  let message: string | null = null;
 
-  await expect(
-    service.send({ html: "<p>hi</p>", subject: "Verify", text: "hi", to: "ada@example.com" }),
-  ).rejects.toThrow("Email delivery is not configured");
+  try {
+    await service.send({ html: "<p>hi</p>", subject: "Verify", text: "hi", to: "ada@example.com" });
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+
+  expect(message).toContain("Email delivery is not configured");
 });
 
 test("creates an SMTP-backed service when SMTP is configured", () => {

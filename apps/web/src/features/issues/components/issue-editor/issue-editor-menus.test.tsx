@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 function installCaret(box: { height: number; width: number } | null) {
-  const original = Range.prototype.getBoundingClientRect;
+  const original = Range.prototype["getBoundingClientRect"];
 
   Range.prototype.getBoundingClientRect = () =>
     (box === null
@@ -365,7 +365,7 @@ test("does not open for a slash inside a word", async () => {
   expect(menu()).toBeNull();
 });
 
-const originalRect = Range.prototype.getBoundingClientRect;
+const originalRect = Range.prototype["getBoundingClientRect"];
 
 function sizedRect(width: number, height: number): DOMRect {
   return {

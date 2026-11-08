@@ -11,7 +11,8 @@ interface PlacedPosition {
 }
 
 type IssuePlacement =
-  { kind: "position"; position: number } | { kind: "rebalance"; positions: PlacedPosition[] };
+  | { kind: "position"; position: number }
+  | { kind: "rebalance"; positions: PlacedPosition[] };
 
 function clampIndex(index: number, length: number): number {
   return Math.min(Math.max(index, 0), length);

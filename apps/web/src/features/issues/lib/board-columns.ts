@@ -87,7 +87,8 @@ function applyIssueMove(
 
 function resolveBoardSnapshot(
   cached:
-    { issues: readonly IssueCardSummary[]; statuses: readonly ProjectStatusSummary[] } | undefined,
+    | { issues: readonly IssueCardSummary[]; statuses: readonly ProjectStatusSummary[] }
+    | undefined,
   statuses: readonly ProjectStatusSummary[] | undefined,
   issues: readonly IssueCardSummary[] | undefined,
 ): { issues: readonly IssueCardSummary[]; statuses: readonly ProjectStatusSummary[] } {

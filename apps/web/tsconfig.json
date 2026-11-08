@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "@teamos/typescript-config/web.json",
+  "extends": "@teamos/config/tsconfig/vite-react.json",
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"]

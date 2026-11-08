@@ -49,9 +49,9 @@ Labels, comments, realtime, chat, notifications, avatar upload, and deploy.
 
 Machine: Apple M5, 16 GB, macOS, Bun 1.3.14, local PostgreSQL. One connection except the four concurrent title updates. Plans were taken immediately after insert, before `ANALYZE`, so planner row estimates are not trustworthy. Actual times are.
 
-| Dataset | Insert | Deep table page | Column page | Board | Search `gate` | Move | Rows updated by that move | 4 concurrent title updates |
-| ------- | ------ | --------------- | ----------- | ----- | ------------- | ---- | ------------------------- | -------------------------- |
-| 10,000  | 410 ms | 32 ms, 10,129 bytes, 20 rows | 22 ms, 11,584 bytes | 39 ms, 40 cards, total 9,000 | 47 ms, total 100 | 18 ms | 1 | 17 ms |
-| 100,000 | 2,874 ms | 226 ms, 10,192 bytes, 20 rows | 4 ms, 11,584 bytes | 110 ms, 40 cards, total 90,000 | 393 ms, total 1,000 | 14 ms | 1 | 32 ms |
+| Dataset | Insert   | Deep table page               | Column page         | Board                          | Search `gate`       | Move  | Rows updated by that move | 4 concurrent title updates |
+| ------- | -------- | ----------------------------- | ------------------- | ------------------------------ | ------------------- | ----- | ------------------------- | -------------------------- |
+| 10,000  | 410 ms   | 32 ms, 10,129 bytes, 20 rows  | 22 ms, 11,584 bytes | 39 ms, 40 cards, total 9,000   | 47 ms, total 100    | 18 ms | 1                         | 17 ms                      |
+| 100,000 | 2,874 ms | 226 ms, 10,192 bytes, 20 rows | 4 ms, 11,584 bytes  | 110 ms, 40 cards, total 90,000 | 393 ms, total 1,000 | 14 ms | 1                         | 32 ms                      |
 
 The deep page is the last page of 20, so the offset is about 9,980 rows at 10,000 issues and about 99,980 rows at 100,000. Its raw plan sorts the matching rows before the limit: about 2 ms of sort at 10,000 and about 35 ms at 100,000. The service time is higher because the page also joins the assignee and reads descriptions. The 100,000-issue keyset uses an index-only scan on `issue_project_status_position_idx` and touches 7 buffer pages. The grouped count index-only-scans the project and takes about 23 ms at 100,000. Lock hold time was not read from `pg_locks`. Browser DOM count and heap were not measured. These numbers are one warm local run, not a support claim.

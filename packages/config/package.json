@@ -1,0 +1,14 @@
+{
+  "name": "@teamos/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig/*.json": "./tsconfig/*.json",
+    "./vitest/*": "./vitest/*",
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "@shadcn/lint": "^0.2.0"
+  }
+}

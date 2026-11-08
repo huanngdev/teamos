@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "@teamos/typescript-config/shared.json",
+  "extends": "@teamos/config/tsconfig/library.json",
   "compilerOptions": {
     "declaration": true,
     "noEmit": false,

@@ -9,11 +9,9 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY packages/config/package.json packages/config/
 COPY packages/db/package.json packages/db/
-COPY packages/eslint-config/package.json packages/eslint-config/
-COPY packages/prettier-config/package.json packages/prettier-config/
 COPY packages/shared/package.json packages/shared/
-COPY packages/typescript-config/package.json packages/typescript-config/
 RUN bun install --frozen-lockfile
 
 FROM deps AS source
@@ -25,12 +23,12 @@ WORKDIR /app/packages/db
 CMD ["bun", "run", "db:migrate"]
 
 FROM source AS api-build
-RUN bun run --cwd apps/api build
+RUN bun run build --filter=@teamos/api
 
 FROM source AS web-build
 # Vite inlines the API origin at build time.
 ARG VITE_API_URL
-RUN test -n "$VITE_API_URL" && bun run --cwd apps/web build
+RUN test -n "$VITE_API_URL" && bun run build --filter=@teamos/web
 
 FROM oven/bun:${BUN_VERSION}-slim AS api
 WORKDIR /app

@@ -16,7 +16,7 @@ import type { EligibleAssigneePicker } from "@/features/projects";
 import { projectKeys } from "@/features/projects/query-keys";
 import { memberCacheKey, useShellStore } from "@/shared";
 import { listIssues, listProjectStatuses } from "../api/issue-api";
-import { issueTableColumns } from "../components/issue-table-columns";
+import { issueTableColumns } from "../components/issue-table-column-definitions";
 import type { IssueTable } from "../lib/issue-table-features";
 import { issueTableFeatures } from "../lib/issue-table-features";
 import { projectIssuePath } from "../lib/issue-paths";
