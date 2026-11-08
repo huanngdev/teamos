@@ -1,268 +1,112 @@
-# TeamOS Repository Guide
+# AGENTS.md — TeamOS
 
-## Required First Step
+TeamOS is a Linear-style collaborative workspace for organizations, projects, members, and issues, with team chat and schedules on the roadmap.
 
-Before writing or modifying code, read the root [`CODE_RULES.md`](./CODE_RULES.md) and follow it. Do not begin implementation based only on this file.
+## 1. Skills and precedence
 
-OpenCode and Grok Build both use this file. Also load the `teamos-engineering` skill, and read [`docs/agent-system.md`](./docs/agent-system.md) before choosing work, installing a skill, or continuing after a task. `CODE_RULES.md` overrides every skill.
+User decision > this file and [`CODE_RULES.md`](./CODE_RULES.md) > `teamos-engineering` (`.agents/skills`) > owner `hd-*` skills (start at `hd-index`) > marketplace skills. Read `CODE_RULES.md` before writing code. Generic TypeScript, testing, git, security, frontend, backend, validation, and infra rules live in the `hd-*` skills; this file lists only what is specific to TeamOS.
 
-## Role and Working Style
+## 2. Read first
 
-Act as a senior full-stack developer on this project, not a passive executor.
+1. [`docs/progress.md`](./docs/progress.md) — what is done and what is next
+2. [`docs/plans/`](./docs/plans) — accepted plans; [`product-roadmap.md`](./docs/plans/product-roadmap.md) orders milestones
+3. [`docs/agent-system.md`](./docs/agent-system.md) — agent roles, Orca dispatch, installed and rejected skills
+4. [`docs/decisions/`](./docs/decisions) — ADRs
+5. [`docs/infra-guide.md`](./docs/infra-guide.md), [`docs/api-guide.md`](./docs/api-guide.md), [`docs/deployment.md`](./docs/deployment.md)
 
-1. Always search for the best way to accomplish a task. Optimize for performance, keep the code workflow efficient, and apply current best practices instead of implementing the first idea that comes to mind.
-2. Treat user input as input, not as a final decision. Think independently, challenge the proposal when a better solution exists, and explore alternatives before writing code.
-3. Do not start a new product direction, permission model, schema-ownership change, or technology change until the approach is agreed. Inside an accepted plan in `docs/plans`, continue the next task without re-asking. Surface tradeoffs when the direction is ambiguous.
-4. Design infrastructure, file organization, and code for practical reuse. Before adding a new function, look for an existing implementation to reuse, extend, or extract; do not create multiple functions that perform the same operation, while avoiding premature abstractions.
+## 3. Agent roles
 
-## Product
+- **Coordinator:** Claude Code, Opus 5.5, medium effort. Plans, writes specs and docs, dispatches workers through Orca, reviews every diff, commits.
+- **Worker:** OpenCode Go, `opencode-go/deepseek-v4.1-flash` (`opencode.json`), started with `orca orchestration worker-start --agent opencode2`. Implements one spec, runs checks, reports evidence. Never edits `AGENTS.md`, `CODE_RULES.md`, or `docs/**`, never commits, asks instead of widening scope.
 
-TeamOS is a collaborative workspace application for managing organizations, projects, members, and issues. Its core workflow is inspired by Linear, with first-class real-time team chat and schedule management.
+Details: `docs/decisions/0003-agent-roles-orca.md`.
 
-The product should make it easy for a team to:
+## 4. Stack
 
-- Create and manage organizations and their members.
-- Organize work into projects and issues.
-- Assign, prioritize, label, and track issues through a workflow.
-- Chat in real time within the relevant organization or project context.
-- Create and manage schedules, events, and team availability.
+| Area     | Choice                                                                                                                           |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Monorepo | Turborepo 2, Bun 1.3 workspaces                                                                                                  |
+| Web      | `apps/web`: Vite, React 19, React Router, TanStack Query, Zustand, shadcn/ui (base-nova, Base UI), Tailwind CSS 4, Framer Motion |
+| API      | `apps/api`: Hono on Bun, OpenAPI + Scalar                                                                                        |
+| Data     | PostgreSQL + Drizzle ORM/Kit (`packages/db`), Redis (rate limits, coordination), MinIO (S3 API)                                  |
+| Auth     | Better Auth with the Organization plugin (`apps/api/src/auth`)                                                                   |
+| Tooling  | oxlint (type-aware), oxfmt, tsdown, Vitest — config in `packages/config` (ADR 0001, 0002)                                        |
 
-Keep the initial implementation focused. Prefer a reliable organization/project/issue foundation before adding advanced collaboration features.
+Do not replace a technology without an ADR the user accepted.
 
-## Technology Stack
+## 5. Commands
 
-- Monorepo: Turborepo
-- Package manager: Bun
-- Frontend: React with Vite and TypeScript
-- Backend: Hono with TypeScript
-- UI: shadcn/ui, Tailwind CSS, and Framer Motion
-- Database: PostgreSQL
-- ORM: Drizzle ORM with Drizzle Kit for migrations
-- Authentication: Better Auth
-- Cache and real-time coordination: Redis
-- Object storage: MinIO using its S3-compatible API
-- Local infrastructure: Docker Compose at the repository root
-
-Do not replace these technologies without an explicit architectural decision from the user.
-
-## Repository Structure
-
-```text
-.
-├── .github/                 # Actions workflows and Dependabot
-├── apps/
-│   ├── web/                 # Vite React frontend
-│   │   ├── src/             # App, pages, components, hooks, lib, and styles
-│   │   └── .env.example     # Web environment template
-│   └── api/                 # Hono backend
-│       ├── src/             # Server, routes, services, middleware, and config
-│       └── .env.example     # API environment template
-├── packages/
-│   ├── db/                  # Server-only Drizzle client and database schema
-│   ├── shared/              # Cross-app contracts, schemas, and pure utilities
-│   ├── eslint-config/       # Shared ESLint flat configurations
-│   ├── prettier-config/     # Shared Prettier configurations
-│   └── typescript-config/   # Shared TypeScript JSON configurations
-├── deploy/                  # Production Caddyfile
-├── docs/                    # Infrastructure and project progress documentation
-├── compose.yaml             # PostgreSQL, Redis, and MinIO for local development
-├── compose.prod.yaml        # Single-host production stack (see docs/deployment.md)
-├── Dockerfile               # Production migrate, api, and web images
-├── package.json
-└── turbo.json
-```
-
-Add a package only when it has a clear owner and is reused or independently useful. Do not turn every folder into a package. Database and authentication runtime code remains server-only.
-
-## Current Folder Guide
-
-Every feature exposes an `index.ts` barrel for its public surface; `routes` and `shared` do the same. Keep application behavior in the owning app and use package exports for cross-workspace configuration.
-
-- `apps/web/src/app`: Providers and route registration.
-- `apps/web/src/layouts`: Router layouts and their route-orchestration hooks.
-- `apps/web/src/routes`: URL-level route components only, named `*-route.tsx`.
-- `apps/web/src/features`: One folder per product capability (`auth`, `workspaces`, `members`, `projects`, `system`), each colocating `api`, `components`, `hooks`, `lib`, and `query-keys`.
-- `apps/web/src/shared`: Genuinely cross-feature browser code: API client, environment, query client, and reusable components and hooks.
-- `apps/web/src/components/ui`: Generated shadcn primitives. Never moved or restyled.
-- `apps/web/src/lib`: Browser helper reserved for the shadcn `cn` utility alias.
-- `apps/web/src/test`: Shared test rendering, MSW server, and fixtures.
-- `apps/web/src/styles`: Global CSS entry point.
-- `apps/api/src/auth`: Server-side Better Auth instance, session middleware, and organization access checks.
-- `apps/api/src/config`: Validated server configuration.
-- `apps/api/src/errors`: Typed application errors and HTTP error normalization.
-- `apps/api/src/infrastructure`: Redis, rate limiter, and future external-service adapters.
-- `apps/api/src/logging`: Server logger construction and transport policy.
-- `apps/api/src/middleware`: HTTP middleware.
-- `apps/api/src/openapi`: OpenAPI document and interactive reference registration.
-- `apps/api/src/routes`: Thin HTTP route definitions.
-- `apps/api/src/services`: Server-side business operations.
-- `docs`: Current infrastructure guide and product/engineering progress.
-- `packages/db`: Server-only Drizzle client, schema, and migration configuration.
-- `packages/shared`: Cross-app API contracts, runtime schemas, and environment-agnostic utilities.
-- `packages/eslint-config`: `web` and `api` ESLint flat config exports.
-- `packages/prettier-config`: Shared `web` and `api` formatting exports.
-- `packages/typescript-config`: Strict `base.json`, `web.json`, and `api.json` presets.
-- Root `.env`: Docker Compose variables only. `apps/api/.env` and `apps/web/.env` are per-application configuration; each location commits a `.env.example` without secrets.
-
-## Bun Commands
-
-Run commands from the repository root with Bun:
-
-```text
+```sh
 bun install
-bun run dev
-bun run build
-bun run start
-bun run lint
-bun run lint:fix
-bun run format
-bun run format:check
-bun run check-types
-bun run check
+docker compose up -d            # PostgreSQL, Redis, MinIO
+bun run db:migrate
+bun run seed                    # optional local fixtures
+bun run dev                     # turbo tui: api + web
+bun run check                   # format:check, lint, check-types, test, build
+bun run --cwd apps/api verify:isolation   # tenant isolation against live PostgreSQL
+bun run db:generate             # then review the SQL order
 ```
 
-Use `bun run --cwd apps/web <script>` or `bun run --cwd apps/api <script>` when working on one application only.
-
-## Architecture Boundaries
-
-### Frontend
-
-`apps/web` owns browser-specific behavior, routes, page composition, client state, and presentation. Build reusable interface primitives with shadcn/ui and Tailwind CSS. Use Framer Motion for purposeful transitions and feedback, not decoration that slows down routine work.
-
-The frontend must not import server-only code, database clients, secrets, Node-only modules, or backend implementation details.
-
-Always separate frontend behavior from presentation. UI components receive typed props and render markup; dedicated hooks own state, effects, data access, mutations, permissions, derived workflow state, and non-trivial handlers. Do not place business or feature logic inside UI components. Follow the detailed frontend separation rules in `CODE_RULES.md`.
-
-Organize `apps/web/src` by feature, not by technical file type:
-
-- `app` owns providers and route registration.
-- `layouts` owns router layouts and their route-orchestration hooks.
-- `routes` owns URL-level route components only.
-- `features/<feature>` owns one product capability and colocates its `api`, `components`, `hooks`, and `query-keys`.
-- `shared` owns genuinely cross-feature browser code: API client, environment, query client, reusable hooks, and reusable components.
-- `components/ui` stays reserved for generated shadcn primitives and is never moved or edited for organizational reasons.
-
-Naming follows the shadcn/ui convention that `components/ui` already uses, and it is uniform across `apps/` and `packages/`: kebab-case for every file and directory, PascalCase for React component exports, camelCase for functions and hooks, a `use-` prefix for hook files, a `-route.tsx` suffix for route modules, and a `.test.ts(x)` suffix for tests. See `CODE_RULES.md` for the full rule. A feature exposes its public surface through `index.ts`; internal feature modules import each other relatively. Report to the user which layer a new file belongs to when it is not obvious.
-
-Follow the shadcn rules in `CODE_RULES.md`: never pass `size="sm"` in application code, use the default size, prefer `size="icon"` over `size="icon-sm"`, and keep the design system as close to upstream shadcn as practical.
-
-### Backend
-
-`apps/api` owns HTTP and real-time transports, authorization enforcement, application services, integrations, and background work. Keep Hono route handlers thin: validate input, call a service, and translate the result into an HTTP response.
-
-All organization-scoped operations must verify membership and permissions on the server. A hidden button in the frontend is not an authorization boundary.
-
-### Shared code
-
-`packages/shared` is the source of truth for code that must behave identically in both apps, including:
-
-- Domain types and identifiers.
-- Request and response contracts.
-- Runtime validation schemas that are safe in both environments.
-- Constants, permission names, and event names.
-- Pure formatting, parsing, and domain helper functions.
-
-Place reusable utility functions under `packages/shared/utilities`. Organize them by domain or responsibility rather than creating one large catch-all file.
-
-Shared code must be environment-agnostic and free of side effects. It must not import the database client, access environment variables, initialize authentication, or depend on browser-only APIs. Do not duplicate a contract or pure helper in both apps when it belongs here.
-
-`packages/db` and `packages/auth` expose server-facing types or helpers, but frontend code must not import their runtime modules. `packages/db` owns the database client and Drizzle schema; API services consume it through explicit dependencies.
-
-`docs/infra-guide.md` describes current local service ownership and integration status. `docs/progress.md` tracks product and engineering milestones and should be updated after meaningful feature work. `docs/agent-system.md` is the shared OpenCode and Grok Build skill stack; do not install a skill it rejects.
-
-## Domain and Data Rules
-
-- Treat the organization as the primary tenancy boundary.
-- Scope projects, memberships, issues, chats, channels, messages, and schedules to an organization where applicable.
-- Use explicit roles and permissions instead of scattered role-name checks.
-- Enforce tenant isolation in backend services and database queries, and prefer database-enforced relationships for cross-entity integrity. Project membership references both the project and the member with the organization included in the same composite foreign key.
-- Report an inaccessible tenant-scoped resource as `404`; reserve `403` for an action denied on a resource the caller may see.
-- Prefer stable public IDs and never expose sensitive internal data unnecessarily.
-- Store timestamps in UTC and localize them only at display boundaries.
-- Model issue status, priority, assignment, labels, and ordering explicitly.
-- Preserve audit-friendly fields such as creator, updater, and timestamps for important records.
-
-## Authentication and Authorization
-
-Use Better Auth as the authentication foundation. Its server configuration lives in `apps/api/src/auth` and exposes only safe client helpers to the frontend. The Better Auth Organization plugin owns organizations, members, and invitations, and `packages/db` owns the resulting Drizzle schema.
-
-Organization member and invitation mutations go through a thin TeamOS facade in `apps/api/src/routes/organization-*.ts` and `apps/api/src/services/organization-management.ts`, which calls the Better Auth server API after applying TeamOS authorization, auditing, rate limiting, and response contracts. The equivalent native Better Auth endpoints are blocked for browser callers so the facade cannot be bypassed; invitation acceptance and rejection stay native because Better Auth already enforces recipient matching, verified email, expiry, and single use.
-
-Organization roles (`owner`, `admin`, `member`) are the only source of organization-wide authority and are defined once in `packages/shared` policy helpers. The owner role is never granted through invites or generic member management; ownership transfer needs its own flow.
-
-Projects are a TeamOS domain concept and are not Better Auth teams. Project access combines the organization role with an explicit project role (`lead`, `member`, `viewer`), organization owners and admins always retain full project control, and private projects are invisible to members without a project role. Model project permissions through the shared policy helpers and enforce them in services, never in the UI.
-
-Authentication answers who the user is; authorization determines what that user may do. Every protected API route and real-time connection must enforce both. Validate organization membership when joining chat channels, subscribing to events, accessing files, or changing schedules.
-
-## Real-Time Features
-
-Use one documented event contract shared through `packages/shared`. Events should include a versionable name, tenant or room scope, actor where relevant, timestamp, and validated payload.
-
-Redis may be used for pub/sub, presence, short-lived state, rate limiting, and coordination across API instances. PostgreSQL remains the durable source of truth. Do not rely on Redis as the only copy of messages, schedules, issues, or permissions.
-
-Design chat delivery so reconnecting clients can recover missed durable messages. Treat presence and typing indicators as ephemeral.
-
-## Storage
-
-Use MinIO locally through its S3-compatible API for avatars, attachments, and other objects. Store object metadata and ownership in PostgreSQL. Use signed URLs or authorized backend endpoints; do not expose permanent credentials or unrestricted buckets to the browser.
-
-## Local Infrastructure
-
-The root `compose.yaml` must define PostgreSQL, Redis, and MinIO services with health checks, named volumes, and development-safe defaults. Keep credentials configurable through environment variables and provide a committed `.env.example` without secrets.
-
-Environment files are split by owner. The root `.env` only configures Docker Compose. The API validates `apps/api/.env` with Zod at startup, and the web client validates `apps/web/.env` with Zod whenever Vite runs. Both schemas apply local development defaults, so a fresh clone runs without creating `.env` files first.
-
-Application processes may run directly through Bun during development; the root `compose.yaml` only provides supporting infrastructure. Production uses the full-container workflow in `compose.prod.yaml`, the root `Dockerfile`, and `deploy/Caddyfile`, documented in `docs/deployment.md`. Keep its API environment overrides in sync when the API adds connection or URL variables.
-
-## Engineering Conventions
-
-- Use TypeScript in strict mode.
-- Prefer small, typed modules and explicit dependencies.
-- Validate all untrusted input at system boundaries.
-- Keep API contracts in `packages/shared` and derive TypeScript types from schemas when practical.
-- Use Drizzle migrations for schema changes; do not rely on manual database edits.
-- Avoid cross-app relative imports. Import workspace packages through their package names.
-- Keep secrets server-side and validate required environment variables at startup.
-- Return consistent, typed error shapes without leaking stack traces or sensitive details.
-- Add comments for non-obvious decisions, not for code that already explains itself.
-- Maintain accessible keyboard interactions, visible focus states, and reduced-motion support in the UI.
-
-## Working in This Repository
-
-Before changing code:
-
-1. Inspect the relevant app and package boundaries.
-2. Check the root and package-level scripts instead of assuming command names.
-3. Identify whether a contract change affects both frontend and backend.
-
-When implementing a feature:
-
-1. Define or update shared schemas and contracts.
-2. Add the database migration when persistence changes.
-3. Implement backend authorization and business logic.
-4. Implement the frontend flow and its loading, empty, error, and success states.
-5. Add focused tests for permissions, tenant isolation, validation, and important state changes.
-
-Useful verification commands beyond the standard scripts:
+## 6. Code map
 
 ```text
-bun run --cwd apps/api verify:isolation   # tenant isolation against live PostgreSQL
-bun run db:generate                       # review generated SQL before committing
+apps/web/src
+  app/            providers, route registration (routes.tsx)
+  layouts/        router layouts + their orchestration hooks
+  routes/         URL-level components only, *-route.tsx
+  features/<f>/   one capability: api, components, hooks, lib, query-keys, index.ts barrel
+  shared/         cross-feature API client, env, query client, hooks, components
+  components/ui/  generated shadcn primitives — never edited or moved
+apps/api/src      auth, config, errors, infrastructure, logging, middleware, openapi, routes (thin), services
+packages/shared   cross-app contracts, Zod schemas, policy helpers, label mappers, utilities
+packages/db       server-only Drizzle client, schema, migrations
+packages/config   tsconfig, oxlint, oxfmt, vitest presets
+<workspace>/test  tests mirroring src/
 ```
 
-Review generated migrations for statement ordering. A composite unique constraint used as a foreign-key target must be created before the foreign key, and Drizzle Kit does not always emit them in that order.
+## 7. Invariants (never violate)
 
-Before considering work complete, run the repository's available formatting, linting, type-checking, test, and build scripts. For UI changes, verify responsive layout, keyboard behavior, light and dark themes, and reduced motion. For infrastructure changes, validate the Docker Compose configuration and service health.
+1. The organization is the tenancy boundary; projects, memberships, issues, views, chats, and schedules are organization-scoped.
+2. Every protected route and realtime connection checks authentication and organization membership on the server.
+3. An inaccessible tenant-scoped resource returns `404`; `403` is only for a denied action on a visible resource.
+4. Organization roles (`owner`, `admin`, `member`) and project roles (`lead`, `member`, `viewer`) are defined once in `packages/shared` policy helpers; no scattered role-name checks.
+5. Owners and admins always have full project control. Private projects are invisible to members without a project role.
+6. `owner` is never granted by an invite or a generic member update.
+7. Member and invitation mutations go through the TeamOS facade (`routes/organization-*.ts`, `services/organization-management.ts`); the native Better Auth browser endpoints for them stay blocked. Invitation accept/reject stay native.
+8. Projects are a TeamOS concept, not Better Auth teams.
+9. Project membership references project and member through a composite foreign key that includes the organization.
+10. PostgreSQL is the durable source of truth; Redis never holds the only copy of anything.
+11. Timestamps are stored in UTC and localized only at display.
+12. A deleted issue number is never reused (`project_issue_counter`).
+13. `apps/web` never imports server-only code, `packages/db` runtime, secrets, or Node-only modules.
+14. Coded values (roles, statuses, visibility) reach the screen only through a typed label mapper in `packages/shared`.
 
-Pull requests to `main` and pushes to `main` run `bun run check`, TruffleHog, and CodeQL through `.github/workflows`. Dependabot updates Bun and GitHub Actions weekly. The details are in `docs/infra-guide.md`.
+If a task seems to require breaking one, stop, write an ADR in `docs/decisions/`, and ask the user.
 
-## Change Discipline
+## 8. Repo-specific conventions
 
-- Prefer the smallest sufficient change that fits the architecture.
-- Preserve unrelated user changes in the worktree.
-- Do not invent product requirements, permissions, metrics, or integrations.
-- Call out assumptions when requirements are ambiguous or affect data modeling, security, or user-visible behavior.
-- Update this file when the established architecture or workflow changes materially.
+- Frontend: components are presentational; hooks own state, data access, mutations, permissions, and handlers (`CODE_RULES.md` §5).
+- shadcn: never `size="sm"`, `size="icon"` over `icon-sm`, every button has an icon, icons via `data-icon` (`CODE_RULES.md` §7).
+- Naming: kebab-case files, `use-` hooks, `-route.tsx` routes, `.test.ts(x)` tests in `test/` (`CODE_RULES.md` §8).
+- Realtime events: one versioned contract in `packages/shared` with name, tenant/room scope, actor, timestamp, validated payload. Reconnecting clients recover durable messages; presence and typing are ephemeral.
+- Storage: object metadata and ownership in PostgreSQL; browsers get signed URLs or authorized endpoints only.
+- Env: root `.env` is Docker Compose only; `apps/api/.env` and `apps/web/.env` are validated with Zod at startup and have local defaults. Keep `compose.prod.yaml` API overrides in sync with new API env vars.
+- Migrations: a composite unique constraint used as an FK target must be created before the FK; Drizzle Kit does not always order them.
+- Docs and code are English. Chat with the owner is Vietnamese.
+
+## 9. Ask first (beyond hd-core defaults)
+
+- A new product direction, permission model, schema-ownership change, or technology change. Inside an accepted plan, continue without asking.
+- Installing a skill (`docs/agent-system.md` lists approved and rejected ones).
+- Changing the worker model or agent roles.
+
+## 10. Definition of Done
+
+- [ ] `bun run check` passes, and `git diff --check` is clean
+- [ ] Authorization and tenant isolation are tested for protected changes; `verify:isolation` runs when isolation changes
+- [ ] UI changes: loading, empty, error, success states; keyboard, focus, light/dark, reduced motion checked
+- [ ] `docs/progress.md` updated only when persistence, authorization, tests, and the screen all exist
+- [ ] ADR for a new library or architecture change; skipped checks named with the reason
 
 <!-- BEGIN:turborepo-agent-rules -->
 
