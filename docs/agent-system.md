@@ -75,7 +75,7 @@ Keep instructions short and retrieve the rest by path:
 - `docs/agent-system.md` — this file
 - `docs/infra-guide.md` and `docs/api-guide.md` — current infrastructure and API behavior
 
-Do not copy those documents into the prompt. Do not add a second issue tracker. GitHub Issues and Linear are not the backlog for this repository.
+Do not copy those documents into the prompt. Do not add a second issue tracker. GitHub Issues and Linear are not the backlog for this repository; the Linear MCP is disabled in `opencode.json` and denied in `.claude/settings.json`, and `orca-linear` is not used here.
 
 ## Rejected skills
 
@@ -94,4 +94,4 @@ Do not install these unless the user explicitly reverses the decision:
 
 Phase 2 candidates are `domain-modeling`, `writing-for-agents`, and `web-design-guidelines`. `vercel-react-best-practices` is useful only with the Vite and TanStack Query override above.
 
-Phase 3 waits for a real need: browser end-to-end tests, local-only static security scanning, Redis beyond rate limiting, and CI. There is no approved Drizzle, Hono, or Bun skill. Use the repo patterns instead.
+Phase 3 waits for a real need: local-only static security scanning, Redis beyond rate limiting, and CI. There is no approved Drizzle, Hono, or Bun skill. Use the repo patterns instead.

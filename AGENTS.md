@@ -93,6 +93,8 @@ If a task seems to require breaking one, stop, write an ADR in `docs/decisions/`
 - Env: root `.env` is Docker Compose only; `apps/api/.env` and `apps/web/.env` are validated with Zod at startup and have local defaults. Keep `compose.prod.yaml` API overrides in sync with new API env vars.
 - Migrations: a composite unique constraint used as an FK target must be created before the FK; Drizzle Kit does not always order them.
 - Docs and code are English. Chat with the owner is Vietnamese.
+- Backlog lives only in `docs/plans/` and `docs/progress.md`. No Linear or GitHub Issues: the Linear MCP and the `orca-linear` skill are disabled for this repo (`opencode.json`, `.claude/settings.json`).
+- Tests are Vitest unit and service/HTTP tests only. No end-to-end or Playwright suite (owner decision, overrides `hd-core` testing).
 
 ## 9. Ask first (beyond hd-core defaults)
 
