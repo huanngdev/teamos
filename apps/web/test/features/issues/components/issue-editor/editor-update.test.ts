@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { shouldPublishEditorUpdate } from "./editor-update";
+import { shouldPublishEditorUpdate } from "@/features/issues/components/issue-editor/editor-update";
 
 test("does not write content for a selection-only update", () => {
   expect(

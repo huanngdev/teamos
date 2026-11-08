@@ -1,6 +1,6 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 
-import { createEmailService, type EmailEnv } from "./create-email-service.js";
+import { createEmailService, type EmailEnv } from "@/infrastructure/email/create-email-service.js";
 
 const configuredEnv: EmailEnv = {
   EMAIL_FROM: "TeamOS <notifications@example.com>",

@@ -11,6 +11,7 @@
         "tsdown": "^0.23.7",
         "turbo": "^2.11.7",
         "typescript": "^5.9.2",
+        "vitest": "^5.0.3",
       },
     },
     "apps/api": {
@@ -41,6 +42,7 @@
         "@teamos/config": "workspace:*",
         "bun-types": "^1.4.3",
         "typescript": "^5.9.2",
+        "vitest": "^5.0.3",
       },
     },
     "apps/web": {
@@ -133,6 +135,7 @@
         "drizzle-kit": "^0.31.11",
         "pg": "^8.23.1",
         "typescript": "^5.9.2",
+        "vitest": "^5.0.3",
       },
     },
     "packages/shared": {
@@ -145,6 +148,7 @@
         "@teamos/config": "workspace:*",
         "bun-types": "^1.4.3",
         "typescript": "^5.9.2",
+        "vitest": "^5.0.3",
       },
     },
   },

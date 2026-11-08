@@ -24,8 +24,8 @@ import { ProjectSettingsRoute } from "@/routes/project-settings-route";
 import { WorkspaceProjectsRoute } from "@/routes/workspace-projects-route";
 import { WorkspaceSettingsRoute } from "@/routes/workspace-settings-route";
 import { apiUrl } from "@/shared";
-import { renderWithProviders } from "@/test/render-app";
-import { server } from "@/test/server";
+import { renderWithProviders } from "./render-app";
+import { server } from "./server";
 
 const sessionResponse = {
   session: {

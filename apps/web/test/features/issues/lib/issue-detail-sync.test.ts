@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { issueDetailSync } from "./issue-detail-sync";
+import { issueDetailSync } from "@/features/issues/lib/issue-detail-sync";
 
 const issueId = "issue-1";
 const initial = "2026-01-02T00:00:00.000Z";

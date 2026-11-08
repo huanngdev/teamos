@@ -4,8 +4,12 @@ import { http, HttpResponse } from "msw";
 import { expect, test } from "vitest";
 
 import { apiUrl } from "@/shared";
-import { server } from "@/test/server";
-import { projectResponse, renderWorkspace, useWorkspaceHandlers } from "@/test/workspace-fixtures";
+import { server } from "../../../support/server";
+import {
+  projectResponse,
+  renderWorkspace,
+  useWorkspaceHandlers,
+} from "../../../support/workspace-fixtures";
 
 const viewId = "22222222-2222-4222-8222-222222222222";
 

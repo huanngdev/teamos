@@ -1,5 +1,5 @@
 import { HTTPException } from "hono/http-exception";
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { z, ZodError } from "zod";
 
 import { AppError } from "@/errors/index.js";

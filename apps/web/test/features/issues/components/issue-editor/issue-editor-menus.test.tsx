@@ -21,7 +21,7 @@ import {
 } from "lexical";
 import { afterEach, expect, test } from "vitest";
 
-import { IssueEditor } from "./issue-editor";
+import { IssueEditor } from "@/features/issues/components/issue-editor/issue-editor";
 
 const caret = {
   bottom: 40,

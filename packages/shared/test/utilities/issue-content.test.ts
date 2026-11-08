@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   issueContentDocumentSchema,
@@ -7,7 +7,7 @@ import {
   issueContentText,
   prepareIssueContent,
   type IssueContentDocument,
-} from "./issue-content.js";
+} from "../../src/utilities/issue-content.js";
 
 function requiredDocument(document: IssueContentDocument | null): IssueContentDocument {
   if (document === null) {

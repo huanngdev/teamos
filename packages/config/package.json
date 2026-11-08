@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     "./tsconfig/*.json": "./tsconfig/*.json",
-    "./vitest/*": "./vitest/*",
+    "./vitest/*": "./vitest/*.ts",
     "./package.json": "./package.json"
   },
   "devDependencies": {

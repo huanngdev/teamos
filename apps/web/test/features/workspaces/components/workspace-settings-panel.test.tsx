@@ -8,8 +8,8 @@ import {
   organizationContext,
   renderWorkspace,
   useWorkspaceHandlers,
-} from "@/test/workspace-fixtures";
-import { server } from "@/test/server";
+} from "../../../support/workspace-fixtures";
+import { server } from "../../../support/server";
 
 test("renames the workspace and updates the switcher", async () => {
   const requests: unknown[] = [];

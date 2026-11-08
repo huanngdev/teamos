@@ -1,11 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   getIssuePriorityLabel,
   getIssueStatusCategoryLabel,
   issuePrioritySchema,
   issueStatusCategorySchema,
-} from "./issue-workflow.js";
+} from "../../src/utilities/issue-workflow.js";
 
 describe("issue label mappers", () => {
   test("maps every status category to non-code display copy", () => {

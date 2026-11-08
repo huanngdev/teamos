@@ -7,11 +7,15 @@ import { Route, Routes } from "react-router";
 import { beforeEach, expect, test } from "vitest";
 
 import { apiUrl } from "@/shared";
-import { renderWithProviders } from "@/test/render-app";
-import { server } from "@/test/server";
-import { boardStatuses, projectResponse, useWorkspaceHandlers } from "@/test/workspace-fixtures";
+import { renderWithProviders } from "../../../support/render-app";
+import { server } from "../../../support/server";
+import {
+  boardStatuses,
+  projectResponse,
+  useWorkspaceHandlers,
+} from "../../../support/workspace-fixtures";
 
-import { useIssueDetail } from "./use-issue-detail";
+import { useIssueDetail } from "@/features/issues/hooks/use-issue-detail";
 
 const projectId = projectResponse.projects[0].id;
 const statusId = boardStatuses.statuses[0].id;

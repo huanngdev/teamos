@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
-import type { BackendReadinessState } from "../hooks/use-backend-readiness";
+import type { BackendReadinessState } from "@/features/system/hooks/use-backend-readiness";
 
-import { ReadinessScreen } from "./readiness-screen";
+import { ReadinessScreen } from "@/features/system/components/readiness-screen";
 
 const unavailableState: Extract<BackendReadinessState, { status: "error" }> = {
   errorMessage: "The API is reachable, but Redis is not ready.",

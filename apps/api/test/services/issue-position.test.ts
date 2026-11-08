@@ -1,7 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { ISSUE_POSITION_GAP } from "@teamos/shared";
 
-import { placeAtIndex, placeBetween, reorderByIndex, spreadWindow } from "./issue-position.js";
+import {
+  placeAtIndex,
+  placeBetween,
+  reorderByIndex,
+  spreadWindow,
+} from "@/services/issue-position.js";
 
 describe("placeAtIndex", () => {
   test("starts an empty column at zero", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   canCreateIssueView,
@@ -13,8 +13,8 @@ import {
   issueViewDefinitionsEqual,
   issueViewToListQuery,
   normalizeIssueViewDefinition,
-} from "./issue-view.js";
-import { parseIssueListQuery } from "./issue-list-query.js";
+} from "../../src/utilities/issue-view.js";
+import { parseIssueListQuery } from "../../src/utilities/issue-list-query.js";
 
 const statusId = "11111111-1111-4111-8111-111111111111";
 const viewer = {

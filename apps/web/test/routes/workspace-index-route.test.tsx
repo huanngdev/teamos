@@ -5,9 +5,9 @@ import { beforeEach, expect, test } from "vitest";
 
 import { WorkspaceIndexRoute } from "@/routes/workspace-index-route";
 import { apiUrl } from "@/shared";
-import { renderWithProviders } from "@/test/render-app";
-import { server } from "@/test/server";
-import { organizationsResponse, sessionResponse } from "@/test/workspace-fixtures";
+import { renderWithProviders } from "../support/render-app";
+import { server } from "../support/server";
+import { organizationsResponse, sessionResponse } from "../support/workspace-fixtures";
 
 beforeEach(() => {
   window.localStorage.clear();

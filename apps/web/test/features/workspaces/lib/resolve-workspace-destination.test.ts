@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { OrganizationSummary } from "@teamos/shared";
 
-import { resolveWorkspaceDestination } from "./resolve-workspace-destination";
+import { resolveWorkspaceDestination } from "@/features/workspaces/lib/resolve-workspace-destination";
 
 function organization(
   overrides: Partial<OrganizationSummary> & { id: string; slug: string },

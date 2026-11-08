@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-import { updateCurrentUserRequestSchema } from "./authentication.js";
+import { updateCurrentUserRequestSchema } from "../../src/contracts/authentication.js";
 
 describe("updateCurrentUserRequestSchema", () => {
   test("trims the submitted name", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { placementForDrop } from "./issue-placement";
+import { placementForDrop } from "@/features/issues/lib/issue-placement";
 
 const cards = [{ id: "a" }, { id: "b" }, { id: "c" }];
 

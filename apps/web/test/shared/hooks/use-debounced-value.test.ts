@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { useDebouncedValue } from "./use-debounced-value";
+import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
 
 beforeEach(() => {
   vi.useFakeTimers();

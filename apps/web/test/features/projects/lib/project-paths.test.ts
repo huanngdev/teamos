@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { projectOverviewPath, projectSettingsPath } from "./project-paths";
+import { projectOverviewPath, projectSettingsPath } from "@/features/projects/lib/project-paths";
 
 test("builds the short project base and encodes both slugs", () => {
   expect(projectOverviewPath("acme", "website")).toBe("/w/acme/p/website");

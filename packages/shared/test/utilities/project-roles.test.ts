@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-import type { OrganizationRole } from "./organization-roles.js";
+import type { OrganizationRole } from "../../src/utilities/organization-roles.js";
 import {
   canPerformProjectAction,
   getProjectRoleLabel,
@@ -10,7 +10,7 @@ import {
   type ProjectAction,
   type ProjectRole,
   type ProjectVisibility,
-} from "./project-roles.js";
+} from "../../src/utilities/project-roles.js";
 
 function access(
   organizationRole: OrganizationRole,

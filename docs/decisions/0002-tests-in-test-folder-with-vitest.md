@@ -10,6 +10,7 @@ Tests sat next to their source files. `apps/api`, `packages/shared`, and `packag
 
 - Every workspace keeps its tests in `<workspace>/test/`, mirroring `src/` (`src/a/b.ts` → `test/a/b.test.ts`). Shared helpers and fixtures live in `test/support/`. `src/` never imports from `test/`.
 - Every workspace runs `bun --bun vitest run` with a config that merges `@teamos/config/vitest/base`. `bun:test` imports are replaced by `vitest`.
+- Exception: `apps/web` runs `vitest run` on Node. MSW's Node interceptors patch `tls` internals that Bun does not implement, and browser code in jsdom needs no Bun APIs.
 - Tests that need live PostgreSQL stay separate scripts (`verify:isolation`) with `cache: false`.
 
 ## Consequences

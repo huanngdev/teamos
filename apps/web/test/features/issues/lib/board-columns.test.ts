@@ -1,7 +1,11 @@
 import { describe, expect, test } from "vitest";
 import type { IssueSummary, ProjectStatusSummary } from "@teamos/shared";
 
-import { applyIssueMove, groupBoardColumns, resolveBoardSnapshot } from "./board-columns";
+import {
+  applyIssueMove,
+  groupBoardColumns,
+  resolveBoardSnapshot,
+} from "@/features/issues/lib/board-columns";
 
 const backlog: ProjectStatusSummary = {
   category: "backlog",

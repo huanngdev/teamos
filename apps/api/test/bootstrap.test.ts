@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { MockLogLayer } from "loglayer";
 import { drizzleStudioUrl } from "@teamos/db";
 

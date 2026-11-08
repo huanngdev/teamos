@@ -1,10 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   deleteOrganizationRequestSchema,
   organizationContextSchema,
   updateOrganizationRequestSchema,
-} from "./organization.js";
+} from "../../src/contracts/organization.js";
 
 describe("updateOrganizationRequestSchema", () => {
   test("trims the submitted name", () => {

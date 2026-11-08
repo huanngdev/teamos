@@ -8,9 +8,9 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "rootDir": "src",
+    "rootDir": ".",
     "sourceMap": true
   },
-  "include": ["src"],
+  "include": ["src", "test"],
   "exclude": ["dist", "node_modules"]
 }

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   assignableOrganizationRoleSchema,
@@ -13,7 +13,7 @@ import {
   organizationRoleLabels,
   organizationRoleSchema,
   parseOrganizationRole,
-} from "./organization-roles.js";
+} from "../../src/utilities/organization-roles.js";
 
 describe("parseOrganizationRole", () => {
   test("parses a single role", () => {

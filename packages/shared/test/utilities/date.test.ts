@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-import { formatDate, formatDateTime } from "./date.js";
+import { formatDate, formatDateTime } from "../../src/utilities/date.js";
 
 describe("formatDate", () => {
   test("formats an ISO timestamp with a short month and the year", () => {

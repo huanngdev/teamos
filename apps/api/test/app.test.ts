@@ -1,6 +1,6 @@
 import { MockLogLayer } from "loglayer";
 import { RateLimiterMemory } from "rate-limiter-flexible";
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import {
   apiErrorResponseSchema,
   healthStatusSchema,

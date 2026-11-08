@@ -5,7 +5,7 @@ import { describe, expect, test, vi } from "vitest";
 
 import type { KanbanCommitMeta } from "@/components/reui/kanban";
 import type { BoardColumn } from "@/features/issues";
-import { useIssueViewDrag } from "./use-issue-view-drag";
+import { useIssueViewDrag } from "@/features/views/hooks/use-issue-view-drag";
 
 function card(id: string, statusId: string): IssueCardSummary {
   return {

@@ -1,11 +1,11 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 
 import {
   getHealthStatus,
   getReadinessStatus,
   healthStatusSchema,
   readinessStatusSchema,
-} from "./health.js";
+} from "../../src/contracts/health.js";
 
 test("creates a valid health response", () => {
   const result = getHealthStatus(new Date("2026-01-02T03:04:05.000Z"));

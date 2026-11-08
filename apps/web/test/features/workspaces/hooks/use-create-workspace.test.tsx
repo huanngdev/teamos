@@ -5,11 +5,11 @@ import { expect, test } from "vitest";
 import type { OrganizationSummary } from "@teamos/shared";
 
 import { apiUrl } from "@/shared/api/env";
-import { createTestQueryClient, renderWithProviders } from "@/test/render-app";
-import { server } from "@/test/server";
+import { createTestQueryClient, renderWithProviders } from "../../../support/render-app";
+import { server } from "../../../support/server";
 
-import { ORGANIZATIONS_QUERY_KEY } from "../query-keys";
-import { useCreateWorkspace } from "./use-create-workspace";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/workspaces/query-keys";
+import { useCreateWorkspace } from "@/features/workspaces/hooks/use-create-workspace";
 
 const createdOrganization = {
   createdAt: "2026-01-02T00:00:00.000Z",

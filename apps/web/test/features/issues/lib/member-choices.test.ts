@@ -1,7 +1,7 @@
 import type { EligibleAssignee } from "@teamos/shared";
 import { expect, test } from "vitest";
 
-import { buildMemberChoices, selectedMemberChoices } from "./member-choices";
+import { buildMemberChoices, selectedMemberChoices } from "@/features/issues/lib/member-choices";
 
 const grace: EligibleAssignee = {
   email: "grace@example.com",

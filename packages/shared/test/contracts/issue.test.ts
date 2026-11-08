@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   createIssueRequestSchema,
@@ -6,7 +6,7 @@ import {
   deleteIssuesRequestSchema,
   updateIssueRequestSchema,
   updateProjectStatusRequestSchema,
-} from "./issue.js";
+} from "../../src/contracts/issue.js";
 
 describe("createIssueRequestSchema", () => {
   test("accepts a title without a status", () => {

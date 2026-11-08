@@ -1,13 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-import { SEARCH_TERM_MAX_LENGTH } from "../utilities/search.js";
+import { SEARCH_TERM_MAX_LENGTH } from "../../src/utilities/search.js";
 import {
   MEMBER_LIST_DEFAULT_LIMIT,
   MEMBER_LIST_MAX_LIMIT,
   memberListQuerySchema,
   memberListResponseSchema,
   updateMemberRoleSchema,
-} from "./member.js";
+} from "../../src/contracts/member.js";
 
 describe("memberListQuerySchema", () => {
   test("applies bounded defaults", () => {

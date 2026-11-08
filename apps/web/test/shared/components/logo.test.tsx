@@ -7,7 +7,7 @@ vi.mock("next-themes", () => ({
   useTheme: () => themeState,
 }));
 
-import { Logo } from "./logo";
+import { Logo } from "@/shared/components/logo";
 
 test.each([
   ["light", "/logo-light.svg"],

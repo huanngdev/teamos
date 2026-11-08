@@ -6,16 +6,16 @@ import { expect, test } from "vitest";
 
 import { apiUrl } from "@/shared";
 import { useEligibleAssignees } from "@/features/projects";
-import { server } from "@/test/server";
-import { renderWithProviders } from "@/test/render-app";
+import { server } from "../../../support/server";
+import { renderWithProviders } from "../../../support/render-app";
 import {
   boardStatuses,
   projectResponse,
   renderWorkspace,
   useWorkspaceHandlers,
-} from "@/test/workspace-fixtures";
-import { IssueFormDialog } from "./issue-form-dialog";
-import { useIssueForm } from "../hooks/use-issue-form";
+} from "../../../support/workspace-fixtures";
+import { IssueFormDialog } from "@/features/issues/components/issue-form-dialog";
+import { useIssueForm } from "@/features/issues/hooks/use-issue-form";
 
 const projectId = projectResponse.projects[0].id;
 const backlogId = "11111111-1111-4111-8111-111111111111";

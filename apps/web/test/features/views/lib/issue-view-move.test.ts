@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { issueMatchesViewColumns, issueViewMoveRequest } from "./issue-view-move";
+import {
+  issueMatchesViewColumns,
+  issueViewMoveRequest,
+} from "@/features/views/lib/issue-view-move";
 
 const issue = {
   assignees: [],

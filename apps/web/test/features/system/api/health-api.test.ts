@@ -3,8 +3,8 @@ import { expect, test } from "vitest";
 
 import { apiUrl } from "@/shared/api/env";
 
-import { getReadiness, ReadinessUnavailableError } from "./health-api";
-import { server } from "@/test/server";
+import { getReadiness, ReadinessUnavailableError } from "@/features/system/api/health-api";
+import { server } from "../../../support/server";
 
 const healthyReadiness = {
   dependencies: {

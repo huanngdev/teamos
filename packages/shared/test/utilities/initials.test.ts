@@ -1,6 +1,6 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 
-import { getInitials } from "./initials.js";
+import { getInitials } from "../../src/utilities/initials.js";
 
 test("uses the first letter of the first two words", () => {
   expect(getInitials("Ada Lovelace")).toBe("AL");

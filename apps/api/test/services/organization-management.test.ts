@@ -1,5 +1,5 @@
 import { MockLogLayer } from "loglayer";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { OrganizationMember } from "@teamos/shared";
 
 import type { InvitationRecord, OrganizationAccess, OrganizationGateway } from "@/auth/index.js";

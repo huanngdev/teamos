@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   ISSUE_NUMBER_MAX,
@@ -9,7 +9,7 @@ import {
   needleMatchesIssueCodeText,
   parseIssueCode,
   parseIssueNumberBound,
-} from "./issue-code.js";
+} from "../../src/utilities/issue-code.js";
 
 describe("formatIssueCode", () => {
   test("pads to four digits and keeps longer numbers", () => {

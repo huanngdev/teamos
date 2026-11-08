@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-import { slugify } from "./slug.js";
+import { slugify } from "../../src/utilities/slug.js";
 
 describe("slugify", () => {
   test("normalizes names into a URL-safe slug", () => {

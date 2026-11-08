@@ -5,9 +5,9 @@ import { StrictMode } from "react";
 import { expect, test } from "vitest";
 
 import { apiUrl } from "@/shared/api/env";
-import { server } from "@/test/server";
+import { server } from "../../../support/server";
 
-import { useBackendReadiness } from "./use-backend-readiness";
+import { useBackendReadiness } from "@/features/system/hooks/use-backend-readiness";
 
 const healthyReadiness = {
   dependencies: {

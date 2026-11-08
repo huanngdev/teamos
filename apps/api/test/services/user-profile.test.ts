@@ -1,5 +1,5 @@
 import { MockLogLayer } from "loglayer";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import type { UserGateway } from "@/auth/index.js";
 import { AppError } from "@/errors/index.js";

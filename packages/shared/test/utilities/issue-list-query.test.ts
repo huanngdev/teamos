@@ -1,6 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-import { parseIssueListQuery, resolveCurrentUserAssignee } from "./issue-list-query.js";
+import {
+  parseIssueListQuery,
+  resolveCurrentUserAssignee,
+} from "../../src/utilities/issue-list-query.js";
 
 const statusId = "11111111-1111-4111-8111-111111111111";
 

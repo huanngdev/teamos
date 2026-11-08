@@ -4,8 +4,12 @@ import { http, HttpResponse } from "msw";
 import { expect, test } from "vitest";
 
 import { apiUrl } from "@/shared";
-import { projectResponse, renderWorkspace, useWorkspaceHandlers } from "@/test/workspace-fixtures";
-import { server } from "@/test/server";
+import {
+  projectResponse,
+  renderWorkspace,
+  useWorkspaceHandlers,
+} from "../../../support/workspace-fixtures";
+import { server } from "../../../support/server";
 
 const projectId = projectResponse.projects[0].id;
 

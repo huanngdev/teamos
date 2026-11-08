@@ -4,9 +4,9 @@ import { expect, test } from "vitest";
 
 import { apiUrl } from "@/shared";
 
-import { App } from "./App";
-import { renderWithProviders } from "../test/render-app";
-import { server } from "../test/server";
+import { App } from "@/app/App";
+import { renderWithProviders } from "../support/render-app";
+import { server } from "../support/server";
 
 const healthyReadiness = {
   dependencies: {

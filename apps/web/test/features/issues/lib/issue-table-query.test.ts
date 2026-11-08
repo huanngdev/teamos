@@ -16,7 +16,7 @@ import {
   serializeIssueTableSearch,
   visiblePageIndexes,
   type IssueTableRow,
-} from "./issue-table-query";
+} from "@/features/issues/lib/issue-table-query";
 
 const backlog: ProjectStatusSummary = {
   category: "backlog",

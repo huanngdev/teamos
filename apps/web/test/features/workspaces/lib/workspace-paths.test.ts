@@ -6,7 +6,7 @@ import {
   workspaceProjectsPath,
   workspaceSettingsPath,
   workspacesNewPath,
-} from "./workspace-paths";
+} from "@/features/workspaces/lib/workspace-paths";
 
 test("builds short workspace paths and encodes slugs", () => {
   expect(workspacesNewPath()).toBe(createWorkspacePath);

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import type { IssueCardSummary } from "@teamos/shared";
 import { expect, test } from "vitest";
 
-import { IssueCardBody } from "./issue-card";
+import { IssueCardBody } from "@/features/issues/components/issue-card";
 
 const ada = {
   email: "ada@example.com",

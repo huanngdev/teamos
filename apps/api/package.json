@@ -7,8 +7,8 @@
     "dev": "bun --watch src/server.ts",
     "build": "rm -rf dist && bun build src/server.ts --target=bun --outdir=dist --sourcemap=external",
     "start": "bun dist/server.js",
-    "test": "bun test src",
-    "test:coverage": "bun test --coverage src",
+    "test": "bun --bun vitest run",
+    "test:watch": "bun --bun vitest",
     "benchmark:issues": "bun scripts/benchmark-issues.ts",
     "verify:isolation": "bun scripts/verify-organization-isolation.ts",
     "seed": "bun scripts/seed/index.ts",
@@ -40,6 +40,7 @@
     "@faker-js/faker": "^10.6.0",
     "@teamos/config": "workspace:*",
     "bun-types": "^1.4.3",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^5.0.3"
   }
 }

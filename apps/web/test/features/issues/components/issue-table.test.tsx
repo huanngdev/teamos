@@ -5,10 +5,14 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, expect, test, vi } from "vitest";
 
 import { apiUrl } from "@/shared";
-import { projectResponse, renderWorkspace, useWorkspaceHandlers } from "@/test/workspace-fixtures";
-import { server } from "@/test/server";
-import { useBoardStore } from "../stores/board-store";
-import { useIssueSelectionStore } from "../stores/issue-selection-store";
+import {
+  projectResponse,
+  renderWorkspace,
+  useWorkspaceHandlers,
+} from "../../../support/workspace-fixtures";
+import { server } from "../../../support/server";
+import { useBoardStore } from "@/features/issues/stores/board-store";
+import { useIssueSelectionStore } from "@/features/issues/stores/issue-selection-store";
 
 const backlogId = "11111111-1111-4111-8111-111111111111";
 

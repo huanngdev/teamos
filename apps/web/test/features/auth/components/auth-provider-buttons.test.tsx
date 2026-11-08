@@ -1,9 +1,9 @@
 import { screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 
-import { renderWithProviders } from "@/test/render-app";
+import { renderWithProviders } from "../../../support/render-app";
 
-import { AuthProviderButtons } from "./auth-provider-buttons";
+import { AuthProviderButtons } from "@/features/auth/components/auth-provider-buttons";
 
 const providers = [
   { enabled: true, id: "google", name: "Google" },

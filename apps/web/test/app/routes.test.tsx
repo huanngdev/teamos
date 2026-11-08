@@ -13,11 +13,11 @@ import {
   workspaceRoutePattern,
 } from "@/features/workspaces";
 import { apiUrl } from "@/shared";
-import { renderWithProviders } from "@/test/render-app";
-import { server } from "@/test/server";
-import { useWorkspaceHandlers } from "@/test/workspace-fixtures";
+import { renderWithProviders } from "../support/render-app";
+import { server } from "../support/server";
+import { useWorkspaceHandlers } from "../support/workspace-fixtures";
 
-import { AppRoutes } from "./routes";
+import { AppRoutes } from "@/app/routes";
 
 const healthyReadiness = {
   dependencies: {

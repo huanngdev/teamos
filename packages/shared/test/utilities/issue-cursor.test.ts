@@ -1,11 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   canonicalIssueColumnScope,
   decodeIssueColumnCursor,
   encodeIssueColumnCursor,
-} from "./issue-cursor.js";
-import type { IssueListFilters } from "./issue-list-query.js";
+} from "../../src/utilities/issue-cursor.js";
+import type { IssueListFilters } from "../../src/utilities/issue-list-query.js";
 
 const statusId = "11111111-1111-4111-8111-111111111111";
 const issueId = "22222222-2222-4222-8222-222222222222";

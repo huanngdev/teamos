@@ -4,8 +4,8 @@ import { http, HttpResponse } from "msw";
 import { expect, test } from "vitest";
 
 import { apiUrl } from "@/shared";
-import { renderWorkspace, useWorkspaceHandlers } from "@/test/workspace-fixtures";
-import { server } from "@/test/server";
+import { renderWorkspace, useWorkspaceHandlers } from "../../../support/workspace-fixtures";
+import { server } from "../../../support/server";
 
 test("shows member names, emails, and roles in the members table", async () => {
   useWorkspaceHandlers();

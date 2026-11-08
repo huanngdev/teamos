@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-import { SEARCH_TERM_MAX_LENGTH } from "../utilities/search.js";
+import { SEARCH_TERM_MAX_LENGTH } from "../../src/utilities/search.js";
 import {
   createProjectRequestSchema,
   deleteProjectRequestSchema,
@@ -10,7 +10,7 @@ import {
   projectSummarySchema,
   setProjectMemberRequestSchema,
   updateProjectRequestSchema,
-} from "./project.js";
+} from "../../src/contracts/project.js";
 
 describe("projectSlugSchema", () => {
   test("accepts a lowercase hyphenated slug", () => {

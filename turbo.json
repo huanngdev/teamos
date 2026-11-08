@@ -115,8 +115,9 @@
       "dependsOn": ["^build"]
     },
     "test": {
-      "cache": false,
-      "dependsOn": ["^build", "^test"]
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["coverage/**"]
     }
   }
 }

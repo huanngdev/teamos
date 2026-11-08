@@ -4,9 +4,9 @@ import type { IssueContentDocument } from "@teamos/shared";
 import { useState } from "react";
 import { expect, test } from "vitest";
 
-import { renderWithProviders } from "@/test/render-app";
+import { renderWithProviders } from "../../../../support/render-app";
 
-import { IssueEditor } from "./issue-editor";
+import { IssueEditor } from "@/features/issues/components/issue-editor/issue-editor";
 
 function paragraph(value: string) {
   return {

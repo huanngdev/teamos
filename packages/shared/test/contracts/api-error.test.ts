@@ -1,6 +1,6 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 
-import { apiErrorResponseSchema } from "./api-error.js";
+import { apiErrorResponseSchema } from "../../src/contracts/api-error.js";
 
 test("accepts the public API error contract", () => {
   const result = apiErrorResponseSchema.safeParse({

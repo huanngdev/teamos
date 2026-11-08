@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { sanitizeIssueEditorState } from "./sanitize-document";
+import { sanitizeIssueEditorState } from "@/features/issues/components/issue-editor/sanitize-document";
 
 function text(value: string) {
   return {

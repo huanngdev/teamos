@@ -7,8 +7,8 @@ import { expect, test } from "vitest";
 import { AccountLayout } from "@/layouts/account-layout";
 import { ProfileRoute } from "@/routes/profile-route";
 import { apiUrl } from "@/shared";
-import { server } from "@/test/server";
-import { renderWithProviders } from "@/test/render-app";
+import { server } from "../../../support/server";
+import { renderWithProviders } from "../../../support/render-app";
 
 const sessionResponse = {
   session: {

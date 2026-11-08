@@ -1,10 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   createInvitationRequestSchema,
   invitationListResponseSchema,
   organizationInvitationSchema,
-} from "./invitation.js";
+} from "../../src/contracts/invitation.js";
 
 describe("createInvitationRequestSchema", () => {
   test("normalizes email casing and whitespace", () => {
