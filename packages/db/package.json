@@ -6,6 +6,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
+    "./repositories": "./dist/repositories/index.mjs",
     "./schema": "./dist/schema/index.mjs",
     "./package.json": "./package.json"
   },
@@ -23,6 +24,7 @@
     "check-types": "tsc -p tsconfig.test.json"
   },
   "dependencies": {
+    "@teamos/shared": "workspace:*",
     "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {

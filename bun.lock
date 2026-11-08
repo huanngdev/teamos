@@ -128,6 +128,7 @@
       "name": "@teamos/db",
       "version": "0.0.0",
       "dependencies": {
+        "@teamos/shared": "workspace:*",
         "drizzle-orm": "^0.45.4",
       },
       "devDependencies": {

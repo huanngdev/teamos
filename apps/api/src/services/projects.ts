@@ -1,4 +1,5 @@
 import type { Database } from "@teamos/db";
+import { buildLiteralSearchCondition, clearIssueAssignees } from "@teamos/db/repositories";
 import {
   issue,
   member,
@@ -29,9 +30,7 @@ import { and, asc, count, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 
 import type { OrganizationAccess } from "@/auth/index.js";
 import { AppError } from "@/errors/index.js";
-import { clearIssueAssignees } from "@/services/issues.js";
 import { insertDefaultProjectStatuses } from "@/services/project-statuses.js";
-import { buildLiteralSearchCondition } from "@/services/search.js";
 
 type ProjectTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 

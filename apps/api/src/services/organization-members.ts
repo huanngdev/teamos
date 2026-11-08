@@ -1,10 +1,10 @@
 import type { Database } from "@teamos/db";
+import { buildLiteralSearchCondition } from "@teamos/db/repositories";
 import { member, user } from "@teamos/db/schema";
 import { type OrganizationMember } from "@teamos/shared";
 import { and, asc, count, eq, sql, type SQL } from "drizzle-orm";
 
 import { toOrganizationMember } from "@/auth/mappers.js";
-import { buildLiteralSearchCondition } from "@/services/search.js";
 
 interface ListMembersInput {
   limit: number;
