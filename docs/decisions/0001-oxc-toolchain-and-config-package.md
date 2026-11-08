@@ -18,7 +18,7 @@ TeamOS linted with ESLint + typescript-eslint, formatted with Prettier, built in
 
 - Lint and format run in a fraction of the previous time; every warning now fails the build.
 - No `isolatedDeclarations` (deviation from `hd-infra`): it forced ~2000 lines of hand-written Zod and Drizzle types that restate the schemas. Builds are slightly slower; schemas stay the single source of their types.
-- The React Compiler rules `react/refs` (37 findings) and `react/set-state-in-effect` (9) are off: ESLint never ran them, and fixing them changes behavior. Tracked as a follow-up in `docs/plans/hd-skills-adoption.md`.
+- The React Compiler is on, and `react/refs` and `react/set-state-in-effect` are enforced everywhere except generated shadcn folders (`components/ui`, `src/hooks`).
 - Generated `components/ui` files get a preset override instead of edits (`restrict-template-expressions`, shadcn restyle rules).
 - oxfmt cannot take `..` in `ignorePatterns`, so root ignores live in `.oxfmtignore`.
 - A rule that does not fit TeamOS is changed in `packages/config/oxlint/*`, never inline in an app or with an ignore comment.

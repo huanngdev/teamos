@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MemberListResponse } from "@teamos/shared";
 
@@ -32,17 +32,15 @@ interface WorkspaceMembersState {
 
 function useWorkspaceMembers(options: UseWorkspaceMembersOptions): WorkspaceMembersState {
   const [searchInput, setSearchInput] = useState("");
-  const [page, setPage] = useState(0);
+  const [pageState, setPageState] = useState({ page: 0, search: "" });
   const search = searchInput.trim();
   const debouncedSearch = useDebouncedValue(search, MEMBERS_SEARCH_DEBOUNCE_MS);
 
   /*
-   * A new search term restarts pagination. This runs on the debounced value so
-   * the page only resets once the user stops typing.
+   * A new search term restarts pagination. Deriving the page from the debounced
+   * search avoids an effect that would reset state after the query already ran.
    */
-  useEffect(() => {
-    setPage(0);
-  }, [debouncedSearch]);
+  const page = pageState.search === debouncedSearch ? pageState.page : 0;
 
   const query = useQuery({
     enabled: options.enabled,
@@ -71,7 +69,9 @@ function useWorkspaceMembers(options: UseWorkspaceMembersOptions): WorkspaceMemb
     },
     searchInput,
     searchIsSettling: search !== debouncedSearch,
-    setPage,
+    setPage: (next) => {
+      setPageState({ page: next, search: debouncedSearch });
+    },
     setSearchInput,
     total,
   };

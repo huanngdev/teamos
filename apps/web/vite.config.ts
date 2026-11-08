@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react({ compiler: true }), tailwindcss()],
     define: {
       "import.meta.env.VITE_API_URL": JSON.stringify(parsed.data.VITE_API_URL),
     },

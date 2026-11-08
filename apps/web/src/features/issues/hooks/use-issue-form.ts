@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   issuePrioritySchema,
   type EligibleAssignee,
@@ -64,7 +64,7 @@ function useIssueForm(options: UseIssueFormOptions): IssueFormState & {
   const [selectedAssignees, setAssignees] = useState<EligibleAssignee[]>([]);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
-  const baseline = useRef<IssueFormBaseline>({
+  const [baseline, setBaseline] = useState<IssueFormBaseline>({
     assigneeKey: "",
     priority: "none",
     statusId: "",
@@ -72,14 +72,17 @@ function useIssueForm(options: UseIssueFormOptions): IssueFormState & {
   });
   const createdHandler = useRef(options.onCreated);
   const modeRef = useRef(mode);
-  createdHandler.current = options.onCreated;
-  modeRef.current = mode;
   const trimmedTitle = title.trim();
   const isDirty =
-    title !== baseline.current.title ||
-    priority !== baseline.current.priority ||
-    statusId !== baseline.current.statusId ||
-    issueAssigneeKey(selectedAssignees.map((person) => person.id)) !== baseline.current.assigneeKey;
+    title !== baseline.title ||
+    priority !== baseline.priority ||
+    statusId !== baseline.statusId ||
+    issueAssigneeKey(selectedAssignees.map((person) => person.id)) !== baseline.assigneeKey;
+
+  useEffect(() => {
+    createdHandler.current = options.onCreated;
+    modeRef.current = mode;
+  });
 
   const invalidate = async () => {
     if (options.projectId === null) {
@@ -133,7 +136,7 @@ function useIssueForm(options: UseIssueFormOptions): IssueFormState & {
   });
 
   function remember(next: IssueFormBaseline) {
-    baseline.current = next;
+    setBaseline(next);
   }
 
   function reset() {

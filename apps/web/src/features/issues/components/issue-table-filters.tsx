@@ -1,5 +1,5 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   formatIssueCode,
   getIssuePriorityLabel,
@@ -224,16 +224,17 @@ function NumberRangeFilter({ column }: { column: FilterColumn }) {
   const value = column.getFilterValue();
   const appliedMin = Array.isArray(value) ? displayIssueBound(value[0]) : "";
   const appliedMax = Array.isArray(value) ? displayIssueBound(value[1]) : "";
-  const maxRef = useRef(appliedMax);
-  const minRef = useRef(appliedMin);
+  const rangeRef = useRef({ max: appliedMax, min: appliedMin });
   const [min, setMin] = useDebouncedCommit(appliedMin, (next) => {
-    writeNumberRange(column, next, maxRef.current);
+    writeNumberRange(column, next, rangeRef.current.max);
   });
   const [max, setMax] = useDebouncedCommit(appliedMax, (next) => {
-    writeNumberRange(column, minRef.current, next);
+    writeNumberRange(column, rangeRef.current.min, next);
   });
-  minRef.current = min;
-  maxRef.current = max;
+
+  useEffect(() => {
+    rangeRef.current = { max, min };
+  });
 
   return (
     <div className="flex items-center gap-2 p-1">
@@ -394,10 +395,8 @@ function useDebouncedCommit(
 ): [string, Dispatch<SetStateAction<string>>] {
   const [draft, setDraft] = useState(value);
   const committed = useRef(value);
-  const commitRef = useRef(commit);
-  const draftRef = useRef(draft);
-  commitRef.current = commit;
-  draftRef.current = draft;
+  const commitLatest = useEffectEvent(commit);
+  const readDraft = useEffectEvent(() => draft);
 
   useEffect(() => {
     if (value === committed.current) {
@@ -405,9 +404,6 @@ function useDebouncedCommit(
     }
 
     committed.current = value;
-    // The draft state updates on the next render. Keep the ref in step so
-    // unmount cannot commit the previous keystrokes over this value.
-    draftRef.current = value;
     setDraft(value);
   }, [value]);
 
@@ -418,7 +414,7 @@ function useDebouncedCommit(
 
     const handle = window.setTimeout(() => {
       committed.current = draft;
-      commitRef.current(draft);
+      commitLatest(draft);
     }, filterInputDelayMs);
 
     return () => {
@@ -428,10 +424,11 @@ function useDebouncedCommit(
 
   useEffect(() => {
     return () => {
-      if (draftRef.current !== committed.current) {
-        const next = draftRef.current;
-        committed.current = next;
-        commitRef.current(next);
+      const pending = readDraft();
+
+      if (pending !== committed.current) {
+        committed.current = pending;
+        commitLatest(pending);
       }
     };
   }, []);

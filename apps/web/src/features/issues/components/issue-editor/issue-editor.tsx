@@ -3,7 +3,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
 import type { IssueContentDocument } from "@teamos/shared";
 import { COMPOSITION_END_TAG } from "lexical";
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 
 import { shouldPublishEditorUpdate } from "./editor-update";
 import { issueEditorExtension } from "./extensions";
@@ -49,12 +49,14 @@ function publishedContentKey(content: IssueContentDocument | null, error: string
 
 function IssueEditorSurface({ document, editable, generation, onChange }: IssueEditorProps) {
   const [editor] = useLexicalComposerContext();
-  const onChangeRef = useRef(onChange);
-  const documentRef = useRef(document);
   const published = useRef<string | null>(null);
   const skip = useRef(true);
-  onChangeRef.current = onChange;
-  documentRef.current = document;
+  const readDocument = useEffectEvent(() => document);
+  const publishChange = useEffectEvent(
+    (content: IssueContentDocument | null, error: string | null) => {
+      onChange(content, error);
+    },
+  );
 
   useEffect(() => {
     editor.setEditable(editable);
@@ -62,7 +64,7 @@ function IssueEditorSurface({ document, editable, generation, onChange }: IssueE
 
   useEffect(() => {
     skip.current = true;
-    const state = editor.parseEditorState(editorJson(documentRef.current));
+    const state = editor.parseEditorState(editorJson(readDocument()));
     editor.setEditorState(state);
     const sanitized = sanitizeIssueEditorState(state.toJSON());
     published.current = publishedContentKey(sanitized.content, sanitized.error);
@@ -92,7 +94,7 @@ function IssueEditorSurface({ document, editable, generation, onChange }: IssueE
         }
 
         published.current = key;
-        onChangeRef.current(sanitized.content, sanitized.error);
+        publishChange(sanitized.content, sanitized.error);
       }),
     [editor],
   );

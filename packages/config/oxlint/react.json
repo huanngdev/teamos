@@ -17,8 +17,6 @@
         "allowConstantExport": true
       }
     ],
-    "react/refs": "off",
-    "react/set-state-in-effect": "off",
     "shadcn/no-arbitrary-values": "error",
     "shadcn/no-inline-styles": "error",
     "shadcn/no-raw-colors": "error",
@@ -33,13 +31,15 @@
   },
   "overrides": [
     {
-      "files": ["**/components/ui/**/*.{jsx,tsx}"],
+      "files": ["**/components/ui/**/*.{jsx,tsx}", "**/src/hooks/**/*.{ts,tsx}"],
       "rules": {
         "react/only-export-components": "off",
         "shadcn/no-arbitrary-values": "off",
         "shadcn/no-restyle": "off",
         "shadcn/require-static-classes": "off",
-        "typescript/restrict-template-expressions": "off"
+        "typescript/restrict-template-expressions": "off",
+        "react/refs": "off",
+        "react/set-state-in-effect": "off"
       }
     }
   ]

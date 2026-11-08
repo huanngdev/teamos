@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { functionalUpdate, useTable } from "@tanstack/react-table";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   canPerformProjectAction,
@@ -110,10 +110,7 @@ type IssueTableFacets = NonNullable<Awaited<ReturnType<typeof listIssues>>["face
 function useIssueTable(options: UseIssueTableOptions): IssueTableState {
   const location = useLocation();
   const navigate = useNavigate();
-  const query = useMemo(
-    () => parseIssueTableSearch(new URLSearchParams(location.search)),
-    [location.search],
-  );
+  const query = parseIssueTableSearch(new URLSearchParams(location.search));
   const [searchInput, setSearchInput] = useState(query.q);
   const writtenQuery = useRef(query.q);
   const projectList = useProjectList({
@@ -138,9 +135,9 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
     },
     queryKey: issueKeys(options.organizationSlug, projectId ?? "").statuses(),
   });
-  const listParams = useMemo(
-    () => issueListRequestParams(query, Intl.DateTimeFormat().resolvedOptions().timeZone),
-    [query],
+  const listParams = issueListRequestParams(
+    query,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
   const listed = useQuery({
     enabled: options.enabled && projectId !== null,
@@ -175,10 +172,7 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
     organizationSlug: options.organizationSlug,
     projectId,
   });
-  const rows = useMemo(
-    () => buildIssueTableRows(issues, statusList, memberList),
-    [issues, memberList, statusList],
-  );
+  const rows = buildIssueTableRows(issues, statusList, memberList);
   const [columnPinning, setColumnPinning] = useState(() =>
     withSelectColumnPinned({ end: [], start: [] }),
   );
@@ -250,10 +244,10 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
     void navigate({ pathname: location.pathname, search }, { replace: true });
   };
 
-  const queryRef = useRef(query);
-  const commitRef = useRef(commit);
-  queryRef.current = query;
-  commitRef.current = commit;
+  const readQuery = useEffectEvent(() => query);
+  const commitLatest = useEffectEvent((next: IssueTableQuery) => {
+    commit(next);
+  });
 
   useEffect(() => {
     if (query.q === writtenQuery.current) {
@@ -267,13 +261,13 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
   useEffect(() => {
     const handle = window.setTimeout(() => {
       const next = searchInput.trim();
-      const current = queryRef.current;
+      const current = readQuery();
 
       if (next === current.q) {
         return;
       }
 
-      commitRef.current({ ...current, pageIndex: 0, q: next });
+      commitLatest({ ...current, pageIndex: 0, q: next });
     }, searchDelayMs);
 
     return () => {
@@ -386,18 +380,18 @@ function useIssueTable(options: UseIssueTableOptions): IssueTableState {
       return;
     }
 
-    const current = queryRef.current;
+    const current = query;
 
     if (pageCount === 0) {
       if (current.pageIndex !== 0) {
-        commitRef.current({ ...current, pageIndex: 0 });
+        commitLatest({ ...current, pageIndex: 0 });
       }
 
       return;
     }
 
     if (current.pageIndex >= pageCount) {
-      commitRef.current({ ...current, pageIndex: pageCount - 1 });
+      commitLatest({ ...current, pageIndex: pageCount - 1 });
     }
   }, [isReady, pageCount, query]);
 

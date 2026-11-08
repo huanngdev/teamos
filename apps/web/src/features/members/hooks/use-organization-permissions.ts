@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import {
   canAssignOrganizationRole,
   canManageOrganizationMember,
@@ -20,16 +19,13 @@ interface OrganizationPermissions {
 }
 
 function useOrganizationPermissions(actorRole: OrganizationRole): OrganizationPermissions {
-  return useMemo(
-    () => ({
-      canAssignRole: (role: string) => canAssignOrganizationRole(actorRole, role),
-      canInviteMembers: isOrganizationAdministrator(actorRole),
-      canManageMember: (memberRole: OrganizationRole) =>
-        canManageOrganizationMember(actorRole, memberRole),
-      canViewInvitations: canViewPendingInvitations(actorRole),
-    }),
-    [actorRole],
-  );
+  return {
+    canAssignRole: (role: string) => canAssignOrganizationRole(actorRole, role),
+    canInviteMembers: isOrganizationAdministrator(actorRole),
+    canManageMember: (memberRole: OrganizationRole) =>
+      canManageOrganizationMember(actorRole, memberRole),
+    canViewInvitations: canViewPendingInvitations(actorRole),
+  };
 }
 
 export { useOrganizationPermissions, type OrganizationPermissions };

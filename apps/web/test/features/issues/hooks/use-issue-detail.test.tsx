@@ -1,10 +1,10 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { IssueContentDocument, IssueDetail } from "@teamos/shared";
 import { http, HttpResponse } from "msw";
 import { useState } from "react";
-import { Route, Routes } from "react-router";
-import { beforeEach, expect, test } from "vitest";
+import { Route, Routes, useNavigate } from "react-router";
+import { beforeEach, expect, test, vi } from "vitest";
 
 import { apiUrl } from "@/shared";
 import { renderWithProviders } from "../../../support/render-app";
@@ -67,6 +67,7 @@ const emptyEnter = documentWith(["", ""]);
 function issueFixture(
   content: IssueContentDocument | null,
   updatedAt = initialUpdatedAt,
+  overrides: Partial<Pick<IssueDetail, "id" | "number" | "title">> = {},
 ): IssueDetail {
   return {
     assignees: [],
@@ -80,6 +81,7 @@ function issueFixture(
     statusId,
     title: "Gate",
     updatedAt,
+    ...overrides,
   };
 }
 
@@ -164,6 +166,7 @@ function installIssueServer(issueServer: IssueServer, patches: unknown[]) {
 
 function DetailHarness() {
   const detail = useIssueDetail();
+  const navigate = useNavigate();
   const [copy, setCopy] = useState(0);
 
   if (detail.status !== "ready") {
@@ -179,6 +182,23 @@ function DetailHarness() {
       <p data-testid="save">{view.saveLabel ?? ""}</p>
       <p data-testid="dirty">{view.isDirty ? "dirty" : "clean"}</p>
       <p data-testid="copy">{copy}</p>
+      <p data-testid="title">{view.title}</p>
+      <button
+        onClick={() => {
+          view.onTitle("Local draft");
+        }}
+        type="button"
+      >
+        Rename locally
+      </button>
+      <button
+        onClick={() => {
+          void navigate("/w/acme/p/apollo/issues/I-0002");
+        }}
+        type="button"
+      >
+        Open second issue
+      </button>
       <button
         onClick={() => {
           view.onContent(blankLines, null);
@@ -470,4 +490,114 @@ test("does not write content for a selection-only update", async () => {
   });
   expect(patches).toEqual([]);
   expect(screen.getByTestId("generation")).toHaveTextContent("1");
+});
+
+function useReadOnlyProject() {
+  server.use(
+    http.get(`${apiUrl}/api/organizations/acme/projects`, () =>
+      HttpResponse.json({ projects: [{ ...projectResponse.projects[0], role: "viewer" }] }),
+    ),
+  );
+}
+
+test("shows the next issue's server values without a conflict after navigation", async () => {
+  const second = issueFixture(documentWith(["Second", "Issue"]), "2026-01-02T00:00:01.000Z", {
+    id: "issue-2",
+    number: "2",
+    title: "Second gate",
+  });
+
+  server.use(
+    http.get(
+      `${apiUrl}/api/organizations/acme/projects/${projectId}/issues/by-number/:number`,
+      ({ params }) =>
+        HttpResponse.json({ issue: params.number === "2" ? second : issueFixture(notes) }),
+    ),
+  );
+
+  renderDetail();
+  expect(await screen.findByTestId("paragraphs")).toHaveTextContent("1");
+  expect(screen.getByTestId("title")).toHaveTextContent("Gate");
+
+  await userEvent.click(screen.getByRole("button", { name: "Open second issue" }));
+
+  await waitFor(() => {
+    expect(screen.getByTestId("title")).toHaveTextContent("Second gate");
+    expect(screen.getByTestId("paragraphs")).toHaveTextContent("2");
+  });
+  expect(screen.getByTestId("dirty")).toHaveTextContent("clean");
+  expect(screen.getByTestId("save")).not.toHaveTextContent("somewhere else");
+});
+
+test("conflicts on a newer server revision while the draft is dirty", async () => {
+  const patches: unknown[] = [];
+  const issueServer: IssueServer = {
+    holdFirst: false,
+    lag: false,
+    mode: "ok",
+    release: null,
+    snapshot: issueFixture(notes),
+    stored: issueFixture(notes),
+  };
+
+  useReadOnlyProject();
+  installIssueServer(issueServer, patches);
+  const { queryClient } = renderDetail();
+
+  await screen.findByTestId("generation");
+  await userEvent.click(screen.getByRole("button", { name: "Rename locally" }));
+  expect(screen.getByTestId("dirty")).toHaveTextContent("dirty");
+
+  issueServer.stored = issueFixture(notes, "2026-01-02T00:00:03.000Z");
+  await act(async () => {
+    await queryClient.invalidateQueries({
+      predicate: (query) => query.queryKey.includes("by-number"),
+    });
+  });
+
+  await waitFor(() => {
+    expect(screen.getByTestId("save")).toHaveTextContent("somewhere else");
+  });
+  expect(screen.getByTestId("title")).toHaveTextContent("Local draft");
+  expect(screen.getByTestId("dirty")).toHaveTextContent("dirty");
+});
+
+test("typing while the cache is unchanged keeps the draft and the title", async () => {
+  const patches: unknown[] = [];
+  const issueServer: IssueServer = {
+    holdFirst: false,
+    lag: false,
+    mode: "ok",
+    release: null,
+    snapshot: issueFixture(notes),
+    stored: issueFixture(notes),
+  };
+
+  useReadOnlyProject();
+  installIssueServer(issueServer, patches);
+  const getItem = vi.spyOn(Storage.prototype, "getItem");
+  const draftReads = () =>
+    getItem.mock.calls.filter(([key]) => key.startsWith("teamos:issue-draft:")).length;
+
+  renderDetail();
+  await screen.findByTestId("generation");
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Rename locally" }));
+  const readsAfterLoad = draftReads();
+
+  fireEvent.click(screen.getByRole("button", { name: "Type again" }));
+  expect(screen.getByTestId("paragraphs")).toHaveTextContent("6");
+  fireEvent.click(screen.getByRole("button", { name: "Add blank lines" }));
+  expect(screen.getByTestId("paragraphs")).toHaveTextContent("5");
+  fireEvent.click(screen.getByRole("button", { name: "Enter on empty" }));
+  expect(screen.getByTestId("paragraphs")).toHaveTextContent("2");
+
+  expect(screen.getByTestId("save")).not.toHaveTextContent("somewhere else");
+  expect(screen.getByTestId("title")).toHaveTextContent("Local draft");
+  expect(draftReads()).toBe(readsAfterLoad);
+
+  getItem.mockRestore();
 });
