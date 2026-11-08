@@ -1,6 +1,6 @@
 # TeamOS Progress
 
-Last updated: 2026-10-03
+Last updated: 2026-11-08
 
 This file is the product snapshot: what is coded, what is finished, which HTTP APIs exist, and what each UI route does. OpenAPI at `/openapi.json` remains the machine-readable contract. Do not mark a feature complete here until its persistence, authorization, tests, and user-facing flow all exist.
 
@@ -15,6 +15,10 @@ DEV-55: acknowledging an autosave keeps intentional blank lines and does not rem
 Selecting text and pressing Bold, Italic, or Inline code keeps the format toolbar open (DEV-54).
 
 Labels, comments, and realtime are still open. The next roadmap milestone is M2 in `docs/plans/product-roadmap.md`.
+
+## Engineering baseline
+
+The repo follows the owner `hd-*` skills (`docs/plans/hd-skills-adoption.md`): oxlint, oxfmt, tsdown, and `packages/config` (ADR 0001); tests in `<workspace>/test/` on Vitest (ADR 0002); Opus coordinates and DeepSeek implements through Orca (ADR 0003). `bun run check` includes `format:check`.
 
 ## What is finished
 

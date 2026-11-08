@@ -2,6 +2,7 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "@teamos/config/tsconfig/vite-react.json",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./src/*"]
     }

@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 
-import { envSchema } from "./env.schema";
+import { envSchema } from "./env.schema.ts";
 
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 

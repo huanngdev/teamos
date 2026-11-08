@@ -7,8 +7,8 @@ import vitestBaseConfig from "@teamos/config/vitest/base";
 import { loadEnv } from "vite";
 import { defineConfig, mergeConfig } from "vitest/config";
 
-import { envSchema } from "./env.schema";
-import viteConfig from "./vite.config";
+import { envSchema } from "./env.schema.ts";
+import viteConfig from "./vite.config.ts";
 
 export default defineConfig((configEnv) => {
   // vite.config.ts already rejects an invalid env, so this parse cannot fail.
