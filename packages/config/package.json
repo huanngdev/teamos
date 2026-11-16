@@ -9,6 +9,6 @@
     "./package.json": "./package.json"
   },
   "devDependencies": {
-    "@shadcn/lint": "^0.2.0"
+    "@shadcn/lint": "^0.2.5"
   }
 }
